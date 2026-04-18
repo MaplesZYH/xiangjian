@@ -1075,10 +1075,13 @@
                                   :key="record.progressId"
                                   type="success"
                                   :title="record.operateTime?.replace('T', ' ')"
-                                  :content="
-                                    record.description || '施工进度更新'
-                                  "
                                 >
+                                  <div
+                                    v-if="record.description"
+                                    class="flow-node-record-description"
+                                  >
+                                    {{ record.description }}
+                                  </div>
                                   <div class="timeline-images">
                                     <n-image-group>
                                       <n-space>
@@ -3187,6 +3190,17 @@ onBeforeUnmount(() => {
 .flow-node-timeline {
   max-height: 400px;
   margin-bottom: 20px;
+}
+.flow-node-record-description {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .timeline-images {
   margin-top: 8px;

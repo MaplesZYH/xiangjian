@@ -253,6 +253,91 @@
               </n-card>
             </div>
 
+            <div v-if="activeMenu === 'designOrders'">
+              <n-card title="设计订单">
+                <div class="client-center-toolbar-end">
+                  <n-button size="small" @click="fetchDesignOrders">刷新列表</n-button>
+                </div>
+                <div class="order-table-wrap">
+                  <n-spin :show="loadingDesignOrders">
+                    <div
+                      v-if="designOrderList.length > 0"
+                      class="order-list-table client-center-paper"
+                    >
+                      <div class="order-list-table__head">
+                        <div>设计单号</div>
+                        <div>设计地址</div>
+                        <div>设计状态</div>
+                        <div>支付状态</div>
+                        <div>操作</div>
+                      </div>
+                      <div
+                        v-for="row in designOrderList"
+                        :key="row.id"
+                        class="order-list-table__row"
+                      >
+                        <div class="order-list-table__cell">
+                          <span class="order-list-table__label">设计单号</span>
+                          <span>{{ row.designOrderNo || '--' }}</span>
+                        </div>
+                        <div class="order-list-table__cell">
+                          <span class="order-list-table__label">设计地址</span>
+                          <span>{{ row.orderAddress || '--' }}</span>
+                        </div>
+                        <div class="order-list-table__cell">
+                          <span class="order-list-table__label">设计状态</span>
+                          <n-tag
+                            :type="getDesignOrderStatusType(row.designStatus)"
+                            size="small"
+                          >
+                            {{ getDesignOrderStatusText(row.designStatus) }}
+                          </n-tag>
+                        </div>
+                        <div class="order-list-table__cell">
+                          <span class="order-list-table__label">支付状态</span>
+                          <n-tag
+                            :type="getPaymentStatusType(row.paymentStatus)"
+                            size="small"
+                            :bordered="false"
+                          >
+                            {{ formatPaymentStatus(row.paymentStatus) }}
+                          </n-tag>
+                        </div>
+                        <div class="order-list-table__cell order-list-table__cell--actions">
+                          <span class="order-list-table__label">操作</span>
+                          <div class="order-list-table__actions">
+                            <n-button
+                              size="small"
+                              type="info"
+                              @click="openDesignOrderDetail(row)"
+                            >
+                              详情
+                            </n-button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="client-center-empty-card">
+                      <n-empty description="当前暂无设计订单" />
+                    </div>
+                  </n-spin>
+                </div>
+                <div
+                  v-if="designPagination.itemCount > 0"
+                  class="order-pagination client-center-pagination"
+                >
+                  <n-pagination
+                    v-model:page="designPagination.page"
+                    :page-size="designPagination.pageSize"
+                    :item-count="designPagination.itemCount"
+                    :page-slot="3"
+                    show-quick-jumper
+                    @update:page="handleDesignPageChange"
+                  />
+                </div>
+              </n-card>
+            </div>
+
             <div v-if="activeMenu === 'favorites'">
               <n-card title="收藏户型">
                 <div class="client-center-toolbar-end">
@@ -646,8 +731,13 @@
                             :key="record.progressId"
                             type="info"
                             :title="record.operateTime?.replace('T', ' ')"
-                            :content="record.description || '施工记录更新'"
                           >
+                            <div
+                              v-if="record.description"
+                              class="timeline-record-description"
+                            >
+                              {{ record.description }}
+                            </div>
                             <div class="timeline-image-group">
                               <n-image-group>
                                 <n-space>
@@ -846,6 +936,117 @@
             >
           </div>
           <n-button @click="showDetailModal = false">关闭</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showDesignDetailModal"
+      preset="card"
+      title="设计订单详情"
+      :style="detailModalStyle"
+    >
+      <n-spin :show="loadingDesignDetail">
+        <div v-if="currentDesignOrder" class="design-detail-panel">
+          <n-descriptions
+            bordered
+            size="small"
+            :column="detailDescriptionsColumns"
+            :label-placement="descriptionsLabelPlacement"
+          >
+            <n-descriptions-item label="设计单号">
+              {{ currentDesignOrder.designOrderNo || '--' }}
+            </n-descriptions-item>
+            <n-descriptions-item label="设计状态">
+              <n-tag
+                :type="getDesignOrderStatusType(currentDesignOrder.designStatus)"
+                size="small"
+              >
+                {{ getDesignOrderStatusText(currentDesignOrder.designStatus) }}
+              </n-tag>
+            </n-descriptions-item>
+            <n-descriptions-item label="支付状态">
+              <n-tag
+                :type="getPaymentStatusType(currentDesignOrder.paymentStatus)"
+                size="small"
+                :bordered="false"
+              >
+                {{ formatPaymentStatus(currentDesignOrder.paymentStatus) }}
+              </n-tag>
+            </n-descriptions-item>
+            <n-descriptions-item label="设计地址">
+              {{ currentDesignOrder.orderAddress || '--' }}
+            </n-descriptions-item>
+            <n-descriptions-item label="设计定金">
+              ¥{{ formatAmount(currentDesignOrder.depositAmount) }}
+            </n-descriptions-item>
+            <n-descriptions-item label="已支付金额">
+              ¥{{ formatAmount(currentDesignOrder.paidAmount) }}
+            </n-descriptions-item>
+            <n-descriptions-item label="关联建房订单">
+              {{ currentDesignOrder.buildOrderId || '--' }}
+            </n-descriptions-item>
+            <n-descriptions-item label="创建时间">
+              {{ formatDateTime(currentDesignOrder.createTime) }}
+            </n-descriptions-item>
+          </n-descriptions>
+
+          <n-divider title-placement="left">设计交付文件</n-divider>
+          <div
+            v-if="currentDesignOrder.deliveryFiles?.length"
+            class="design-file-list"
+          >
+            <a
+              v-for="(file, index) in currentDesignOrder.deliveryFiles"
+              :key="`delivery-${file.fileUrl || index}`"
+              class="design-file-link"
+              :href="file.fileUrl"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {{ getDesignFileLabel(file, index, '设计图') }}
+            </a>
+          </div>
+          <n-empty v-else description="暂未上传设计交付文件" />
+
+          <n-divider title-placement="left">补充反馈文件</n-divider>
+          <div
+            v-if="currentDesignOrder.finalFeedbackFiles?.length"
+            class="design-file-list"
+          >
+            <a
+              v-for="(file, index) in currentDesignOrder.finalFeedbackFiles"
+              :key="`feedback-${file.fileUrl || index}`"
+              class="design-file-link"
+              :href="file.fileUrl"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {{ getDesignFileLabel(file, index, '补充文件') }}
+            </a>
+          </div>
+          <n-empty v-else description="暂无补充反馈文件" />
+        </div>
+      </n-spin>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button
+            v-if="canMarkDesignOrderNoBuild(currentDesignOrder)"
+            :loading="designDecisionSubmitting"
+            @click="handleMarkDesignOrderNoBuild"
+          >
+            暂不建造
+          </n-button>
+          <n-button
+            v-if="canContinueBuildDesignOrder(currentDesignOrder)"
+            type="primary"
+            :loading="designDecisionSubmitting"
+            @click="handleContinueBuildFromDesign"
+          >
+            继续建房
+          </n-button>
+          <n-button @click="showDesignDetailModal = false">关闭</n-button>
         </n-space>
       </template>
     </n-modal>
@@ -1129,6 +1330,7 @@ import {
 } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import orderAPI from '@/api/user/userOrder.js'
+import designOrderAPI from '@/api/user/designOrder'
 import ConstructionAPI from '@/api/house/construction.js'
 import {
   AUTH_SCOPE_USER,
@@ -1143,6 +1345,7 @@ import {
   Time,
   DocumentTextOutline,
   CardOutline,
+  ColorPaletteOutline,
   PersonCircleOutline,
   HeartOutline,
   ArrowUndoCircleOutline,
@@ -1205,6 +1408,17 @@ const {
   refundSubmitting,
 } = storeToRefs(orderStore)
 const pagination = orderStore.pagination
+const loadingDesignOrders = ref(false)
+const designOrderList = ref([])
+const designPagination = reactive({
+  page: 1,
+  pageSize: 10,
+  itemCount: 0,
+})
+const showDesignDetailModal = ref(false)
+const loadingDesignDetail = ref(false)
+const currentDesignOrder = ref(null)
+const designDecisionSubmitting = ref(false)
 
 const renderMenuIcon = (icon) => () =>
   h(NIcon, null, {
@@ -1223,6 +1437,12 @@ const mobileMenuItems = [
     description: '订单与支付',
     key: 'orders',
     icon: DocumentTextOutline,
+  },
+  {
+    label: '设计订单',
+    description: '设计与交付',
+    key: 'designOrders',
+    icon: ColorPaletteOutline,
   },
   {
     label: '收藏户型',
@@ -1330,6 +1550,15 @@ const paymentModalTitle = computed(() =>
 const currentOrderPaymentStatus = computed(() =>
   getOrderPaymentStatus(currentOrder.value),
 )
+
+const designOrderStatusMap = {
+  0: '待支付定金',
+  1: '设计中',
+  2: '待用户决策',
+  3: '已转建房',
+  4: '暂不建房',
+  5: '已取消',
+}
 
 const getOrderPaymentPreviewText = () => '以公司实际要求为准'
 
@@ -2673,6 +2902,158 @@ const fetchOrders = async () => {
   }
 }
 
+const getDesignOrderStatusText = (status) =>
+  designOrderStatusMap[Number(status)] || '未知状态'
+
+const getDesignOrderStatusType = (status) => {
+  const numericStatus = Number(status)
+  if (numericStatus === 0) return 'warning'
+  if (numericStatus === 1) return 'info'
+  if (numericStatus === 2) return 'success'
+  if (numericStatus === 3) return 'primary'
+  if (numericStatus === 4) return 'default'
+  if (numericStatus === 5) return 'error'
+  return 'default'
+}
+
+const getDesignFileLabel = (file, index, fallbackPrefix = '文件') => {
+  const fileUrl = String(file?.fileUrl || '').trim()
+  if (!fileUrl) {
+    return `${fallbackPrefix}${index + 1}`
+  }
+
+  const rawName = fileUrl.split('/').pop() || ''
+  return decodeURIComponent(rawName) || `${fallbackPrefix}${index + 1}`
+}
+
+const canContinueBuildDesignOrder = (order) =>
+  Boolean(order?.canConvertToBuild)
+
+const canMarkDesignOrderNoBuild = (order) =>
+  Number(order?.designStatus) === 2 && !order?.buildOrderId
+
+const fetchDesignOrders = async () => {
+  const userId = getStoredUserId()
+  if (!userId) {
+    designOrderList.value = []
+    designPagination.itemCount = 0
+    return
+  }
+
+  loadingDesignOrders.value = true
+  try {
+    const res = await designOrderAPI.getList({
+      page: designPagination.page,
+      pageSize: designPagination.pageSize,
+      userId,
+    })
+
+    if (res.code !== 200 || !res.data) {
+      designOrderList.value = []
+      designPagination.itemCount = 0
+      message.error(res?.msg || '获取设计订单失败')
+      return
+    }
+
+    const rows = Array.isArray(res.data.records)
+      ? res.data.records
+      : Array.isArray(res.data.rows)
+        ? res.data.rows
+        : []
+
+    designOrderList.value = rows
+    designPagination.itemCount = Number(res.data.total || rows.length)
+  } catch (error) {
+    void error
+    designOrderList.value = []
+    designPagination.itemCount = 0
+    message.error('获取设计订单失败')
+  } finally {
+    loadingDesignOrders.value = false
+  }
+}
+
+const openDesignOrderDetail = async (row) => {
+  const userId = getStoredUserId()
+  if (!userId || !row?.id) {
+    message.error('未找到有效的设计订单')
+    return
+  }
+
+  showDesignDetailModal.value = true
+  loadingDesignDetail.value = true
+  currentDesignOrder.value = {
+    ...row,
+  }
+
+  try {
+    const res = await designOrderAPI.getDetail(row.id, userId)
+    if (res.code === 200 && res.data) {
+      currentDesignOrder.value = {
+        ...row,
+        ...res.data,
+      }
+      return
+    }
+    message.error(res?.msg || '获取设计订单详情失败')
+  } catch (error) {
+    void error
+    message.error('获取设计订单详情失败')
+  } finally {
+    loadingDesignDetail.value = false
+  }
+}
+
+const handleContinueBuildFromDesign = async () => {
+  const userId = getStoredUserId()
+  const designOrderId = currentDesignOrder.value?.id
+  if (!userId || !designOrderId) return
+
+  designDecisionSubmitting.value = true
+  try {
+    const res = await designOrderAPI.continueBuild(designOrderId, userId)
+    if (res.code === 200) {
+      message.success('已从设计订单继续创建建房订单')
+      showDesignDetailModal.value = false
+      await fetchDesignOrders()
+      await fetchOrders()
+      return
+    }
+    message.error(res?.msg || '继续建房失败')
+  } catch (error) {
+    void error
+    message.error('继续建房失败')
+  } finally {
+    designDecisionSubmitting.value = false
+  }
+}
+
+const handleMarkDesignOrderNoBuild = async () => {
+  const userId = getStoredUserId()
+  const designOrderId = currentDesignOrder.value?.id
+  if (!userId || !designOrderId) return
+
+  designDecisionSubmitting.value = true
+  try {
+    const res = await designOrderAPI.markNoBuildForNow(designOrderId, userId)
+    if (res.code === 200) {
+      currentDesignOrder.value = {
+        ...currentDesignOrder.value,
+        ...res.data,
+      }
+      message.success('该设计订单已标记为暂不建房')
+      await fetchDesignOrders()
+      return
+    }
+    message.error(res?.msg || '操作失败')
+  } catch (error) {
+    void error
+    message.error('操作失败')
+  } finally {
+    designDecisionSubmitting.value = false
+  }
+}
+
 const viewOrderDetail = async (row, initialTab = 'info') => {
   detailTab.value = initialTab
   const userId = getStoredUserId()
@@ -2917,6 +3298,11 @@ const handlePageChange = (page) => {
   fetchOrders()
 }
 
+const handleDesignPageChange = (page) => {
+  designPagination.page = page
+  fetchDesignOrders()
+}
+
 watch(
   userName,
   (name) => {
@@ -2943,6 +3329,9 @@ onMounted(() => {
   if (activeMenu.value === 'orders') {
     fetchOrders()
   }
+  if (activeMenu.value === 'designOrders') {
+    fetchDesignOrders()
+  }
   if (activeMenu.value === 'favorites') {
     fetchFavorites()
   }
@@ -2952,6 +3341,10 @@ watch(activeMenu, (newVal) => {
   if (newVal === 'orders') {
     pagination.page = 1
     fetchOrders()
+  }
+  if (newVal === 'designOrders') {
+    designPagination.page = 1
+    fetchDesignOrders()
   }
   if (newVal === 'favorites') {
     favoritePagination.page = 1
@@ -3156,6 +3549,17 @@ onBeforeUnmount(() => {
 }
 .construction-timeline {
   max-height: 400px;
+}
+.timeline-record-description {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .timeline-image-group {
   margin-top: 8px;
@@ -3549,6 +3953,30 @@ onBeforeUnmount(() => {
   .detail-payment-records-actions :deep(.n-button) {
     width: 100%;
   }
+}
+
+.design-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.design-file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.design-file-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: rgba(39, 110, 61, 0.08);
+  color: #276e3d;
+  font-weight: 600;
+  text-decoration: none;
 }
 
 @media (max-width: 576px) {

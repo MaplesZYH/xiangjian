@@ -7,6 +7,12 @@ export const ADMIN_MENU_CONFIG = [
     path: '/manageUser-DetailsOrder',
     permission: 'order:list',
   },
+  {
+    id: 8,
+    name: '设计订单',
+    path: '/manageDesignOrder',
+    permission: 'order:list',
+  },
   { id: 4, name: '商户管理', path: '/manageServer', permission: 'vendor:list' },
   {
     id: 5,

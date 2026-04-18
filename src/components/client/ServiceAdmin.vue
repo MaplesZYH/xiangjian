@@ -701,24 +701,79 @@
                       <div
                         class="service-upload-panel"
                       >
+                        <n-input
+                          v-model:value="uploadNodeDescription"
+                          type="textarea"
+                          :rows="3"
+                          maxlength="500"
+                          placeholder="请输入本次施工情况描述（选填）"
+                          :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
+                          class="service-upload-panel__input"
+                        />
                         <n-upload
-                          action="#"
-                          :custom-request="handleUploadNodePhoto"
+                          v-model:file-list="uploadNodeFileList"
+                          :default-upload="false"
                           :show-file-list="false"
                           accept=".jpg,.jpeg,.png"
-                          :disabled="!canUploadCurrentNode"
+                          multiple
+                          :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
                         >
                           <n-button
-                            type="primary"
+                            secondary
                             size="small"
-                            :disabled="!canUploadCurrentNode"
+                            :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
+                            class="service-upload-panel__trigger"
                           >
                             <template #icon
                               ><n-icon><CloudUploadOutline /></n-icon
                             ></template>
-                            上传节点照片
+                            选择施工图片
                           </n-button>
                         </n-upload>
+                        <div
+                          v-if="uploadNodeFileList.length"
+                          class="service-upload-panel__preview-list"
+                        >
+                          <div
+                            v-for="file in uploadNodeFileList"
+                            :key="file.id"
+                            class="service-upload-panel__preview-item"
+                          >
+                            <div class="service-upload-panel__preview-image-wrap">
+                              <n-image
+                                :src="getUploadNodePreviewUrl(file)"
+                                object-fit="cover"
+                                class="service-upload-panel__preview-image"
+                              />
+                              <n-button
+                                circle
+                                size="tiny"
+                                type="error"
+                                class="service-upload-panel__preview-remove"
+                                :disabled="nodeUploadSubmitting"
+                                @click="removeUploadNodeFile(file.id)"
+                              >
+                                <template #icon>
+                                  <n-icon><CloseCircle /></n-icon>
+                                </template>
+                              </n-button>
+                            </div>
+                            <div class="service-upload-panel__preview-name">
+                              {{ file.name }}
+                            </div>
+                          </div>
+                        </div>
+                        <div class="service-upload-panel__actions">
+                          <n-button
+                            type="primary"
+                            size="small"
+                            :loading="nodeUploadSubmitting"
+                            :disabled="!canUploadCurrentNode"
+                            @click="submitNodeUpload"
+                          >
+                            提交并上传
+                          </n-button>
+                        </div>
                         <div class="service-upload-panel__tip">
                           {{ uploadNodeTipText }}
                         </div>
@@ -731,8 +786,13 @@
                             :key="record.progressId"
                             type="success"
                             :title="record.operateTime?.replace('T', ' ')"
-                            :content="record.description || '施工进度更新'"
                           >
+                            <div
+                              v-if="record.description"
+                              class="service-flow-record-description"
+                            >
+                              {{ record.description }}
+                            </div>
                             <div class="service-flow-image-group">
                               <n-image-group>
                                 <n-space>
@@ -886,6 +946,10 @@ const canCancelVendorOrder = (row) =>
   Number(row?.orderStatus) === 1 && !isDispatchStageLockedForVendor(row)
 
 const activeMenu = ref('company') // company | orders | logout
+const uploadNodeDescription = ref('')
+const uploadNodeFileList = ref([])
+const uploadNodePreviewUrlMap = ref({})
+const nodeUploadSubmitting = ref(false)
 const isCompactViewport = useMaxWidth(768)
 const formLabelPlacement = computed(() =>
   isCompactViewport.value ? 'top' : 'left',
@@ -1462,9 +1526,9 @@ const uploadNodeTipText = computed(() => {
 
   if (canUploadCurrentNode.value) {
     if (currentNodeStatusCode.value === CONSTRUCTION_NODE_STATUS.WAIT_PLATFORM_AUDIT) {
-      return '当前节点已上传待审核，如需替换图片，可删除后直接重新上传'
+      return '当前节点已提交待审核，如需替换图片或补充说明，可删除原记录后重新提交'
     }
-    return '请上传现场施工照片以推进进度（支持 JPG/PNG）'
+    return '请先选择施工阶段图片进行预览，再选填情况描述，最后统一提交'
   }
 
   return `当前节点状态为“${
@@ -1567,40 +1631,99 @@ const getOrderStatusText = (status) => {
   return map[status] || '未知'
 }
 
-// 上传节点照片
-const handleUploadNodePhoto = async ({ file, onFinish, onError }) => {
+const resetNodeUploadForm = () => {
+  uploadNodeDescription.value = ''
+  uploadNodeFileList.value = []
+}
+
+const syncUploadNodePreviewUrls = () => {
+  const nextMap = {}
+
+  uploadNodeFileList.value.forEach((item) => {
+    const fileId = String(item?.id || '')
+    if (!fileId) return
+
+    const resolvedUrl = item.thumbnailUrl || item.url
+    if (resolvedUrl) {
+      const previous = uploadNodePreviewUrlMap.value[fileId]
+      if (previous?.isObjectUrl) {
+        URL.revokeObjectURL(previous.url)
+      }
+      nextMap[fileId] = {
+        url: resolvedUrl,
+        isObjectUrl: false,
+      }
+      return
+    }
+
+    if (item.file instanceof File) {
+      const previous = uploadNodePreviewUrlMap.value[fileId]
+      nextMap[fileId] = previous || {
+        url: URL.createObjectURL(item.file),
+        isObjectUrl: true,
+      }
+    }
+  })
+
+  Object.entries(uploadNodePreviewUrlMap.value).forEach(([fileId, entry]) => {
+    if (!nextMap[fileId] && entry?.isObjectUrl) {
+      URL.revokeObjectURL(entry.url)
+    }
+  })
+
+  uploadNodePreviewUrlMap.value = nextMap
+}
+
+const getUploadNodePreviewUrl = (file) =>
+  uploadNodePreviewUrlMap.value[String(file?.id || '')]?.url || ''
+
+const removeUploadNodeFile = (fileId) => {
+  uploadNodeFileList.value = uploadNodeFileList.value.filter(
+    (item) => String(item?.id || '') !== String(fileId),
+  )
+}
+
+const submitNodeUpload = async () => {
   if (!currentNodeDetail.value || !vendorInfo.value.id) return
   if (!canUploadCurrentNode.value) {
     message.warning(uploadNodeTipText.value)
-    onError()
     return
   }
 
-  // 构造参数：必须与修复后的API匹配（params传id, data传file）
+  const files = uploadNodeFileList.value
+    .map((item) => item.file)
+    .filter((file) => file instanceof File)
+
+  if (files.length === 0) {
+    message.warning('请先选择至少一张施工图片')
+    return
+  }
+
   const params = {
     orderId: currentOrderDetail.value.orderId,
     nodeId: currentNodeDetail.value.nodeId,
     vendorId: vendorInfo.value.id,
-    description: '服务商上传施工图',
-    file: file.file,
+    description: String(uploadNodeDescription.value || '').trim(),
+    files,
   }
 
+  nodeUploadSubmitting.value = true
   try {
     const res = await ConstructionAPI.uploadNodePhoto(params)
     if (res.code === 200) {
       message.success('上传成功')
-      onFinish()
+      resetNodeUploadForm()
       vendorOrderStore.invalidateConstructionFlowCache(currentOrderDetail.value.orderId)
       await loadConstructionFlow(currentOrderDetail.value.orderId)
       await handleNodeClick({ nodeId: currentNodeDetail.value.nodeId })
       await refreshVendorOrders()
     } else {
       message.error(res.msg || '上传失败')
-      onError()
     }
   } catch (e) {
     message.error('上传异常')
-    onError()
+  } finally {
+    nodeUploadSubmitting.value = false
   }
 }
 
@@ -1700,8 +1823,37 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  Object.values(uploadNodePreviewUrlMap.value).forEach((entry) => {
+    if (entry?.isObjectUrl) {
+      URL.revokeObjectURL(entry.url)
+    }
+  })
   closePendingOrderNotification()
 })
+
+watch(
+  () => currentNodeDetail.value?.nodeId,
+  () => {
+    resetNodeUploadForm()
+  },
+)
+
+watch(
+  uploadNodeFileList,
+  () => {
+    syncUploadNodePreviewUrls()
+  },
+  { deep: true },
+)
+
+watch(
+  () => showOrderModal.value,
+  (show) => {
+    if (!show) {
+      resetNodeUploadForm()
+    }
+  },
+)
 
 watch(
   () => [
@@ -2007,6 +2159,59 @@ watch(
   border: 1px solid var(--color-border-soft);
   border-radius: 4px;
 
+  &__input {
+    margin-bottom: 12px;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+
+  &__trigger {
+    white-space: nowrap;
+  }
+
+  &__preview-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  &__preview-item {
+    min-width: 0;
+  }
+
+  &__preview-image-wrap {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--color-border-soft);
+    background: #fff;
+  }
+
+  &__preview-image {
+    width: 100%;
+    height: 120px;
+    display: block;
+  }
+
+  &__preview-remove {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+
+  &__preview-name {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
   :deep(.n-button) {
     min-height: 42px;
   }
@@ -2020,6 +2225,18 @@ watch(
 
 .service-flow-timeline {
   max-height: 400px;
+}
+
+.service-flow-record-description {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .service-flow-image-group {
@@ -2285,6 +2502,10 @@ watch(
 
   .service-upload-panel :deep(.n-button) {
     width: 100%;
+  }
+
+  .service-upload-panel__actions {
+    justify-content: stretch;
   }
 
   .service-flow-image-group :deep(.n-space) {

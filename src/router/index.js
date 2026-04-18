@@ -51,6 +51,11 @@ const routes = [
         name: 'manageFinancial',
         component: () => import('@/views/admin/manage/manageFinancial.vue'),
       },
+      {
+        path: '/manageDesignOrder',
+        name: 'manageDesignOrder',
+        component: () => import('@/views/admin/manage/manageDesignOrder.vue'),
+      },
     ],
   },
   {

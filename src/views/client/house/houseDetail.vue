@@ -300,6 +300,15 @@
 
               <div class="action-buttons">
                 <n-button
+                  type="warning"
+                  size="large"
+                  class="design-btn"
+                  @click="handleOpenDesignModal"
+                >
+                  设计定制
+                </n-button>
+
+                <n-button
                   type="primary"
                   size="large"
                   class="reserve-btn"
@@ -497,6 +506,70 @@
         </n-space>
       </template>
     </n-modal>
+
+    <n-modal
+      v-model:show="showDesignModal"
+      preset="card"
+      title="设计定制"
+      :style="configModalStyle"
+    >
+      <n-form
+        :label-placement="isCompactViewport ? 'top' : 'left'"
+        :label-width="isCompactViewport ? undefined : 100"
+      >
+        <n-alert type="info" class="config-alert">
+          提交设计需求后将直接创建设计订单，并拉起支付流程。
+        </n-alert>
+
+        <n-form-item label="设计地址" required>
+          <n-input
+            v-model:value="designForm.orderAddress"
+            type="textarea"
+            placeholder="请输入完整设计地址"
+            :rows="2"
+            maxlength="200"
+            show-count
+          />
+        </n-form-item>
+
+        <n-form-item label="设计需求">
+          <n-input
+            v-model:value="designForm.designRequirements"
+            type="textarea"
+            placeholder="请输入户型设计需求，例如风格、房间布局、采光要求等"
+            :rows="4"
+            maxlength="2000"
+            show-count
+          />
+        </n-form-item>
+
+        <n-form-item label="客户备注">
+          <n-input
+            v-model:value="designForm.customerNotes"
+            type="textarea"
+            placeholder="请输入其他补充说明"
+            :rows="3"
+            maxlength="500"
+            show-count
+          />
+        </n-form-item>
+      </n-form>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button :disabled="designSubmitting" @click="showDesignModal = false">
+            取消
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="designSubmitting"
+            @click="submitDesignOrder"
+          >
+            提交并支付
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
   </main>
   <Footer></Footer>
 </template>
@@ -512,6 +585,7 @@ import {
 } from '@/icons/ionicons'
 import userAPI from '@/api/user/userData' // 引入用户API获取地址
 import orderAPI from '@/api/user/userOrder'
+import designOrderAPI from '@/api/user/designOrder'
 import chinaAreaData from 'china-area-data'
 import { validateStructuredAddress } from '@/utils/address'
 import { getAssetPrimaryUrl } from '@/utils/asset'
@@ -546,6 +620,7 @@ const currentImageIndex = ref(0)
 const showImagePreview = ref(false)
 const show3DModal = ref(false)
 const showConfigModal = ref(false)
+const showDesignModal = ref(false)
 const isCompactViewport = useMaxWidth(768)
 const activeDetailSection = ref('params')
 
@@ -657,6 +732,7 @@ const provinceAliasMap = {
   澳门: '澳门特别行政区',
 }
 const submitting = ref(false)
+const designSubmitting = ref(false)
 const loadingConfigs = ref(false)
 const collectLoading = computed(
   () => !!favoriteLoadingMap.value[Number(houseData.value?.id || 0)],
@@ -668,6 +744,11 @@ const isCurrentCollected = computed(() =>
 const houseData = ref({})
 const dynamicConfigs = ref([]) // 选配分类及产品
 const selectedConfig = reactive({}) // { categoryId: optionProductId }
+const designForm = reactive({
+  orderAddress: '',
+  designRequirements: '',
+  customerNotes: '',
+})
 let fetchOptionsPromise = null
 const defaultDetailImage = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="700" viewBox="0 0 1000 700"><rect width="1000" height="700" fill="#f3f4f6"/><rect x="255" y="180" width="490" height="280" rx="28" fill="#d7dde5"/><path d="M325 420l120-132 100 96 72-82 80 118H325z" fill="#98a3b3"/><circle cx="430" cy="260" r="38" fill="#eef2f7"/><text x="500" y="560" text-anchor="middle" font-size="42" fill="#6b7280" font-family="Arial, sans-serif">暂无户型图片</text></svg>',
@@ -863,6 +944,20 @@ const validateOrderAddressForm = () => {
   return true
 }
 
+const validateDesignForm = () => {
+  if (!String(designForm.orderAddress || '').trim()) {
+    message.warning('请输入设计地址')
+    return false
+  }
+  return true
+}
+
+const resetDesignForm = () => {
+  designForm.orderAddress = ''
+  designForm.designRequirements = ''
+  designForm.customerNotes = ''
+}
+
 // 初始化配置
 const initConfig = () => {
   submitNote.value = ''
@@ -992,6 +1087,114 @@ const handleAction = async () => {
     console.error('获取用户地址失败', error)
   }
 
+}
+
+const handleOpenDesignModal = async () => {
+  const userId = getCurrentUserId()
+  if (isCurrentProvider.value || (isClientLoggedIn.value && !userId)) {
+    message.warning('请选择用户登录后执行设计下单')
+    return
+  }
+  if (!userId) {
+    message.warning('请先登录后再进行操作')
+    router.push('/login')
+    return
+  }
+
+  resetDesignForm()
+  showDesignModal.value = true
+
+  try {
+    const res = await userAPI.getUserDataById(userId)
+    if (res.code === 200 && res.data?.address) {
+      designForm.orderAddress = String(res.data.address).trim()
+    }
+  } catch (error) {
+    void error
+  }
+}
+
+const openPaymentPayload = (payload, targetWindow = null) => {
+  if (typeof payload !== 'string') return false
+
+  const content = payload.trim()
+  if (!content) return false
+
+  const nextWindow =
+    targetWindow || window.open('', '_blank', 'noopener,noreferrer')
+  if (!nextWindow) return false
+
+  if (
+    content.startsWith('http://') ||
+    content.startsWith('https://') ||
+    content.startsWith('//')
+  ) {
+    nextWindow.location.href = content
+    return true
+  }
+
+  if (content.includes('<form') || content.includes('<html')) {
+    nextWindow.document.open()
+    nextWindow.document.write(content)
+    nextWindow.document.close()
+    return true
+  }
+
+  nextWindow.close()
+  return false
+}
+
+const submitDesignOrder = async () => {
+  const userId = getCurrentUserId()
+  if (!userId) {
+    message.warning('请先登录后再进行操作')
+    router.push('/login')
+    return
+  }
+
+  if (!validateDesignForm()) {
+    return
+  }
+
+  designSubmitting.value = true
+  const paymentWindow = window.open('', '_blank', 'noopener,noreferrer')
+
+  try {
+    const res = await designOrderAPI.createAndPay(userId, {
+      orderAddress: String(designForm.orderAddress || '').trim(),
+      designRequirements: String(designForm.designRequirements || '').trim(),
+      customerNotes: String(designForm.customerNotes || '').trim(),
+    })
+
+    if (res.code !== 200 || !res.data) {
+      if (paymentWindow && !paymentWindow.closed) {
+        paymentWindow.close()
+      }
+      message.error(res.msg || '设计订单创建失败')
+      return
+    }
+
+    const opened = openPaymentPayload(res.data.paymentPayload, paymentWindow)
+    if (!opened && paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
+
+    showDesignModal.value = false
+    message.success(
+      opened
+        ? '设计订单已创建，请在新窗口完成支付'
+        : '设计订单已创建，请前往用户中心查看支付状态',
+    )
+    router.push('/adminCenter')
+  } catch (error) {
+    if (paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
+    console.error('创建设计订单失败', error)
+    message.error(error?.msg || error?.message || '创建设计订单失败')
+  } finally {
+    designSubmitting.value = false
+  }
 }
 
 // 提交逻辑
@@ -1758,6 +1961,7 @@ onMounted(() => {
   gap: 12px;
 }
 
+.action-buttons .design-btn,
 .action-buttons .reserve-btn,
 .action-buttons .order-btn {
   width: 100%;
@@ -1765,6 +1969,14 @@ onMounted(() => {
   border-radius: 8px;
   font-size: 16px;
   font-weight: 700;
+}
+
+:deep(.design-btn.n-button) {
+  --n-color: #f59e0b;
+  --n-color-hover: #d97706;
+  --n-color-pressed: #b45309;
+  --n-color-focus: #d97706;
+  --n-border: 1px solid #f59e0b;
 }
 
 :deep(.reserve-btn.n-button) {
@@ -2106,6 +2318,7 @@ onMounted(() => {
     flex-basis: 100%;
   }
 
+  .action-buttons .design-btn,
   .action-buttons .reserve-btn,
   .action-buttons .order-btn {
     height: 50px;

@@ -23,6 +23,7 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth/useAuthStore'
 import {
   CardOutline,
+  ColorPaletteOutline,
   DocumentTextOutline,
   HammerOutline,
   HomeOutline,
@@ -40,6 +41,7 @@ const menuIconMap = {
   '/manageAdmin': PersonCircleOutline,
   '/manageUser': CardOutline,
   '/manageUser-DetailsOrder': DocumentTextOutline,
+  '/manageDesignOrder': ColorPaletteOutline,
   '/manageServer': HomeOutline,
   '/manageHouse': LayersOutline,
   '/manageOption': HammerOutline,

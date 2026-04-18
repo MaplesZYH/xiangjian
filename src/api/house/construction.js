@@ -32,7 +32,17 @@ export default {
   // 5. 服务商上传节点照片 (修复：参数放 params，文件放 body 且 key 为 files)
   uploadNodePhoto(params) {
     const formData = new FormData()
-    formData.append('files', params.file) // 后端要求 Key 为 'files'
+    const uploadFiles = Array.isArray(params.files)
+      ? params.files
+      : params.file
+        ? [params.file]
+        : []
+
+    uploadFiles.forEach((file) => {
+      if (file) {
+        formData.append('files', file) // 后端要求 Key 为 'files'
+      }
+    })
 
     return request({
       url: '/construction/upload',
