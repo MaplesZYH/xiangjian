@@ -1,0 +1,77 @@
+/* 1. 重置浏览器默认样式 */
+/* * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+} */
+
+/* html {
+  font-size: 16px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+} */
+
+/* body {
+  background-color: #f8f9fa;
+  color: #333;
+} */
+
+/* a {
+  text-decoration: none;
+  color: inherit;
+} */
+
+/* ul,
+ol {
+  list-style: none;
+} */
+
+/* 2. 全局变量（通过 CSS 变量实现） */
+/* :root {
+  --primary-color: #3498db;
+  --secondary-color: #2ecc71;
+  --danger-color: #e74c3c;
+  --text-color: #333;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+} */
+
+/* 3. 工具类 */
+/* .text-center {
+  text-align: center;
+}
+.text-right {
+  text-align: right;
+}
+
+.mt-sm {
+  margin-top: var(--spacing-sm);
+}
+.mb-lg {
+  margin-bottom: var(--spacing-lg);
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+} */
+
+/* 4. 全局组件样式（如按钮、卡片等） */
+/* .button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+} */
+
+/* 5. 响应式设计（可选） */
+/* @media (min-width: 768px) {
+  .md\:hidden {
+    display: none;
+  }
+} */
