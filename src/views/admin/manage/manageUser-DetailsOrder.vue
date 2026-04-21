@@ -87,7 +87,6 @@
         <div class="header-item">手机号</div>
         <div class="header-item">订单状态</div>
         <div class="header-item">支付状态</div>
-        <div class="header-item">当前待办</div>
         <div class="header-item actions-header">操作</div>
       </div>
 
@@ -106,18 +105,6 @@
               <n-tag :type="getPaymentType(item.paymentStatus)">
                 {{ getPaymentText(item.paymentStatus) }}
               </n-tag>
-            </div>
-            <div class="list-item todo-cell">
-              <n-tag
-                size="small"
-                :type="getOrderTodoMeta(item).type"
-                :bordered="false"
-              >
-                {{ getOrderTodoMeta(item).label }}
-              </n-tag>
-              <span class="todo-cell__desc">
-                {{ getOrderTodoMeta(item).description }}
-              </span>
             </div>
             <div class="list-item actions">
               <n-button
@@ -190,14 +177,14 @@
         <n-alert v-if="isReadOnly" type="warning" class="inline-alert-sm">
           当前订单状态为“{{
             getStatusText(detailOrder.orderStatus)
-          }}”，仅在“未派单”或“派单中”状态下可修改基础信息和选配。
+          }}”，当前仅支持查看，不可再修改基础信息和选配。
         </n-alert>
         <n-alert
-          v-else-if="isOptionalProductsLocked"
+          v-else-if="isAddressLocked"
           type="warning"
           class="inline-alert-sm"
         >
-          合同已上传，订单地址与选配产品无法更改。
+          合同已上传，订单地址无法再修改，但选配产品仍可继续调整。
         </n-alert>
 
         <n-divider dashed />
@@ -212,7 +199,7 @@
                   check-strategy="child"
                   filterable
                   clearable
-                  :disabled="isReadOnly || isOptionalProductsLocked"
+                  :disabled="isReadOnly || isAddressLocked"
                   placeholder="请选择省 / 市 / 区"
                   @update:value="handleOrderRegionUpdate"
                 />
@@ -222,7 +209,7 @@
                   :rows="2"
                   maxlength="120"
                   show-count
-                  :disabled="isReadOnly || isOptionalProductsLocked"
+                  :disabled="isReadOnly || isAddressLocked"
                   placeholder="请输入街道门牌，例如：科华北路88号A栋1201"
                 />
               </div>
@@ -260,7 +247,7 @@
                 <n-select
                   v-model:value="selectionMap[config.key]"
                   :options="config.options"
-                  :disabled="isReadOnly || isOptionalProductsLocked"
+                  :disabled="isReadOnly"
                   size="small"
                   clearable
                   filterable
@@ -332,29 +319,23 @@
           <n-tab-pane name="contract" tab="1. 合同管理">
             <div class="dispatch-panel">
               <n-alert type="info" class="inline-alert-lg">
-                只有上传合同后，用户才能进行支付。重新上传将覆盖原有合同。
+                当前流程为：平台上传合同后即可进入派单；支付状态用于财务跟进，但不再作为合同上传或派单的前置条件。重新上传将覆盖原有合同。
               </n-alert>
               <n-alert
-                v-if="
-                  currentContractUrl &&
-                  !isDispatchPaymentReady(detailOrder?.paymentStatus)
-                "
+                v-if="!currentContractUrl"
                 type="warning"
                 class="inline-alert-md"
               >
-                合同已上传，正在等待用户支付后解锁派单。当前支付状态：{{
-                  getPaymentText(detailOrder?.paymentStatus)
-                }}
+                请先上传合同，上传完成后即可进入派单。
               </n-alert>
               <n-alert
-                v-else-if="
-                  currentContractUrl &&
-                  isDispatchPaymentReady(detailOrder?.paymentStatus)
-                "
+                v-else
                 type="success"
                 class="inline-alert-md"
               >
-                用户已完成支付，当前订单已解锁派单。
+                合同已上传，可继续派单。当前支付状态：{{
+                  getPaymentText(detailOrder?.paymentStatus)
+                }}
               </n-alert>
 
               <div class="contract-section">
@@ -442,28 +423,24 @@
                 type="warning"
                 class="inline-alert-lg"
               >
-                {{
-                  currentContractUrl
-                    ? `合同已上传，需等待用户完成支付后才能派单。当前支付状态：${getPaymentText(detailOrder?.paymentStatus)}`
-                    : '需先上传合同，上传后等待用户支付完成才能派单。'
-                }}
+                需先上传合同后才能派单。
               </n-alert>
 
               <n-alert
                 v-else-if="isDispatchStageLocked"
-                type="warning"
+                type="info"
                 class="inline-alert-md"
               >
-                当前订单已进入施工阶段，派单信息已锁定，仅支持查看，不可再新增、取消或重新指派服务商。
+                当前订单已进入施工阶段。施工单位派单按现有流程继续执行，材料选配仍可根据增项、同类改项结果继续取消旧单、重新派单或补派。
               </n-alert>
 
               <n-alert v-else type="info" class="inline-alert-md">
-                用户已完成支付，系统将自动推荐距离最近的可派单服务商。
+                合同已上传，系统将自动推荐距离最近的可派单服务商。后台仍可通过“详情/编辑”继续追加选配；如是用户提交的选配变更，请在“选配变更”中审核处理。
                 <span
                   v-if="allServicesAccepted"
                   class="dispatch-alert-accent"
                 >
-                  所有服务商已接单，可进入节点金额设置。
+                  所有服务商已接单，可直接开启施工流程。
                 </span>
               </n-alert>
 
@@ -592,14 +569,6 @@
                           :loading="loadingVendorOpts"
                           @focus="loadBuilders"
                         />
-                        <div
-                          v-if="selectedConstructionVendorOption?.raw"
-                          class="vendor-option-hint"
-                        >
-                          {{
-                            `${selectedConstructionVendorOption.raw.companyName} · ${getVendorServiceTypeText(selectedConstructionVendorOption.raw.serviceType)} · ${formatVendorDistance(selectedConstructionVendorOption.raw.distance)}`
-                          }}
-                        </div>
                       </div>
                       <n-input-number
                         v-model:value="constructionForm.price"
@@ -641,31 +610,39 @@
               </div>
 
               <div class="pricing-entry-wrap">
-                <n-button
-                  v-if="shouldShowConstructionPricingButton"
-                  type="success"
+                <div class="pricing-entry-actions">
+                  <n-button
+                  v-if="!isReadOnly"
+                  secondary
                   size="large"
-                  :disabled="!canEnterConstructionPricingStep"
-                  @click="handleGoToConstructionPricing"
+                  @click="handleOpenUnifiedDetail(detailOrder)"
                 >
-                  <template #icon>
-                    <n-icon><HammerOutline /></n-icon>
-                  </template>
-                  {{ constructionPricingButtonText }}
+                  追加选配/基础信息
                 </n-button>
+                  <n-button
+                    v-if="shouldShowConstructionPricingButton"
+                    type="success"
+                    size="large"
+                    :disabled="!canOpenConstructionPricingEntry"
+                    @click="handleGoToConstructionPricing"
+                  >
+                    <template #icon>
+                      <n-icon><HammerOutline /></n-icon>
+                    </template>
+                    {{ constructionPricingButtonText }}
+                  </n-button>
+                </div>
                 <div
                   v-if="
                     shouldShowConstructionPricingButton &&
-                    !canEnterConstructionPricingStep
+                    !canOpenConstructionPricingEntry
                   "
                   class="pricing-entry-hint"
                 >
                   {{
-                    !allServicesAccepted
-                      ? '请等待所有服务商接单后，再进入节点金额设置。'
-                      : !canStartConstruction && !canConfigureConstructionPrice
-                        ? '当前账号无权管理施工金额或初始化施工节点，请联系管理员'
-                        : '当前订单尚未达到可设置施工节点金额的状态'
+                    !canDispatch
+                      ? '请先完成合同上传后，再进入“确认开工金额方案”。'
+                      : '当前订单暂不可进入金额方案确认环节'
                   }}
                 </div>
               </div>
@@ -674,255 +651,45 @@
 
           <n-tab-pane
             name="pricing"
-            tab="3. 节点金额设置"
-            :disabled="!canOpenConstructionPricingTab"
+            tab="3. 确认开工金额方案"
+            :disabled="!detailOrder?.id"
           >
             <div class="dispatch-panel">
-              <n-spin :show="loadingConstruction">
-                <div v-if="constructionInfo">
-                  <n-alert type="info" class="inline-alert-md">
-                    当前流程顺序：配置并保存节点金额 -> 进入施工流程执行上传、审核与支付。
-                  </n-alert>
-                  <div
-                    class="flow-header"
-                  >
-                    <div>
-                      <span class="flow-header__title">
-                        施工方式：{{
-                          getProcessText(
-                            constructionInfo.processType,
-                            constructionInfo.processName,
-                            detailOrder?.structureInfo?.constructionMethod,
-                          )
-                        }}
-                      </span>
-                      <n-tag size="small" type="info">
-                        {{ constructionInfo.currentNodeStatusText || '未开始' }}
-                      </n-tag>
-                    </div>
-                    <div class="flow-header__meta">
-                      <div class="flow-header__summary">
-                        已支付：¥{{
-                          constructionInfo.totalPaid?.toLocaleString()
-                        }}
-                        / 总额：¥{{
-                          constructionInfo.totalAmount?.toLocaleString()
-                        }}
-                      </div>
-                      <div class="flow-header__tip">
-                        请先完成全部节点金额配置并保存，保存完成后再进入第 4 步施工流程
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="flow-workbench">
-                    <n-card
-                      class="flow-workbench-card"
-                      size="small"
-                      title="节点金额配置工作台"
-                      :bordered="true"
-                    >
-                      <template #header-extra>
-                        <n-tag
-                          :type="
-                            constructionPricePlanReady
-                              ? 'success'
-                              : constructionPricePlanDirty
-                                ? 'warning'
-                                : 'default'
-                          "
-                          size="small"
-                        >
-                          {{ constructionPricePlanStatusText }}
-                        </n-tag>
-                      </template>
-
-                      <div class="workbench-stats">
-                        <div class="workbench-stat">
-                          <div class="workbench-stat__label">订单总额</div>
-                          <div class="workbench-stat__value">
-                            ¥{{ formatCurrencyAmount(priceLimitTotal) }}
-                          </div>
-                        </div>
-                        <div class="workbench-stat">
-                          <div class="workbench-stat__label">已锁定金额</div>
-                          <div class="workbench-stat__value">
-                            ¥{{ formatCurrencyAmount(lockedNodePriceTotal) }}
-                          </div>
-                        </div>
-                        <div class="workbench-stat">
-                          <div class="workbench-stat__label">当前已分配</div>
-                          <div class="workbench-stat__value">
-                            ¥{{ formatCurrencyAmount(constructionAssignedTotal) }}
-                          </div>
-                        </div>
-                        <div class="workbench-stat">
-                          <div class="workbench-stat__label">剩余待分配</div>
-                          <div
-                            class="workbench-stat__value"
-                            :class="
-                              constructionRemainingAmount === 0
-                                ? 'workbench-stat__value--ok'
-                                : 'workbench-stat__value--danger'
-                            "
-                          >
-                            ¥{{ formatCurrencyAmount(constructionRemainingAmount) }}
-                          </div>
-                        </div>
-                      </div>
-
-                      <n-alert
-                        :type="
-                          isConstructionPriceLocked
-                            ? 'info'
-                            : constructionPricePlanReady
-                              ? 'success'
-                              : 'warning'
-                        "
-                        class="workbench-alert"
-                      >
-                        {{
-                          isConstructionPriceLocked
-                            ? constructionPricePlanHint
-                            : constructionPricePlanReady
-                            ? '节点金额已完成配置，后续施工、审核、支付将按该分配执行。'
-                            : constructionPricePlanHint
-                        }}
-                      </n-alert>
-
-                      <div class="workbench-toolbar">
-                        <div class="workbench-toolbar__hint">
-                          先统一规划并保存全部未锁定节点金额。已完成或已支付节点金额不可修改。
-                        </div>
-                        <n-space>
-                          <n-button
-                            secondary
-                            :disabled="isConstructionPriceLocked"
-                            @click="applyBalancedNodePricePlan"
-                          >
-                            按剩余总额均分
-                          </n-button>
-                          <n-button
-                            secondary
-                            :disabled="isConstructionPriceLocked"
-                            @click="resetEditableNodePriceDraft"
-                          >
-                            重置未锁定节点
-                          </n-button>
-                          <n-button
-                            type="primary"
-                            :loading="savingNodePriceId === '__all__'"
-                            :disabled="
-                              isConstructionPriceLocked ||
-                              !editableConstructionNodes.length ||
-                              !canConfigureConstructionPrice
-                            "
-                            @click="submitConstructionPricePlan"
-                          >
-                            保存全部节点金额
-                          </n-button>
-                        </n-space>
-                      </div>
-
-                      <div class="node-price-list">
-                        <div
-                          v-for="(node, index) in constructionInfo.nodeDetails"
-                          :key="`price-row-${node.nodeId}`"
-                          class="node-price-row"
-                        >
-                          <div class="node-price-main">
-                            <div class="node-price-title-row">
-                              <span class="node-price-title">
-                                {{ `步骤 ${index + 1} · ${node.name}` }}
-                              </span>
-                              <n-tag
-                                v-if="index === constructionInfo.currentNodeIndex"
-                                type="success"
-                                size="small"
-                              >
-                                当前节点
-                              </n-tag>
-                              <n-tag
-                                v-else-if="index < constructionInfo.currentNodeIndex"
-                                type="default"
-                                size="small"
-                              >
-                                已锁定
-                              </n-tag>
-                              <n-tag v-else type="info" size="small">
-                                待执行
-                              </n-tag>
-                              <n-tag
-                                v-if="node.isPaid"
-                                type="success"
-                                size="small"
-                                :bordered="false"
-                              >
-                                已支付
-                              </n-tag>
-                            </div>
-                            <div class="node-price-desc">
-                              {{
-                                index < constructionInfo.currentNodeIndex
-                                  ? '该节点已进入历史流程，金额已锁定。'
-                                  : index === constructionInfo.currentNodeIndex
-                                    ? '当前节点金额必须大于 0，保存后再进入上传、审核与支付。'
-                                    : '后续节点请提前规划金额，避免前面阶段把总额分配完。'
-                              }}
-                            </div>
-                          </div>
-
-                          <div class="node-price-controls">
-                            <div class="node-price-saved">
-                              已保存：¥{{ formatCurrencyAmount(node.amount) }}
-                            </div>
-                            <n-input-number
-                              v-model:value="editableNodePriceMap[node.nodeId]"
-                              :min="0"
-                              :precision="2"
-                              :disabled="!isNodeAmountEditable(index)"
-                              class="node-price-input"
-                              placeholder="输入节点金额"
-                            >
-                              <template #prefix>¥</template>
-                            </n-input-number>
-                          </div>
-                        </div>
-                      </div>
-                    </n-card>
-                  </div>
-
-                  <div class="flow-confirm-actions">
-                    <n-button
-                      type="success"
-                      size="large"
-                      :disabled="!constructionPricePlanReady || isConstructionPriceLocked"
-                      @click="handleConfirmConstructionFlow"
-                    >
-                      {{ isConstructionPriceLocked ? '金额已锁定' : '进入施工流程' }}
-                    </n-button>
-                  </div>
-                </div>
-
-                <div v-else class="empty-flow">
-                  <n-empty
-                    description="施工节点尚未就绪，请先回到第 2 步点击“设置施工节点金额”"
-                  />
-                </div>
-              </n-spin>
+              <ConstructionPricingPanel
+                :order-number="detailOrder?.orderNumber || ''"
+                :process-text="constructionPricingProcessText"
+                :total-amount="Number(detailOrder?.totalAmount || 0)"
+                :construction-base-amount="constructionBaseAmount"
+                :deposit-amount="depositDraftAmount"
+                :stage-rows="constructionPricingStageRows"
+                :price-plan-status-text="constructionPricePlanStatusText"
+                :price-plan-hint="constructionPricePlanHint"
+                :workflow-started="constructionWorkflowStarted"
+                :can-edit-deposit="
+                  canConfigureConstructionPrice && canEditConstructionDeposit
+                "
+                :can-confirm-plan="canStartConstructionEntry"
+                :can-sync-plan="canSyncConstructionPricePlan"
+                :deposit-saving="depositSubmitting"
+                :plan-submitting="planSubmitting"
+                @update-deposit-draft="handleUpdateConstructionDepositDraft"
+                @save-deposit="handleSaveConstructionDeposit"
+                @confirm-plan="handleConfirmConstructionPricing"
+                @sync-plan="handleSyncConstructionPricePlan"
+              />
             </div>
           </n-tab-pane>
 
           <n-tab-pane
             name="flow"
             tab="4. 施工流程"
-            :disabled="!constructionInfo || !constructionPricePlanReady"
+            :disabled="!constructionInfo"
           >
             <div class="dispatch-panel">
               <n-spin :show="loadingConstruction">
                 <div v-if="constructionInfo">
                   <n-alert type="info" class="inline-alert-md">
-                    当前流程顺序：服务商上传施工照片 -> 平台审核 -> 用户审核 -> 用户支付 -> 自动进入下一节点。
+                    当前流程顺序：服务商上传施工照片 -> 平台审核 -> 用户审核 -> 进入待支付 -> 用户在第 5 步“支付账单”中完成支付 -> 自动进入下一节点。
                   </n-alert>
 
                   <n-card
@@ -969,6 +736,28 @@
                     </div>
                   </n-card>
 
+                  <n-card
+                    v-if="shouldShowWaitBillPaymentHighlight"
+                    size="small"
+                    :bordered="false"
+                    class="flow-highlight-card flow-highlight-card--payment"
+                  >
+                    <div class="flow-highlight-card__body">
+                      <div class="flow-highlight-card__icon">
+                        <n-icon size="24"><DocumentAttachOutline /></n-icon>
+                      </div>
+                      <div>
+                        <div class="flow-highlight-card__title">
+                          当前节点正等待用户支付
+                        </div>
+                        <div class="flow-highlight-card__desc">
+                          当前施工节点“{{ activeConstructionNode?.name || currentNodeDetail?.nodeName || '未命名节点' }}”
+                          已审核通过，当前节点已进入待支付状态。请切换到第 5 步“支付账单”查看后端返回的账单信息；用户支付完成后，流程会自动推进到下一节点。
+                        </div>
+                      </div>
+                    </div>
+                  </n-card>
+
                   <div class="flow-steps">
                     <n-grid cols="1 s:3" responsive="screen">
                       <n-grid-item span="1 s:1" class="flow-steps__nav">
@@ -994,16 +783,6 @@
                           >
                             <template #description>
                               <div class="flow-step-summary">
-                                <div class="flow-step-summary__amount">
-                                  金额：¥{{ node.amount?.toLocaleString() }}
-                                  <n-tag
-                                    v-if="node.isPaid"
-                                    type="success"
-                                    size="tiny"
-                                    :bordered="false"
-                                    >已支付</n-tag
-                                  >
-                                </div>
                                 <div
                                   v-if="
                                     isConstructionFlowCompleted(constructionInfo)
@@ -1050,21 +829,7 @@
                               size="small"
                               :column="2"
                               class="flow-node-detail-desc"
-                            >
-                              <n-descriptions-item label="节点金额">
-                                <span class="flow-node-amount">
-                                  ¥{{ formatCurrencyAmount(currentNodeDetail.amount) }}
-                                </span>
-                              </n-descriptions-item>
-                              <n-descriptions-item label="支付状态">
-                                <n-tag
-                                  :type="currentNodeDetail.isPaid ? 'success' : 'warning'"
-                                  size="small"
-                                >
-                                  {{ currentNodeDetail.isPaid ? '已支付' : '待支付' }}
-                                </n-tag>
-                              </n-descriptions-item>
-                            </n-descriptions>
+                            />
 
                             <n-scrollbar
                               class="flow-node-timeline"
@@ -1145,8 +910,203 @@
 
                 <div v-else class="empty-flow">
                   <n-empty
-                    description="请先在“节点金额设置”中完成金额配置并进入施工流程"
+                    description="请先在第 3 步“确认开工金额方案”中完成金额确认并开启施工"
                   />
+                </div>
+              </n-spin>
+            </div>
+          </n-tab-pane>
+
+          <n-tab-pane
+            name="bills"
+            tab="5. 支付账单"
+            :disabled="!detailOrder?.id"
+          >
+            <div class="dispatch-panel">
+              <n-alert type="info" class="inline-alert-md">
+                这里仅展示后端真实返回的支付数据。建房定金支付状态按订单支付状态展示，施工节点账单按后端返回的待支付账单展示。
+              </n-alert>
+
+              <div v-if="hasAdminPaymentBillRows" class="admin-payment-bills">
+                <div class="admin-payment-bills-table client-center-paper">
+                  <div class="admin-payment-bills-head">
+                    <div>账单标题</div>
+                    <div>账单类型</div>
+                    <div>支付状态</div>
+                    <div>关联节点</div>
+                    <div>应付金额</div>
+                    <div>账单说明</div>
+                    <div>创建时间</div>
+                  </div>
+                  <div
+                    v-for="bill in adminPaymentBillRows"
+                    :key="bill.id"
+                    class="admin-payment-bills-row"
+                  >
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">账单标题</span>
+                      <span>{{ getAdminBillDisplayTitle(bill) }}</span>
+                    </div>
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">账单类型</span>
+                      <n-tag
+                        :type="getPaymentBillTypeTagType(bill.billType)"
+                        size="small"
+                        :bordered="false"
+                      >
+                        {{ getPaymentBillTypeText(bill.billType) }}
+                      </n-tag>
+                    </div>
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">支付状态</span>
+                      <n-tag
+                        :type="getAdminBillStatusTagType(bill)"
+                        size="small"
+                        :bordered="false"
+                      >
+                        {{ getAdminBillStatusText(bill) }}
+                      </n-tag>
+                    </div>
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">关联节点</span>
+                      <span>{{ getBillRelatedNodeName(bill) }}</span>
+                    </div>
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">应付金额</span>
+                      <span>
+                        {{
+                          bill.amount === null || bill.amount === undefined
+                            ? '--'
+                            : `¥${formatCurrencyAmount(bill.amount)}`
+                        }}
+                      </span>
+                    </div>
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">账单说明</span>
+                      <span class="admin-payment-bills-text">
+                        {{ bill.remark || '--' }}
+                      </span>
+                    </div>
+                    <div class="admin-payment-bills-cell">
+                      <span class="admin-payment-bills-label">创建时间</span>
+                      <span>{{ formatDateTime(bill.createTime) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="empty-flow">
+                <n-empty description="当前订单暂无支付账单" />
+              </div>
+            </div>
+          </n-tab-pane>
+
+          <n-tab-pane
+            name="optionalChange"
+            tab="6. 选配变更"
+            :disabled="!detailOrder?.id"
+          >
+            <div class="dispatch-panel">
+              <n-alert type="info" class="inline-alert-md">
+                这里仅处理后端真实返回的选配变更申请。审核通过后可直接通过、生成补价账单或发起退款。
+              </n-alert>
+
+              <n-spin :show="optionalChangeLoading">
+                <div
+                  v-if="visibleOptionalChangeRecords.length > 0"
+                  class="admin-optional-change-list"
+                >
+                  <div
+                    v-for="record in visibleOptionalChangeRecords"
+                    :key="record.id"
+                    class="admin-optional-change-card client-center-soft-card"
+                  >
+                    <div class="admin-optional-change-card__header">
+                      <div class="admin-optional-change-card__title">
+                        申请 #{{ record.id }}
+                      </div>
+                      <n-space size="small" wrap>
+                        <n-tag size="small" :bordered="false" type="info">
+                          {{ record.changeTypeLabel || '--' }}
+                        </n-tag>
+                        <n-tag
+                          size="small"
+                          :bordered="false"
+                          :type="getOptionalChangeStatusTagType(record.status)"
+                        >
+                          {{ record.statusLabel || record.status || '--' }}
+                        </n-tag>
+                      </n-space>
+                    </div>
+
+                    <div class="admin-optional-change-card__meta">
+                      <div>申请时间：{{ formatDateTime(record.createTime) }}</div>
+                      <div>订单阶段：{{ record.orderStatusSnapshotLabel || '--' }}</div>
+                      <div>理论差额：¥{{ formatCurrencyAmount(record.theoreticalDiffAmount) }}</div>
+                      <div v-if="record.finalChargeAmount !== null && record.finalChargeAmount !== undefined">
+                        最终补价：¥{{ formatCurrencyAmount(record.finalChargeAmount) }}
+                      </div>
+                      <div v-if="record.finalRefundAmount !== null && record.finalRefundAmount !== undefined">
+                        最终退款：¥{{ formatCurrencyAmount(record.finalRefundAmount) }}
+                      </div>
+                      <div v-if="record.linkedBillTitle">
+                        关联账单：{{ record.linkedBillTitle }} / {{ record.linkedBillStatusLabel || '--' }}
+                        <template
+                          v-if="
+                            record.linkedBillAmount !== null &&
+                            record.linkedBillAmount !== undefined
+                          "
+                        >
+                          / ¥{{ formatCurrencyAmount(record.linkedBillAmount) }}
+                        </template>
+                      </div>
+                      <div v-if="record.linkedRefundStatusLabel">
+                        退款状态：{{ record.linkedRefundStatusLabel }}
+                      </div>
+                      <div v-if="record.paymentRecordId">
+                        关联支付流水：#{{ record.paymentRecordId }}
+                      </div>
+                      <div v-if="record.auditOperator || record.auditTime">
+                        审核信息：{{ record.auditOperator || '--' }} / {{ formatDateTime(record.auditTime) }}
+                      </div>
+                    </div>
+
+                    <div class="admin-optional-change-card__snapshots">
+                      <div class="admin-optional-change-card__snapshot">
+                        <span class="admin-optional-change-card__snapshot-label">
+                          变更前
+                        </span>
+                        <span class="admin-optional-change-card__snapshot-text">
+                          {{ formatAdminOptionalChangeSnapshot(record.oldOptionsSnapshot) }}
+                        </span>
+                      </div>
+                      <div class="admin-optional-change-card__snapshot">
+                        <span class="admin-optional-change-card__snapshot-label">
+                          目标选配
+                        </span>
+                        <span class="admin-optional-change-card__snapshot-text">
+                          {{ formatAdminOptionalChangeSnapshot(record.targetOptionsSnapshot) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="canAuditOptionalChange && record.status === 'PENDING'"
+                      class="admin-optional-change-card__actions"
+                    >
+                      <n-button
+                        size="small"
+                        type="primary"
+                        @click="openOptionalChangeAuditModal(record)"
+                      >
+                        审核处理
+                      </n-button>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else class="empty-flow">
+                  <n-empty description="当前订单暂无选配变更申请" />
                 </div>
               </n-spin>
             </div>
@@ -1168,19 +1128,145 @@
     </n-modal>
 
     <n-modal
+      v-model:show="showOptionalChangeAuditModal"
+      preset="card"
+      title="审核选配变更"
+      style="width: min(560px, calc(100vw - 24px))"
+    >
+      <n-form label-placement="left" label-width="90">
+        <n-form-item label="申请编号">
+          <span>#{{ currentOptionalChangeAuditRecord?.id || '--' }}</span>
+        </n-form-item>
+        <n-form-item label="理论差额">
+          <span>
+            {{
+              currentOptionalChangeAuditRecord
+                ? `¥${formatCurrencyAmount(currentOptionalChangeAuditRecord.theoreticalDiffAmount)}`
+                : '--'
+            }}
+          </span>
+        </n-form-item>
+        <n-form-item label="处理结果">
+          <n-radio-group v-model:value="optionalChangeAuditForm.approved">
+            <n-space>
+              <n-radio :value="true">审核通过</n-radio>
+              <n-radio :value="false">审核驳回</n-radio>
+            </n-space>
+          </n-radio-group>
+        </n-form-item>
+
+        <template v-if="optionalChangeAuditForm.approved">
+          <n-form-item label="结算方式">
+            <n-radio-group v-model:value="optionalChangeAuditForm.mode">
+              <n-space vertical>
+                <n-radio
+                  v-for="item in currentOptionalChangeAuditModeOptions"
+                  :key="item.value"
+                  :value="item.value"
+                >
+                  {{ item.label }}
+                </n-radio>
+              </n-space>
+            </n-radio-group>
+            <div class="vendor-option-hint">
+              {{ currentOptionalChangeAuditModeHint }}
+            </div>
+          </n-form-item>
+
+          <n-form-item v-if="optionalChangeAuditForm.mode === 'charge'" label="补价金额">
+            <n-input-number
+              v-model:value="optionalChangeAuditForm.finalChargeAmount"
+              :min="0"
+              :precision="2"
+              class="full-width-input"
+              placeholder="请输入最终补价金额"
+            >
+              <template #prefix>¥</template>
+            </n-input-number>
+          </n-form-item>
+
+          <template v-if="optionalChangeAuditForm.mode === 'refund'">
+            <n-form-item label="退款金额">
+              <n-input-number
+                v-model:value="optionalChangeAuditForm.finalRefundAmount"
+                :min="0"
+                :precision="2"
+                class="full-width-input"
+                placeholder="请输入最终退款金额"
+              >
+                <template #prefix>¥</template>
+              </n-input-number>
+            </n-form-item>
+
+            <n-form-item label="支付流水">
+              <n-select
+                v-if="
+                  canViewPaymentRecordList &&
+                  optionalChangePaymentRecordOptions.length > 0
+                "
+                v-model:value="optionalChangeAuditForm.paymentRecordId"
+                :options="optionalChangePaymentRecordOptions"
+                :loading="optionalChangePaymentRecordLoading"
+                clearable
+                filterable
+                placeholder="请选择退款关联的支付流水"
+              />
+              <n-input-number
+                v-else
+                v-model:value="optionalChangeAuditForm.paymentRecordId"
+                :min="1"
+                class="full-width-input"
+                placeholder="请输入支付流水ID"
+              />
+            </n-form-item>
+
+            <n-alert
+              v-if="
+                !canViewPaymentRecordList ||
+                optionalChangePaymentRecordOptions.length === 0
+              "
+              type="warning"
+              class="inline-alert-md"
+            >
+              {{
+                canViewPaymentRecordList
+                  ? '当前订单未查询到可选支付流水，请手动填写支付流水ID。'
+                  : '当前账号无支付流水查看权限，如需退款请手动填写支付流水ID。'
+              }}
+            </n-alert>
+          </template>
+        </template>
+      </n-form>
+
+      <template #footer>
+        <div class="optional-change-audit-modal__footer">
+          <n-button @click="closeOptionalChangeAuditModal">取消</n-button>
+          <n-button
+            type="primary"
+            :loading="optionalChangeSubmitting"
+            @click="submitOptionalChangeAudit"
+          >
+            确认提交
+          </n-button>
+        </div>
+      </template>
+    </n-modal>
+
+    <n-modal
       v-model:show="showMaterialDispatchModal"
       preset="card"
-      :title="`指派供应商 - ${currentTarget.category} (${currentTarget.name})`"
+      :title="
+        materialDispatchReplacingVendorOrderId
+          ? `更换供应商 - ${currentTarget.category} (${currentTarget.name})`
+          : `指派供应商 - ${currentTarget.category} (${currentTarget.name})`
+      "
       style="width: min(500px, calc(100vw - 24px))"
     >
-      <n-alert
-        :type="isDispatchStageLocked ? 'warning' : 'info'"
-        class="inline-alert-md"
-      >
+      <n-alert type="info" class="inline-alert-md">
         {{
-          isDispatchStageLocked
-            ? '当前订单已进入施工阶段，材料派单已锁定。'
-            : '可选择“材料商”或“综合服务商”类型的公司，价格为本次材料子单的成交价。'
+          materialDispatchReplacingVendorOrderId
+            ? '当前分类下的选配产品已变更。确认派单时会先取消旧服务商订单，再创建新的材料派单。'
+            : '可选择“材料商”或“综合服务商”类型的公司，价格为本次材料子单的成交价。施工中如发生增项或同类改项，也可继续在此补派或重派。'
         }}
       </n-alert>
       <n-form label-placement="left" label-width="80">
@@ -1192,7 +1278,7 @@
             filterable
             clearable
             :loading="loadingVendorOpts"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
           />
           <div v-if="selectedMaterialVendorOption?.raw" class="vendor-option-hint">
             {{
@@ -1206,7 +1292,7 @@
             placeholder="请输入价格"
             class="full-width-input"
             :min="0"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
           >
             <template #prefix>¥</template>
           </n-input-number>
@@ -1216,7 +1302,7 @@
             v-model:value="materialForm.adminNotes"
             type="textarea"
             placeholder="备注 (可选)"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
           />
         </n-form-item>
       </n-form>
@@ -1225,7 +1311,7 @@
           <n-button @click="showMaterialDispatchModal = false">取消</n-button>
           <n-button
             type="primary"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
             @click="submitMaterialDispatch"
             >确认派单</n-button
           >
@@ -1243,11 +1329,11 @@
       "
       style="width: min(560px, calc(100vw - 24px))"
     >
-      <n-alert type="warning" class="inline-alert-md">
+      <n-alert :type="canManageMaterialDispatch ? 'warning' : 'error'" class="inline-alert-md">
         {{
-          isDispatchStageLocked
-            ? '当前订单已进入施工阶段，重新指派入口已锁定，仅保留查看。'
-            : `当前服务商：${redispatchTarget.currentVendorName || '未记录'}。请选择新的公司并确认成交价格。`
+          canManageMaterialDispatch
+            ? `当前服务商：${redispatchTarget.currentVendorName || '未记录'}。请选择新的公司并确认成交价格。`
+            : '当前订单不可继续派单。'
         }}
       </n-alert>
       <n-form label-placement="left" label-width="88">
@@ -1259,7 +1345,7 @@
             filterable
             clearable
             :loading="redispatchLoading"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
           />
           <div v-if="selectedRedispatchVendorOption?.raw" class="vendor-option-hint">
             {{
@@ -1273,7 +1359,7 @@
             placeholder="请输入价格"
             class="full-width-input"
             :min="0"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
           >
             <template #prefix>¥</template>
           </n-input-number>
@@ -1283,7 +1369,7 @@
             v-model:value="redispatchForm.adminNotes"
             type="textarea"
             placeholder="请输入派单备注"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
           />
         </n-form-item>
       </n-form>
@@ -1298,7 +1384,7 @@
           <n-button
             type="primary"
             :loading="redispatchSubmitting"
-            :disabled="isDispatchStageLocked"
+            :disabled="!canManageMaterialDispatch"
             @click="submitRedispatch"
           >
             确认重派
@@ -1370,10 +1456,14 @@ import {
   CloseCircleOutline,
 } from '@/icons/ionicons'
 import Delete from '@/components/operation/Delete.vue'
+import ConstructionPricingPanel from '@/components/admin/order/ConstructionPricingPanel.vue'
+import adminOrderAPI from '@/api/user/detailsOrder'
+import paymentAPI from '@/api/user/userOrder'
 import { useAdminOrderManageStore } from '@/stores/order/useAdminOrderManageStore'
 import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 import { CONSTRUCTION_NODE_STATUS, getProcessText } from '@/utils/construction'
 import { resolveAssetUrl } from '@/utils/asset'
+import { AUTH_SCOPE_EMPLOYEE, getAuthStorage } from '@/utils/auth'
 
 const message = useMessage()
 const dialog = useDialog()
@@ -1382,10 +1472,11 @@ const pageInfo = orderManageStore.pageInfo
 const filters = orderManageStore.filters
 const orderAddressForm = orderManageStore.orderAddressForm
 const orderRegionCascaderOptions = orderManageStore.orderRegionCascaderOptions
+const handleOrderRegionUpdate = (...args) =>
+  orderManageStore.handleOrderRegionUpdate(...args)
 const constructionForm = orderManageStore.constructionForm
 const materialForm = orderManageStore.materialForm
 const redispatchForm = orderManageStore.redispatchForm
-const editableNodePriceMap = orderManageStore.editableNodePriceMap
 const {
   loadingList,
   loadingMetadata,
@@ -1396,7 +1487,6 @@ const {
   submitting,
   redispatchSubmitting,
   redispatchLoading,
-  savingNodePriceId,
   orderList,
   dynamicConfigList,
   detailOrder,
@@ -1418,22 +1508,19 @@ const {
   auditRejectReason,
   showCancelModal,
   cancelReason,
-  isOptionalProductsLocked,
+  isAddressLocked,
   canDispatch,
   isDispatchStageLocked,
-  isConstructionPriceLocked,
   activeConstructionNode,
   currentNodeDetailStatusText,
-  priceLimitTotal,
-  editableConstructionNodes,
-  lockedNodePriceTotal,
-  constructionAssignedTotal,
-  constructionRemainingAmount,
-  constructionPricePlanDirty,
-  constructionPricePlanReady,
+  depositDraftAmount,
+  constructionBaseAmount,
   constructionPricePlanStatusText,
   constructionPricePlanHint,
-  resolvedCurrentNodeAmount,
+  canEditConstructionDeposit,
+  hasConstructionNodeInstances,
+  constructionPricingProcessText,
+  constructionPricingStageRows,
   allServicesAccepted,
 } = storeToRefs(orderManageStore)
 
@@ -1444,7 +1531,21 @@ const canStartConstruction = computed(() =>
 const canConfigureConstructionPrice = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:price'),
 )
+const canAuditOptionalChange = computed(() =>
+  hasPermission(employeePermissions, 'order:update'),
+)
+const canViewPaymentRecordList = computed(() =>
+  hasPermission(employeePermissions, 'payment:list'),
+)
+const operatorName = computed(() => {
+  const name = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'name')
+  const phone = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'phone')
+  const userId = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'id')
+  return name || phone || (userId ? `emp-${userId}` : 'admin')
+})
 const activeTodoFilter = ref('all')
+const depositSubmitting = ref(false)
+const planSubmitting = ref(false)
 
 const getErrorMessage = (error, fallback) => {
   return (
@@ -1473,14 +1574,14 @@ const hasUploadedContract = (order) => {
 
 const getOrderTodoMeta = (order) => {
   const orderStatus = Number(order?.orderStatus)
-  const paymentStatus = Number(order?.paymentStatus)
   const hasContract = hasUploadedContract(order)
+  const contractLoaded = Boolean(order?.contractLoaded)
 
   if (orderStatus === 5) {
     return {
       key: 'cancelled',
       label: '已取消',
-      description: '订单已取消，无法继续处理',
+      description: '订单已取消',
       type: 'default',
       accent: 'neutral',
     }
@@ -1496,33 +1597,23 @@ const getOrderTodoMeta = (order) => {
     }
   }
 
-  if (!hasContract) {
+  if (orderStatus === 3) {
     return {
-      key: 'contract',
-      label: '待上传合同',
-      description: '上传后用户才能继续支付',
-      type: 'warning',
-      accent: 'warning',
+      key: 'construction',
+      label: '施工中跟进',
+      description: '跟进施工节点与账单',
+      type: 'success',
+      accent: 'success',
     }
   }
 
-  if (!isDispatchPaymentReady(paymentStatus)) {
+  if (orderStatus === 2) {
     return {
-      key: 'payment',
-      label: '待用户支付',
-      description: '支付完成后才能解锁派单',
-      type: 'error',
-      accent: 'danger',
-    }
-  }
-
-  if (orderStatus === 0) {
-    return {
-      key: 'dispatch',
-      label: '待派单',
-      description: '可直接进入处理/派单',
+      key: 'readyConstruction',
+      label: '待开启施工',
+      description: '接单完成后可开启施工',
       type: 'info',
-      accent: 'info',
+      accent: 'brand',
     }
   }
 
@@ -1536,23 +1627,33 @@ const getOrderTodoMeta = (order) => {
     }
   }
 
-  if (orderStatus === 2) {
+  if (orderStatus === 0 && contractLoaded && !hasContract) {
     return {
-      key: 'pricing',
-      label: '待设置金额',
-      description: '接单完成后进入节点金额配置',
-      type: 'info',
-      accent: 'brand',
+      key: 'contract',
+      label: '待上传合同',
+      description: '上传合同后可进入派单',
+      type: 'warning',
+      accent: 'warning',
     }
   }
 
-  if (orderStatus === 3) {
+  if (orderStatus === 0 && hasContract) {
     return {
-      key: 'construction',
-      label: '施工中跟进',
-      description: '关注审核、付款与施工节点',
-      type: 'success',
-      accent: 'success',
+      key: 'dispatch',
+      label: '待派单',
+      description: '可进入处理/派单',
+      type: 'info',
+      accent: 'info',
+    }
+  }
+
+  if (orderStatus === 0) {
+    return {
+      key: 'contract',
+      label: '待上传合同',
+      description: '正在同步合同状态',
+      type: 'warning',
+      accent: 'warning',
     }
   }
 
@@ -1571,10 +1672,6 @@ const todoCardConfigs = [
     label: '待上传合同',
   },
   {
-    key: 'payment',
-    label: '待用户支付',
-  },
-  {
     key: 'dispatch',
     label: '待派单',
   },
@@ -1583,16 +1680,12 @@ const todoCardConfigs = [
     label: '派单中跟进',
   },
   {
-    key: 'pricing',
-    label: '待设置金额',
+    key: 'readyConstruction',
+    label: '待开启施工',
   },
   {
     key: 'construction',
     label: '施工中跟进',
-  },
-  {
-    key: 'cancelled',
-    label: '已取消',
   },
 ]
 
@@ -1773,10 +1866,42 @@ const handlePageChange = (page) => {
 const showDetailModal = ref(false)
 const isReadOnly = ref(false)
 let dispatchPaymentPollTimer = null
+const optionalChangeLoading = ref(false)
+const optionalChangeSubmitting = ref(false)
+const optionalChangeRecords = ref([])
+const showOptionalChangeAuditModal = ref(false)
+const currentOptionalChangeAuditRecord = ref(null)
+const optionalChangePaymentRecordLoading = ref(false)
+const optionalChangePaymentRecordOptions = ref([])
+const optionalChangeAuditForm = reactive({
+  approved: true,
+  mode: 'direct',
+  finalChargeAmount: null,
+  finalRefundAmount: null,
+  paymentRecordId: null,
+})
+const OPTIONAL_CHANGE_AUDIT_MODE_LABEL_MAP = {
+  direct: '直接通过',
+  charge: '生成补价账单',
+  refund: '发起退款',
+}
+
+const sortOptionalChangeRecords = (records = []) =>
+  [...records].sort((a, b) => {
+    const timeA = a?.createTime ? new Date(a.createTime).getTime() : 0
+    const timeB = b?.createTime ? new Date(b.createTime).getTime() : 0
+    if (timeA !== timeB) return timeB - timeA
+    return Number(b?.id || 0) - Number(a?.id || 0)
+  })
+
+const visibleOptionalChangeRecords = computed(() => {
+  if (!optionalChangeRecords.value.length) return []
+  return sortOptionalChangeRecords(optionalChangeRecords.value).slice(0, 1)
+})
 
 const handleOpenUnifiedDetail = (item) => {
   showDetailModal.value = true
-  isReadOnly.value = ![0, 1].includes(item.orderStatus)
+  isReadOnly.value = ![0, 1, 2, 3].includes(Number(item.orderStatus))
   orderManageStore.fetchOrderDetailInternal(item.id).catch((error) => {
     console.error(error)
     message.error('获取详情失败')
@@ -1792,9 +1917,17 @@ const handleUpdateOrder = async () => {
   try {
     const res = await orderManageStore.updateCurrentOrder()
     if (res.code === 200) {
+      const currentOrderId = detailOrder.value?.id
+      if (currentOrderId) {
+        await orderManageStore.fetchOrderDetailInternal(currentOrderId)
+        orderManageStore.syncDispatchListItem()
+        if (showDispatchModal.value) {
+          await orderManageStore.initDispatchState()
+        }
+      }
       message.success('基础信息与选配修改成功')
       showDetailModal.value = false
-      fetchData()
+      await fetchData()
     } else {
       message.error(res.msg || '修改失败')
     }
@@ -1830,12 +1963,7 @@ const handleUploadContract = async ({ file, onFinish, onError }) => {
       message.success('合同上传成功')
       orderManageStore.syncDispatchListItem()
       if (showDispatchModal.value) {
-        if (isDispatchPaymentReady(detailOrder.value?.paymentStatus)) {
-          dispatchTab.value = 'dispatch'
-        } else {
-          dispatchTab.value = 'contract'
-          startDispatchPaymentPolling(orderId)
-        }
+        dispatchTab.value = 'dispatch'
       }
       onFinish()
     } else {
@@ -1864,6 +1992,262 @@ const handleUserOrderDelete = async (id) => {
   }
 }
 
+const getOptionalChangeStatusTagType = (status) => {
+  switch (status) {
+    case 'PAID':
+    case 'APPROVED':
+    case 'AUTO_APPROVED':
+    case 'REFUNDED':
+      return 'success'
+    case 'PAYMENT_PENDING':
+    case 'REFUND_PENDING':
+      return 'warning'
+    case 'REJECTED':
+    case 'CANCELLED':
+      return 'error'
+    default:
+      return 'info'
+  }
+}
+
+const formatAdminOptionalChangeSnapshot = (snapshot = []) => {
+  if (!Array.isArray(snapshot) || snapshot.length === 0) {
+    return '无'
+  }
+
+  return snapshot
+    .map((item) => {
+      const categoryLabel =
+        item?.categoryName || item?.categoryLabel || `分类${item?.categoryId || '--'}`
+      const name = item?.name || `产品${item?.id || '--'}`
+      return `${categoryLabel}：${name}`
+    })
+    .join('；')
+}
+
+const resolveOptionalChangeAllowedModes = (record) => {
+  const diff = Number(record?.theoreticalDiffAmount || 0)
+  const changeType = String(record?.changeType || '').trim()
+
+  if (changeType === 'ADD_ONLY') {
+    return diff > 0 ? ['charge'] : ['direct']
+  }
+
+  if (changeType === 'REMOVE') {
+    return diff < 0 ? ['refund'] : ['direct']
+  }
+
+  if (['REPLACE', 'MIXED'].includes(changeType)) {
+    if (diff > 0) return ['charge']
+    if (diff < 0) return ['refund']
+    return ['direct']
+  }
+
+  if (diff > 0) return ['charge']
+  if (diff < 0) return ['refund']
+  return ['direct']
+}
+
+const currentOptionalChangeAllowedModes = computed(() =>
+  resolveOptionalChangeAllowedModes(currentOptionalChangeAuditRecord.value),
+)
+
+const currentOptionalChangeAuditModeOptions = computed(() =>
+  currentOptionalChangeAllowedModes.value.map((value) => ({
+    value,
+    label: OPTIONAL_CHANGE_AUDIT_MODE_LABEL_MAP[value] || value,
+  })),
+)
+
+const currentOptionalChangeAuditModeHint = computed(() => {
+  const changeTypeLabel =
+    currentOptionalChangeAuditRecord.value?.changeTypeLabel || '当前变更'
+  const firstMode = currentOptionalChangeAuditModeOptions.value[0]
+  if (!firstMode) return `${changeTypeLabel}仅支持审核驳回。`
+  return `${changeTypeLabel}仅支持“${firstMode.label}”处理，已限制错误操作。`
+})
+
+const resolveOptionalChangeAuditMode = (record) => {
+  return resolveOptionalChangeAllowedModes(record)[0] || 'direct'
+}
+
+const resetOptionalChangeAuditForm = () => {
+  optionalChangeAuditForm.approved = true
+  optionalChangeAuditForm.mode = 'direct'
+  optionalChangeAuditForm.finalChargeAmount = null
+  optionalChangeAuditForm.finalRefundAmount = null
+  optionalChangeAuditForm.paymentRecordId = null
+}
+
+const loadAdminOptionalChangeList = async (
+  orderId = currentDispatchOrder.value?.id || detailOrder.value?.id,
+) => {
+  if (!orderId) {
+    optionalChangeRecords.value = []
+    return []
+  }
+
+  optionalChangeLoading.value = true
+  try {
+    const res = await adminOrderAPI.getAdminOptionalChangeList(orderId)
+    if (res?.code === 200 && Array.isArray(res.data)) {
+      optionalChangeRecords.value = res.data
+      return optionalChangeRecords.value
+    }
+    optionalChangeRecords.value = []
+    return []
+  } catch (error) {
+    console.error(error)
+    optionalChangeRecords.value = []
+    return []
+  } finally {
+    optionalChangeLoading.value = false
+  }
+}
+
+const loadOptionalChangePaymentRecordOptions = async (
+  orderId = currentDispatchOrder.value?.id || detailOrder.value?.id,
+) => {
+  if (!orderId || !canViewPaymentRecordList.value) {
+    optionalChangePaymentRecordOptions.value = []
+    return []
+  }
+
+  optionalChangePaymentRecordLoading.value = true
+  try {
+    const res = await paymentAPI.getPaymentRecordList({
+      page: 1,
+      pageSize: 100,
+      orderId,
+    })
+    if (res?.code !== 200 || !res.data) {
+      optionalChangePaymentRecordOptions.value = []
+      return []
+    }
+
+    const rows = res.data.rows || res.data.records || []
+    optionalChangePaymentRecordOptions.value = rows.map((item) => ({
+      label: `#${item.id} | ${item.paymentStage || '--'} | ¥${formatCurrencyAmount(item.amount)} | ${formatDateTime(item.payTime)}`,
+      value: Number(item.id),
+    }))
+    return optionalChangePaymentRecordOptions.value
+  } catch (error) {
+    console.error(error)
+    optionalChangePaymentRecordOptions.value = []
+    return []
+  } finally {
+    optionalChangePaymentRecordLoading.value = false
+  }
+}
+
+const closeOptionalChangeAuditModal = () => {
+  if (optionalChangeSubmitting.value) return
+  showOptionalChangeAuditModal.value = false
+  currentOptionalChangeAuditRecord.value = null
+  optionalChangePaymentRecordOptions.value = []
+  resetOptionalChangeAuditForm()
+}
+
+const openOptionalChangeAuditModal = async (record) => {
+  currentOptionalChangeAuditRecord.value = record
+  resetOptionalChangeAuditForm()
+  optionalChangeAuditForm.mode = resolveOptionalChangeAuditMode(record)
+
+  const diffAmount = Math.abs(Number(record?.theoreticalDiffAmount || 0))
+  if (optionalChangeAuditForm.mode === 'charge' && diffAmount > 0) {
+    optionalChangeAuditForm.finalChargeAmount = diffAmount
+  }
+  if (optionalChangeAuditForm.mode === 'refund' && diffAmount > 0) {
+    optionalChangeAuditForm.finalRefundAmount = diffAmount
+  }
+
+  showOptionalChangeAuditModal.value = true
+
+  if (optionalChangeAuditForm.mode === 'refund') {
+    await loadOptionalChangePaymentRecordOptions()
+  }
+}
+
+const refreshDispatchContext = async (
+  orderId = currentDispatchOrder.value?.id || detailOrder.value?.id,
+) => {
+  if (!orderId) return
+  await orderManageStore.fetchOrderDetailInternal(orderId)
+  orderManageStore.syncDispatchListItem()
+  await loadAdminOptionalChangeList(orderId)
+  if (Number(detailOrder.value?.orderStatus) >= 3) {
+    await loadConstructionStatus()
+  }
+}
+
+const submitOptionalChangeAudit = async () => {
+  const requestId = Number(currentOptionalChangeAuditRecord.value?.id || 0)
+  if (!requestId) {
+    message.error('未找到选配变更申请')
+    return
+  }
+
+  const payload = {
+    requestId,
+    approved: optionalChangeAuditForm.approved,
+  }
+
+  if (optionalChangeAuditForm.approved) {
+    if (!currentOptionalChangeAllowedModes.value.includes(optionalChangeAuditForm.mode)) {
+      message.warning('当前变更类型不支持所选结算方式')
+      optionalChangeAuditForm.mode = resolveOptionalChangeAuditMode(
+        currentOptionalChangeAuditRecord.value,
+      )
+      return
+    }
+
+    if (optionalChangeAuditForm.mode === 'charge') {
+      const amount = Number(optionalChangeAuditForm.finalChargeAmount)
+      if (!(amount > 0)) {
+        message.warning('请输入有效的补价金额')
+        return
+      }
+      payload.finalChargeAmount = amount
+    }
+
+    if (optionalChangeAuditForm.mode === 'refund') {
+      const refundAmount = Number(optionalChangeAuditForm.finalRefundAmount)
+      const paymentRecordId = Number(optionalChangeAuditForm.paymentRecordId)
+      if (!(refundAmount > 0)) {
+        message.warning('请输入有效的退款金额')
+        return
+      }
+      if (!(paymentRecordId > 0)) {
+        message.warning('退款必须关联已支付流水')
+        return
+      }
+      payload.finalRefundAmount = refundAmount
+      payload.paymentRecordId = paymentRecordId
+    }
+  }
+
+  optionalChangeSubmitting.value = true
+  try {
+    const res = await adminOrderAPI.auditAdminOptionalChange(
+      payload,
+      operatorName.value,
+    )
+    if (res?.code !== 200) {
+      message.error(res?.msg || '选配变更审核失败')
+      return
+    }
+
+    message.success(res.msg || '选配变更审核成功')
+    closeOptionalChangeAuditModal()
+    await refreshDispatchContext()
+  } catch (error) {
+    console.error(error)
+    message.error(getErrorMessage(error, '选配变更审核失败'))
+  } finally {
+    optionalChangeSubmitting.value = false
+  }
+}
+
 // ======================= 派单管理功能区域 =======================
 
 const showDispatchModal = ref(false)
@@ -1878,7 +2262,179 @@ const shouldShowWaitUserAuditHighlight = computed(
     Number(constructionInfo.value?.currentNodeStatus) ===
     CONSTRUCTION_NODE_STATUS.WAIT_USER_AUDIT,
 )
+const shouldShowWaitBillPaymentHighlight = computed(
+  () =>
+    Number(constructionInfo.value?.currentNodeStatus) ===
+    CONSTRUCTION_NODE_STATUS.WAIT_PAYMENT,
+)
 const formatCurrencyAmount = (value) => Number(value || 0).toLocaleString()
+const formatDateTime = (value) => {
+  if (!value) return '--'
+  return String(value).replace('T', ' ')
+}
+
+const paymentBillTypeMap = {
+  BUILD_DEPOSIT: '建房定金',
+  ADJUSTMENT: '补差账单',
+  OPTION_CHANGE: '选配变更补价',
+  STAGE_PAYMENT: '节点进度款',
+}
+
+const getPaymentBillTypeText = (billType) =>
+  paymentBillTypeMap[billType] || billType || '待支付账单'
+
+const getPaymentBillTypeTagType = (billType) => {
+  if (billType === 'BUILD_DEPOSIT') return 'warning'
+  if (billType === 'ADJUSTMENT') return 'error'
+  if (billType === 'OPTION_CHANGE') return 'warning'
+  if (billType === 'STAGE_PAYMENT') return 'info'
+  return 'default'
+}
+
+const sortAdminPaymentBills = (rows = []) =>
+  [...rows].sort((left, right) => {
+    const leftTime = left?.createTime ? new Date(left.createTime).getTime() : 0
+    const rightTime = right?.createTime ? new Date(right.createTime).getTime() : 0
+    if (leftTime !== rightTime) return rightTime - leftTime
+    return Number(right?.id || 0) - Number(left?.id || 0)
+  })
+
+const getBuildDepositPendingBill = () => {
+  const pendingRows = Array.isArray(detailOrder.value?.pendingPaymentBills)
+    ? detailOrder.value.pendingPaymentBills
+    : []
+  return pendingRows.find((bill) => bill?.billType === 'BUILD_DEPOSIT') || null
+}
+
+const getBuildDepositBillAmount = () => {
+  const pendingBill = getBuildDepositPendingBill()
+  const pendingAmount = Number(pendingBill?.amount)
+  if (Number.isFinite(pendingAmount) && pendingAmount > 0) {
+    return pendingAmount
+  }
+
+  const paidAmount = Number(detailOrder.value?.paidAmount)
+  if (Number.isFinite(paidAmount) && paidAmount > 0) {
+    return paidAmount
+  }
+
+  return null
+}
+
+const getBuildDepositBillCreateTime = () => {
+  const pendingBill = getBuildDepositPendingBill()
+  return (
+    pendingBill?.createTime ||
+    detailOrder.value?.createTime ||
+    detailOrder.value?.payTime ||
+    detailOrder.value?.paymentTime ||
+    null
+  )
+}
+
+const resolveAdminBillStatus = (bill) => {
+  const rawStatus = String(bill?.status || '').trim().toUpperCase()
+  if (rawStatus === 'PAID') return 'PAID'
+  if (rawStatus === 'REFUNDED') return 'REFUNDED'
+  if (rawStatus === 'CANCELLED') return 'CANCELLED'
+  if (rawStatus === 'EXPIRED') return 'EXPIRED'
+  return 'PENDING'
+}
+
+const adminPendingPaymentBillRows = computed(() => {
+  const rows = Array.isArray(detailOrder.value?.pendingPaymentBills)
+    ? detailOrder.value.pendingPaymentBills
+    : []
+  return sortAdminPaymentBills(rows)
+})
+
+const buildDepositAdminStatus = computed(() => {
+  if (getBuildDepositPendingBill()) return 'PENDING'
+  const paymentStatus = Number(detailOrder.value?.paymentStatus)
+  if (paymentStatus === 3) return 'REFUNDED'
+  if ([1, 2].includes(paymentStatus)) return 'PAID'
+  return 'PENDING'
+})
+
+const adminPaymentBillRows = computed(() => {
+  const rows = [...adminPendingPaymentBillRows.value]
+  const hasBuildDepositBill = rows.some((bill) => bill?.billType === 'BUILD_DEPOSIT')
+
+  if (!hasBuildDepositBill && detailOrder.value?.id) {
+    rows.unshift({
+      id: `build-deposit-${detailOrder.value.id}`,
+      billType: 'BUILD_DEPOSIT',
+      status: buildDepositAdminStatus.value,
+      amount: getBuildDepositBillAmount(),
+      remark: '--',
+      relatedNodeId: null,
+      billTitle: '建房定金',
+      createTime: getBuildDepositBillCreateTime(),
+    })
+  }
+
+  return sortAdminPaymentBills(rows)
+})
+
+const hasAdminPaymentBillRows = computed(() => adminPaymentBillRows.value.length > 0)
+
+const getAdminBillStatusText = (bill) => {
+  const status = resolveAdminBillStatus(bill)
+  const statusMap = {
+    PENDING: '待支付',
+    PAID: '已支付',
+    REFUNDED: '已退款',
+    CANCELLED: '已取消',
+    EXPIRED: '已失效',
+  }
+  return statusMap[status] || '待支付'
+}
+
+const getAdminBillStatusTagType = (bill) => {
+  const status = resolveAdminBillStatus(bill)
+  if (status === 'PAID') return 'success'
+  if (status === 'REFUNDED') return 'error'
+  if (status === 'CANCELLED' || status === 'EXPIRED') return 'default'
+  return 'warning'
+}
+
+const resolveStagePaymentNodeName = (bill) => {
+  const relatedNodeId = Number(bill?.relatedNodeId || 0)
+  if (relatedNodeId > 0) {
+    const relatedNode = (constructionInfo.value?.nodeDetails || []).find(
+      (node) => Number(node?.nodeId || node?.id) === relatedNodeId,
+    )
+    if (relatedNode?.name) return relatedNode.name
+  }
+
+  const rawTitle = String(bill?.billTitle || '').trim()
+  if (!rawTitle) return ''
+  const titleParts = rawTitle.split(/[:：]/)
+  if (titleParts.length > 1) {
+    const nodeName = titleParts[titleParts.length - 1].trim()
+    if (nodeName) return nodeName
+  }
+  return rawTitle
+}
+
+const getAdminBillDisplayTitle = (bill) => {
+  if (bill?.billType === 'BUILD_DEPOSIT') return '建房定金'
+  if (bill?.billType === 'STAGE_PAYMENT') {
+    return resolveStagePaymentNodeName(bill) || '--'
+  }
+  return bill?.billTitle || '--'
+}
+
+const getBillRelatedNodeName = (bill) => {
+  const relatedNodeId = Number(bill?.relatedNodeId || 0)
+  if (!relatedNodeId) return '--'
+
+  const relatedNode = (constructionInfo.value?.nodeDetails || []).find(
+    (node) => Number(node?.nodeId || node?.id) === relatedNodeId,
+  )
+
+  return relatedNode?.name || '--'
+}
 
 const isConstructionFlowCompleted = (flow) => {
   if (!flow?.nodeDetails?.length) return false
@@ -1908,19 +2464,17 @@ const getConstructionStepStatus = (
   return 'wait'
 }
 
-const isNodeAmountEditable = (index) =>
-  !isConstructionPriceLocked.value &&
-  Number(index) >= Number(constructionInfo.value?.currentNodeIndex || 0)
-
 // 施工派单数据
-const selectedConstructionVendorOption = computed(() =>
-  constructionVendorOptions.value.find(
-    (item) => item.value === constructionForm.vendorId,
-  ) || null,
-)
-
 // 材料派单数据
 const showMaterialDispatchModal = ref(false)
+const materialDispatchReplacingVendorOrderId = ref(null)
+const normalizeMaterialName = (value) => String(value || '').trim()
+const isMaterialDispatchOutdated = (row) => {
+  const currentName = normalizeMaterialName(row?.name)
+  const dispatchedName = normalizeMaterialName(row?.statusData?.materialName)
+  if (!row?.statusData || !currentName || !dispatchedName) return false
+  return currentName !== dispatchedName
+}
 const selectedMaterialVendorOption = computed(() =>
   materialVendorOptions.value.find((item) => item.value === materialForm.vendorId) ||
   null,
@@ -1934,7 +2488,6 @@ const selectedRedispatchVendorOption = computed(() =>
   ) || null,
 )
 
-const isDispatchPaymentReady = (status) => [1, 2].includes(Number(status))
 const canOpenDispatchEntry = (item) =>
   Number(item?.orderStatus) !== 5 &&
   (Number(item?.orderStatus) < 4 || Number(item?.paymentStatus) === 2)
@@ -1946,81 +2499,64 @@ const stopDispatchPaymentPolling = () => {
   }
 }
 
-const startDispatchPaymentPolling = (orderId, attempts = 40, delay = 3000) => {
-  stopDispatchPaymentPolling()
-  if (!orderId) return
-
-  const poll = async () => {
-    if (!showDispatchModal.value) {
-      stopDispatchPaymentPolling()
-      return
-    }
-
-    await orderManageStore.fetchOrderDetailInternal(orderId)
-    orderManageStore.syncDispatchListItem()
-
-    if (isDispatchPaymentReady(detailOrder.value?.paymentStatus)) {
-      await orderManageStore.initDispatchState()
-      dispatchTab.value = 'dispatch'
-      stopDispatchPaymentPolling()
-      return
-    }
-
-    if (!currentContractUrl.value || attempts <= 1) {
-      stopDispatchPaymentPolling()
-      return
-    }
-
-    attempts -= 1
-    dispatchPaymentPollTimer = window.setTimeout(poll, delay)
-  }
-
-  dispatchPaymentPollTimer = window.setTimeout(poll, delay)
-}
-
 const shouldShowConstructionPricingButton = computed(
+  () => Number(detailOrder.value?.orderStatus) < 3,
+)
+
+const constructionWorkflowStarted = computed(
+  () => Number(detailOrder.value?.orderStatus) >= 3,
+)
+
+const constructionPricingButtonText = computed(() => '确认开工金额方案')
+
+const canOpenConstructionPricingEntry = computed(
+  () => canDispatch.value && Number(detailOrder.value?.orderStatus) !== 5,
+)
+
+const canManageMaterialDispatch = computed(
+  () => canDispatch.value && Number(detailOrder.value?.orderStatus) !== 5,
+)
+
+const canStartConstructionEntry = computed(
   () =>
-    Number(detailOrder.value?.orderStatus) === 2 ||
-    (Number(detailOrder.value?.orderStatus) >= 3 &&
-      !constructionPricePlanReady.value),
-)
-
-const constructionPricingButtonText = computed(() =>
-  Number(detailOrder.value?.orderStatus) >= 3
-    ? '继续设置施工节点金额'
-    : '设置施工节点金额',
-)
-
-const canEnterConstructionPricingStep = computed(() => {
-  if (Number(detailOrder.value?.orderStatus) >= 3) {
-    return canStartConstruction.value || canConfigureConstructionPrice.value
-  }
-
-  return (
     Number(detailOrder.value?.orderStatus) === 2 &&
+    canDispatch.value &&
     allServicesAccepted.value &&
-    (canStartConstruction.value || canConfigureConstructionPrice.value)
-  )
-})
-const canOpenConstructionPricingTab = computed(() => {
-  if (!canEnterConstructionPricingStep.value) return false
-  if (Number(detailOrder.value?.orderStatus) >= 3) return true
-  return !!constructionInfo.value
-})
+    canConfigureConstructionPrice.value &&
+    canStartConstruction.value,
+)
+
+const canSyncConstructionPricePlan = computed(
+  () =>
+    constructionWorkflowStarted.value &&
+    hasConstructionNodeInstances.value &&
+    canConfigureConstructionPrice.value,
+)
 
 const shouldShowConstructionProgressButton = computed(
-  () =>
-    Number(detailOrder.value?.orderStatus) >= 3 &&
-    constructionPricePlanReady.value &&
-    isConstructionPriceLocked.value,
+  () => Number(detailOrder.value?.orderStatus) >= 3 && !!constructionInfo.value,
 )
 
-const dispatchStageLockMessage = '订单已进入施工阶段，派单信息已锁定'
-
-const ensureDispatchStageEditable = () => {
-  if (!isDispatchStageLocked.value) return true
-  message.warning(dispatchStageLockMessage)
+const ensureMaterialDispatchEditable = () => {
+  if (canManageMaterialDispatch.value) return true
+  message.warning('当前订单不可继续材料派单')
   return false
+}
+
+const ensureConstructionDispatchEditable = () => {
+  if (!canDispatch.value) {
+    message.warning('请先上传合同后再派单')
+    return false
+  }
+  if (Number(detailOrder.value?.orderStatus) === 5) {
+    message.warning('已取消订单无法继续处理/派单')
+    return false
+  }
+  if (isDispatchStageLocked.value) {
+    message.warning('订单已进入施工阶段，施工单位派单已锁定')
+    return false
+  }
+  return true
 }
 
 const handleOpenDispatch = async (item) => {
@@ -2036,10 +2572,9 @@ const handleOpenDispatch = async (item) => {
 
   await orderManageStore.fetchOrderDetailInternal(item.id)
   orderManageStore.syncDispatchListItem()
+  await loadAdminOptionalChangeList(item.id)
 
   if (!currentContractUrl.value) {
-    dispatchTab.value = 'contract'
-  } else if (!isDispatchPaymentReady(detailOrder.value?.paymentStatus)) {
     dispatchTab.value = 'contract'
   } else {
     dispatchTab.value = 'dispatch'
@@ -2051,58 +2586,109 @@ const handleOpenDispatch = async (item) => {
 
   if (Number(detailOrder.value?.orderStatus) >= 3) {
     await loadConstructionStatus()
-    dispatchTab.value =
-      constructionPricePlanReady.value && isConstructionPriceLocked.value
-        ? 'flow'
-        : 'pricing'
+    dispatchTab.value = hasAdminPaymentBillRows.value ? 'bills' : 'flow'
   }
-
-  if (
-    currentContractUrl.value &&
-    !isDispatchPaymentReady(detailOrder.value?.paymentStatus)
-  ) {
-    startDispatchPaymentPolling(item.id)
-  } else {
-    stopDispatchPaymentPolling()
-  }
+  stopDispatchPaymentPolling()
 }
 
 const handleGoToConstructionPricing = async () => {
-  if (!canEnterConstructionPricingStep.value) {
-    if (!allServicesAccepted.value) {
-      message.warning('请等待所有服务商接单后再进入节点金额设置')
+  if (!canOpenConstructionPricingEntry.value) {
+    message.warning('请先完成合同上传后，再确认开工金额方案')
+    return
+  }
+  dispatchTab.value = 'pricing'
+  if (constructionWorkflowStarted.value) {
+    await loadConstructionStatus()
+  }
+}
+
+const handleUpdateConstructionDepositDraft = (amount) => {
+  orderManageStore.setConstructionDepositDraft(amount)
+}
+
+const handleSaveConstructionDeposit = async (amount) => {
+  if (!canConfigureConstructionPrice.value) {
+    message.warning('当前账号无权修改建房定金')
+    return
+  }
+  depositSubmitting.value = true
+  try {
+    const res = await orderManageStore.submitConstructionDepositAmount(amount)
+    if (res.code !== 200) {
+      message.error(res.msg || '保存建房定金失败')
       return
     }
-    message.warning('当前订单尚未达到可设置施工节点金额的状态')
+    await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+    orderManageStore.syncDispatchListItem()
+    message.success('建房定金已更新，后续金额方案已按新定金重算')
+  } catch (error) {
+    message.error(getErrorMessage(error, '保存建房定金失败'))
+  } finally {
+    depositSubmitting.value = false
+  }
+}
+
+const handleConfirmConstructionPricing = () => {
+  if (!canStartConstructionEntry.value) {
+    message.warning('请先完成派单并等待全部服务商接单后，再确认开工金额方案')
     return
   }
 
-  if (constructionInfo.value) {
-    dispatchTab.value = 'pricing'
-    return
-  }
-
-  if (Number(detailOrder.value?.orderStatus) >= 3) {
-    dispatchTab.value = 'pricing'
-    await loadConstructionStatus()
-    return
-  }
-
-  if (!canStartConstruction.value) {
-    message.error('当前账号无权初始化施工节点，请联系管理员')
-    return
-  }
-
-  dialog.info({
-    title: '进入节点金额设置',
+  dialog.warning({
+    title: '确认金额方案并开启施工',
     content:
-      '确认所有服务商已接单并进入节点金额设置吗？确认后系统会先初始化当前订单的施工节点，随后请在第 3 步完成全部节点金额配置并保存。',
-    positiveText: '进入设置',
-    negativeText: '取消',
+      '确认后将调用后端开启施工流程，并按当前订单总价与定金同步施工节点金额。',
+    positiveText: '确认开启',
+    negativeText: '再检查一下',
     onPositiveClick: async () => {
-      await startConstructionProcess('pricing')
+      planSubmitting.value = true
+      try {
+        const started = await startConstructionProcess('pricing')
+        if (!started) return false
+
+        const res = await orderManageStore.submitConstructionPricePlan()
+        if (res.code !== 200) {
+          message.error(res.msg || '同步金额方案失败')
+          dispatchTab.value = 'pricing'
+          return false
+        }
+
+        await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+        orderManageStore.syncDispatchListItem()
+        await loadConstructionStatus()
+        dispatchTab.value = 'bills'
+        message.success('金额方案已确认，用户可按当前节点账单继续支付')
+        return true
+      } finally {
+        planSubmitting.value = false
+      }
     },
   })
+}
+
+const handleSyncConstructionPricePlan = async () => {
+  if (!canSyncConstructionPricePlan.value) {
+    message.warning('当前订单暂不满足同步金额方案的条件')
+    return
+  }
+
+  planSubmitting.value = true
+  try {
+    const res = await orderManageStore.submitConstructionPricePlan()
+    if (res.code !== 200) {
+      message.error(res.msg || '同步金额方案失败')
+      return
+    }
+
+    await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+    orderManageStore.syncDispatchListItem()
+    await loadConstructionStatus()
+    message.success('已按后端规则同步未支付节点金额')
+  } catch (error) {
+    message.error(getErrorMessage(error, '同步金额方案失败'))
+  } finally {
+    planSubmitting.value = false
+  }
 }
 const loadBuilders = async () => {
   try {
@@ -2114,7 +2700,7 @@ const loadBuilders = async () => {
 }
 
 const submitConstructionDispatch = async () => {
-  if (!ensureDispatchStageEditable()) return
+  if (!ensureConstructionDispatchEditable()) return
   try {
     const res = await orderManageStore.createConstructionDispatch()
     if (res.code === 200 || res.type) {
@@ -2165,6 +2751,18 @@ const materialColumns = [
                 { default: () => '查看拒绝理由' },
               )
             : null,
+          isMaterialDispatchOutdated(row)
+            ? h(
+                NTag,
+                {
+                  size: 'small',
+                  type: 'warning',
+                  bordered: false,
+                  style: { marginLeft: '6px' },
+                },
+                { default: () => '选配已变更' },
+              )
+            : null,
         ])
       } else {
         return h(
@@ -2186,18 +2784,30 @@ const materialColumns = [
     title: '操作',
     key: 'actions',
     render(row) {
-      if (isDispatchStageLocked.value) {
+      if (!canManageMaterialDispatch.value) {
         return h(
           'span',
           { style: { color: '#999', fontSize: '12px' } },
-          '阶段已锁定',
+          '不可派单',
         )
       }
 
       if (row.statusData) {
         const status = row.statusData.orderStatus
+        const outdated = isMaterialDispatchOutdated(row)
 
-        if (status === 0) {
+        if (outdated && [1, 3].includes(status)) {
+          return h(
+            NButton,
+            {
+              type: 'warning',
+              size: 'small',
+              onClick: () =>
+                openMaterialDispatch(row, row.statusData.vendorOrderId),
+            },
+            { default: () => '更换服务商' },
+          )
+        } else if (status === 0) {
           return h(
             NButton,
             {
@@ -2239,9 +2849,10 @@ const materialColumns = [
   },
 ]
 
-const openMaterialDispatch = async (row) => {
-  if (!ensureDispatchStageEditable()) return
+const openMaterialDispatch = async (row, replacingVendorOrderId = null) => {
+  if (!ensureMaterialDispatchEditable()) return
   showMaterialDispatchModal.value = true
+  materialDispatchReplacingVendorOrderId.value = Number(replacingVendorOrderId) || null
 
   try {
     await orderManageStore.prepareMaterialDispatch(row)
@@ -2256,7 +2867,7 @@ const openMaterialDispatch = async (row) => {
 }
 
 const openRedispatchModal = async (vendorOrder) => {
-  if (!ensureDispatchStageEditable()) return
+  if (!ensureMaterialDispatchEditable()) return
   showRedispatchModal.value = true
 
   try {
@@ -2271,7 +2882,7 @@ const openRedispatchModal = async (vendorOrder) => {
 }
 
 const submitRedispatch = async () => {
-  if (!ensureDispatchStageEditable()) return
+  if (!ensureMaterialDispatchEditable()) return
   redispatchSubmitting.value = true
   try {
     const updateRes = await orderManageStore.submitRedispatch()
@@ -2291,12 +2902,25 @@ const submitRedispatch = async () => {
 }
 
 const submitMaterialDispatch = async () => {
-  if (!ensureDispatchStageEditable()) return
+  if (!ensureMaterialDispatchEditable()) return
   try {
+    if (materialDispatchReplacingVendorOrderId.value) {
+      orderManageStore.prepareCancelVendorOrder(
+        materialDispatchReplacingVendorOrderId.value,
+      )
+      cancelReason.value = `同分类选配已调整为「${currentTarget.value.name || '当前产品'}」，取消旧服务商后重新派单`
+      const cancelRes = await orderManageStore.cancelCurrentVendorOrder()
+      if (cancelRes.code !== 200) {
+        message.error(cancelRes.msg || '取消旧派单失败')
+        return
+      }
+    }
+
     const res = await orderManageStore.createMaterialDispatch()
     if (res.code === 200 || res.type) {
       message.success('材料派单成功')
       showMaterialDispatchModal.value = false
+      materialDispatchReplacingVendorOrderId.value = null
       await orderManageStore.initDispatchState()
     } else {
       message.error(res.msg || '派单失败')
@@ -2307,13 +2931,13 @@ const submitMaterialDispatch = async () => {
 }
 
 const handlePreCancel = (vendorOrderId) => {
-  if (!ensureDispatchStageEditable()) return
+  if (!ensureMaterialDispatchEditable()) return
   orderManageStore.prepareCancelVendorOrder(vendorOrderId)
   showCancelModal.value = true
 }
 
 const handleReDispatch = (vendorOrderId) => {
-  if (!ensureDispatchStageEditable()) return
+  if (!ensureMaterialDispatchEditable()) return
   const sourceOrder =
     activeConstructionOrder.value?.vendorOrderId === vendorOrderId
       ? activeConstructionOrder.value
@@ -2354,8 +2978,15 @@ const loadConstructionStatus = async () => {
 }
 
 watch(dispatchTab, (newVal) => {
-  if (newVal === 'pricing' || newVal === 'flow') {
+  if (
+    newVal === 'pricing' ||
+    newVal === 'flow' ||
+    newVal === 'bills'
+  ) {
     loadConstructionStatus()
+  }
+  if (newVal === 'optionalChange') {
+    loadAdminOptionalChangeList()
   }
 })
 
@@ -2371,13 +3002,55 @@ watch(
 watch(showDispatchModal, (show) => {
   if (!show) {
     stopDispatchPaymentPolling()
+    optionalChangeRecords.value = []
+    closeOptionalChangeAuditModal()
   }
 })
+
+watch(showOptionalChangeAuditModal, (show) => {
+  if (!show) {
+    currentOptionalChangeAuditRecord.value = null
+    optionalChangePaymentRecordOptions.value = []
+    resetOptionalChangeAuditForm()
+  }
+})
+
+watch(
+  () => optionalChangeAuditForm.mode,
+  (mode) => {
+    if (mode === 'refund' && showOptionalChangeAuditModal.value) {
+      loadOptionalChangePaymentRecordOptions()
+      return
+    }
+
+    if (mode !== 'refund') {
+      optionalChangeAuditForm.paymentRecordId = null
+      optionalChangePaymentRecordOptions.value = []
+    }
+  },
+)
+
+watch(
+  () => currentOptionalChangeAllowedModes.value.join('|'),
+  () => {
+    if (!showOptionalChangeAuditModal.value) return
+    if (
+      !currentOptionalChangeAllowedModes.value.includes(
+        optionalChangeAuditForm.mode,
+      )
+    ) {
+      optionalChangeAuditForm.mode = resolveOptionalChangeAuditMode(
+        currentOptionalChangeAuditRecord.value,
+      )
+    }
+  },
+)
 
 watch(showMaterialDispatchModal, (show) => {
   if (!show) {
     orderManageStore.resetMaterialDispatchForm()
     materialVendorOptions.value = []
+    materialDispatchReplacingVendorOrderId.value = null
   }
 })
 
@@ -2387,13 +3060,13 @@ watch(showRedispatchModal, (show) => {
   }
 })
 
-const startConstructionProcess = async (nextTab = 'pricing') => {
+const startConstructionProcess = async (nextTab = 'dispatch') => {
   try {
     const res = await orderManageStore.startConstructionProcess(
       currentDispatchOrder.value.id,
     )
     if (res.code === 200) {
-      message.success('施工节点已初始化，请继续设置节点金额')
+      message.success('施工节点已初始化，正在同步节点金额')
       await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
       orderManageStore.syncDispatchListItem()
       await orderManageStore.initDispatchState()
@@ -2409,7 +3082,7 @@ const startConstructionProcess = async (nextTab = 'pricing') => {
     const alreadyStarted =
       errorMsg.includes('已在进行中') || errorMsg.includes('请勿重复开启')
     if (alreadyStarted) {
-      message.warning('检测到施工节点已初始化，正在进入节点金额设置...')
+      message.warning('检测到施工节点已初始化，正在同步节点数据...')
       await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
       orderManageStore.syncDispatchListItem()
       await orderManageStore.initDispatchState()
@@ -2423,83 +3096,12 @@ const startConstructionProcess = async (nextTab = 'pricing') => {
   }
 }
 
-const handleConfirmConstructionFlow = () => {
-  if (!currentDispatchOrder.value?.id) {
-    message.error('订单信息缺失，无法进入施工流程')
-    return
-  }
-  if (!constructionInfo.value?.nodeDetails?.length) {
-    message.warning('请先回到第 2 步点击“设置施工节点金额”，初始化施工节点后再继续')
-    return
-  }
-  if (!constructionPricePlanReady.value) {
-    message.warning('请先完成节点金额配置并保存后，再进入施工流程')
-    return
-  }
-
-  dialog.warning({
-    title: '确认进入施工流程',
-    content:
-      '请确认当前节点金额配置无误。确认后将进入施工流程，节点金额会立即锁定，后续不可再修改。',
-    positiveText: '确认进入',
-    negativeText: '再检查一下',
-    onPositiveClick: async () => {
-      orderManageStore.markConstructionPriceLocked(currentDispatchOrder.value.id)
-      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
-      orderManageStore.syncDispatchListItem()
-      await loadConstructionStatus()
-      dispatchTab.value = 'flow'
-      message.success('当前价格配置已确认，已进入施工流程')
-      return true
-    },
-  })
-}
-
 // 点击节点加载详情
 const handleNodeClick = async (node) => {
   try {
     await orderManageStore.handleNodeClick(node)
   } catch (e) {
     message.error('加载节点详情失败')
-  }
-}
-
-const resetEditableNodePriceDraft = () => {
-  orderManageStore.resetEditableNodePriceDraft()
-}
-
-const applyBalancedNodePricePlan = () => {
-  try {
-    const res = orderManageStore.applyBalancedNodePricePlan()
-    if (res?.msg) {
-      message.success(res.msg)
-    }
-  } catch (error) {
-    message.warning(getErrorMessage(error, '自动分配失败'))
-  }
-}
-
-const submitConstructionPricePlan = async () => {
-  if (!canConfigureConstructionPrice.value) {
-    message.error('当前账号无权设置施工节点金额')
-    return
-  }
-  try {
-    const res = await orderManageStore.submitConstructionPricePlan()
-    if (res.code === 200) {
-      message.success('全部节点金额已保存')
-      await loadConstructionStatus()
-      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
-      orderManageStore.syncDispatchListItem()
-      if (currentNodeDetail.value?.nodeId) {
-        await handleNodeClick({ nodeId: currentNodeDetail.value.nodeId })
-      }
-    } else {
-      message.error(res.msg || '设置失败')
-    }
-  } catch (e) {
-    console.error('submitConstructionPricePlan failed', e)
-    message.error(getErrorMessage(e, '设置节点金额失败'))
   }
 }
 
@@ -2528,16 +3130,6 @@ const isPendingAudit = computed(() => {
 })
 
 const handleAuditPass = () => {
-  if (!constructionPricePlanReady.value) {
-    message.warning('请先到第 3 步“节点金额设置”中完成全部节点金额配置并保存！')
-    return
-  }
-
-  if (currentNodeDetail.value && resolvedCurrentNodeAmount.value <= 0) {
-    message.warning('当前节点金额尚未配置，请先完成金额配置后再审核！')
-    return
-  }
-
   dialog.success({
     title: '审核通过',
     content: '确定通过当前施工节点的验收吗？',
@@ -2723,11 +3315,11 @@ onBeforeUnmount(() => {
     grid-template-columns: minmax(180px, 1.5fr) minmax(90px, 1fr) minmax(
         120px,
         1.2fr
-      ) minmax(100px, 1fr) minmax(100px, 1fr) minmax(170px, 1.2fr) 330px;
+      ) minmax(100px, 1fr) minmax(100px, 1fr) 330px;
     gap: 12px;
     padding: 14px 20px;
     align-items: center;
-    min-width: 1220px;
+    min-width: 1030px;
   }
   .list-item {
     overflow: hidden;
@@ -2738,19 +3330,6 @@ onBeforeUnmount(() => {
   .actions {
     justify-content: center;
   }
-}
-.todo-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 6px;
-  white-space: normal !important;
-}
-.todo-cell__desc {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--color-text-muted);
 }
 .info-header {
   display: flex;
@@ -2835,9 +3414,16 @@ onBeforeUnmount(() => {
 }
 .pricing-entry-wrap {
   margin-top: 30px;
-  text-align: center;
+}
+.pricing-entry-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 .pricing-entry-hint {
+  text-align: center;
   margin-top: 12px;
   color: #c14545;
 }
@@ -3078,6 +3664,16 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--color-text-muted);
 }
+.node-price-readonly {
+  min-width: 170px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+  border: 1px dashed var(--color-border-soft);
+  color: var(--color-brand-700);
+  font-size: 13px;
+  font-weight: 600;
+}
 .flow-confirm-actions {
   padding: 0 20px 20px;
   display: flex;
@@ -3098,6 +3694,10 @@ onBeforeUnmount(() => {
 .flow-highlight-card--audit {
   background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%) !important;
   box-shadow: 0 10px 24px rgba(82, 196, 26, 0.18) !important;
+}
+.flow-highlight-card--payment {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%) !important;
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.16) !important;
 }
 .flow-highlight-card__body {
   display: flex;
@@ -3120,6 +3720,9 @@ onBeforeUnmount(() => {
 .flow-highlight-card--audit .flow-highlight-card__icon {
   background: #52c41a;
 }
+.flow-highlight-card--payment .flow-highlight-card__icon {
+  background: #2563eb;
+}
 .flow-highlight-card__title {
   font-size: 20px;
   font-weight: 700;
@@ -3131,6 +3734,9 @@ onBeforeUnmount(() => {
 .flow-highlight-card--audit .flow-highlight-card__title {
   color: #237804;
 }
+.flow-highlight-card--payment .flow-highlight-card__title {
+  color: #1d4ed8;
+}
 .flow-highlight-card__desc {
   font-size: 14px;
   line-height: 1.8;
@@ -3140,6 +3746,115 @@ onBeforeUnmount(() => {
 }
 .flow-highlight-card--audit .flow-highlight-card__desc {
   color: #386b0b;
+}
+.flow-highlight-card--payment .flow-highlight-card__desc {
+  color: #1e40af;
+}
+.admin-payment-bills {
+  padding: 0 20px 20px;
+}
+.admin-payment-bills-table {
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: #fff;
+}
+.admin-payment-bills-head,
+.admin-payment-bills-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr 1fr 0.8fr 1.2fr 1fr 0.8fr;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+}
+.admin-payment-bills-head {
+  background: var(--color-surface-soft);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.admin-payment-bills-row {
+  border-top: 1px solid var(--color-border-soft);
+}
+.admin-payment-bills-cell {
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+.admin-payment-bills-label {
+  display: none;
+}
+.admin-payment-bills-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
+.admin-optional-change-list {
+  display: grid;
+  gap: 16px;
+  padding: 0 4px 4px;
+}
+.admin-optional-change-card {
+  padding: 16px 18px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbfa 100%);
+}
+.admin-optional-change-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.admin-optional-change-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.admin-optional-change-card__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 12px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.admin-optional-change-card__snapshots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.admin-optional-change-card__snapshot {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+  border: 1px solid var(--color-border-soft);
+}
+.admin-optional-change-card__snapshot-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.admin-optional-change-card__snapshot-text {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  line-height: 1.7;
+  word-break: break-word;
+}
+.admin-optional-change-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+.optional-change-audit-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 .flow-steps {
   padding: 0 20px;
@@ -3173,19 +3888,12 @@ onBeforeUnmount(() => {
   font-size: 13px;
   color: #888;
 }
-.flow-step-summary__amount {
-  margin-bottom: 4px;
-}
 .flow-step-summary__current {
   color: var(--color-brand-700);
   font-weight: 700;
 }
 .flow-node-detail-desc {
   margin-bottom: 16px;
-}
-.flow-node-amount {
-  font-weight: 600;
-  color: #111;
 }
 .flow-node-timeline {
   max-height: 400px;
@@ -3277,6 +3985,11 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
+  .admin-payment-bills-head,
+  .admin-payment-bills-row {
+    grid-template-columns: 1.2fr 0.9fr 0.9fr 0.8fr 1fr 0.9fr 0.8fr;
+  }
+
   .flow-steps {
     padding: 0 8px;
   }
@@ -3306,7 +4019,7 @@ onBeforeUnmount(() => {
   .order-list {
     .list-header,
     .list-row {
-      min-width: 1220px;
+      min-width: 1030px;
     }
   }
 
@@ -3380,6 +4093,41 @@ onBeforeUnmount(() => {
 
   .flow-steps__detail {
     padding-left: 0;
+  }
+
+  .admin-payment-bills {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .admin-payment-bills-head {
+    display: none;
+  }
+
+  .admin-payment-bills-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .admin-payment-bills-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .admin-optional-change-card {
+    padding: 14px;
+  }
+
+  .admin-optional-change-card__header,
+  .optional-change-audit-modal__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-optional-change-card__snapshots {
+    grid-template-columns: 1fr;
   }
 
   .dispatch-panel {

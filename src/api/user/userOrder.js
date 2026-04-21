@@ -98,10 +98,97 @@ export default {
     })
   },
 
+  // 用户修改建房订单主体/选配
+  updateOrderProducts(userId, data) {
+    return request({
+      url: '/user/order/products',
+      method: 'put',
+      params: {
+        userId,
+      },
+      data,
+    })
+  },
+
+  // 用户上传建房图纸
+  uploadBlueprint(orderId, userId, file) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request({
+      url: '/user/order/blueprint/upload',
+      method: 'post',
+      params: {
+        orderId,
+        userId,
+      },
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
+
+  // 用户查询建房订单选配变更记录
+  getOptionalChangeList(orderId, userId) {
+    return request({
+      url: '/user/order/optional-change',
+      method: 'get',
+      params: {
+        orderId,
+        userId,
+      },
+    })
+  },
+
+  // 用户查询建房订单选配变更详情
+  getOptionalChangeDetail(requestId, userId) {
+    return request({
+      url: `/user/order/optional-change/${requestId}`,
+      method: 'get',
+      params: {
+        userId,
+      },
+    })
+  },
+
   // 用户查询当前订单的支付流水
   getUserPaymentRecords(orderId, userId) {
     return request({
       url: `/user/order/payment-records/${orderId}`,
+      method: 'get',
+      params: {
+        userId,
+      },
+    })
+  },
+
+  // 用户查询当前订单的待支付账单
+  getUserPaymentBills(orderId, userId) {
+    return request({
+      url: `/user/order/payment-bills/${orderId}`,
+      method: 'get',
+      params: {
+        userId,
+      },
+    })
+  },
+
+  // 用户按账单发起支付
+  payBill(billId, userId, channel) {
+    return request({
+      url: `/payment/bill/${billId}`,
+      method: 'post',
+      params: {
+        userId,
+        channel,
+      },
+    })
+  },
+
+  // 用户确认账单支付结果
+  confirmBillPayment(billId, userId) {
+    return request({
+      url: `/payment/bill/${billId}/confirm`,
       method: 'get',
       params: {
         userId,
@@ -299,6 +386,25 @@ export default {
       method: 'put',
       data: {
         statement,
+      },
+    })
+  },
+
+  // 管理端读取全局默认定金
+  getPaymentDefaultDeposit() {
+    return request({
+      url: '/order/management/payment-default-deposit',
+      method: 'get',
+    })
+  },
+
+  // 管理端修改全局默认定金
+  updatePaymentDefaultDeposit(depositAmount) {
+    return request({
+      url: '/order/management/payment-default-deposit',
+      method: 'put',
+      data: {
+        depositAmount,
       },
     })
   },

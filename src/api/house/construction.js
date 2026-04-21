@@ -29,6 +29,17 @@ export default {
       },
     })
   },
+  // 修改建房订单定金
+  updateDepositAmount(data) {
+    return request({
+      url: '/construction/admin/deposit',
+      method: 'post',
+      data: {
+        orderId: data.orderId,
+        depositAmount: data.depositAmount,
+      },
+    })
+  },
   // 5. 服务商上传节点照片 (修复：参数放 params，文件放 body 且 key 为 files)
   uploadNodePhoto(params) {
     const formData = new FormData()
@@ -111,7 +122,7 @@ export default {
     })
   },
   //用户支付当前节点费用
-  payNode(orderId, userId, nodeId) {
+  payNode(orderId, userId, nodeId, channel = 'ALIPAY') {
     return request({
       url: '/construction/user/pay',
       method: 'post',
@@ -119,7 +130,16 @@ export default {
         orderId,
         userId,
         nodeId,
+        channel,
       },
+    })
+  },
+  // 管理端分页查询待审核施工节点
+  getPendingAuditList(params = {}) {
+    return request({
+      url: '/construction/admin/audit/list',
+      method: 'get',
+      params,
     })
   },
 }

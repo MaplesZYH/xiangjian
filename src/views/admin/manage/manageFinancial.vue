@@ -37,6 +37,9 @@
                   <n-button type="primary" @click="handlePaymentSearch">
                     查询
                   </n-button>
+                  <n-button type="warning" secondary @click="openDepositSettingModal">
+                    定金设置
+                  </n-button>
                   <n-button type="info" secondary @click="openPaymentStatementModal">
                     支付协议
                   </n-button>
@@ -57,6 +60,7 @@
                     <div class="header-item">支付金额</div>
                     <div class="header-item">交易流水号</div>
                     <div class="header-item">支付时间</div>
+                    <div class="header-item">操作</div>
                   </div>
 
                   <n-spin :show="paymentLoading" class="financial-spin">
@@ -100,6 +104,18 @@
                         </div>
                         <div class="list-item" :title="formatDateTime(item.payTime)">
                           {{ formatDateTime(item.payTime) }}
+                        </div>
+                        <div class="list-item actions">
+                          <n-button
+                            v-if="hasPaymentViewPermission"
+                            size="small"
+                            type="info"
+                            secondary
+                            @click="openPaymentDetailModal(item)"
+                          >
+                            详情
+                          </n-button>
+                          <span v-else>--</span>
                         </div>
                       </div>
                     </div>
@@ -320,6 +336,71 @@
     </n-modal>
 
     <n-modal
+      v-model:show="showDepositSettingModal"
+      preset="card"
+      title="定金设置"
+      style="width: min(520px, calc(100vw - 24px))"
+    >
+      <div class="deposit-setting-panel">
+        <section class="deposit-setting-card">
+          <div class="deposit-setting-card__title">设计订单定金</div>
+          <div class="deposit-setting-card__desc">
+            这里直接读取并修改后端全局默认定金，保存后后续新建设计订单会立即按新金额生效。
+          </div>
+
+          <n-form label-placement="top">
+            <n-form-item label="定金金额">
+              <n-input-number
+                v-model:value="designDepositDraft"
+                :min="0.01"
+                :precision="2"
+                :step="100"
+                style="width: 100%"
+                placeholder="请输入设计订单定金"
+              />
+            </n-form-item>
+          </n-form>
+
+          <div class="deposit-setting-card__status">
+            <span>当前已保存：</span>
+            <strong>
+              {{
+                designDepositSavedAmount == null
+                  ? '未设置'
+                  : `¥${formatMoney(designDepositSavedAmount)}`
+              }}
+            </strong>
+          </div>
+          <div class="deposit-setting-card__hint">
+            已创建的历史订单不会回溯修改，实际支付金额仍以后端实时生成账单为准。
+          </div>
+        </section>
+
+        <div class="deposit-setting-inline-note">
+          建房订单定金继续按订单详情里的单笔链路处理；这里仅维护“新订单默认定金”。
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="financial-modal-actions">
+          <n-button :disabled="depositSettingLoading" @click="reloadDefaultDepositAmount">
+            刷新
+          </n-button>
+          <div class="financial-modal-actions__group">
+            <n-button :disabled="depositSettingSaving" @click="closeDepositSettingModal">取消</n-button>
+            <n-button
+              type="primary"
+              :loading="depositSettingSaving"
+              @click="saveDesignDepositDraft"
+            >
+              保存
+            </n-button>
+          </div>
+        </div>
+      </template>
+    </n-modal>
+
+    <n-modal
       v-model:show="showRefundDetailModal"
       preset="card"
       title="退款详情"
@@ -427,6 +508,93 @@
             </div>
           </div>
         </div>
+      </n-spin>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showPaymentDetailModal"
+      preset="card"
+      title="支付流水详情"
+      style="width: min(760px, calc(100vw - 24px))"
+    >
+      <n-spin :show="paymentDetailLoading">
+        <div v-if="paymentDetail" class="refund-detail-panel">
+          <div class="refund-detail-row">
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">支付流水ID：</span>
+              <span class="refund-detail-item__value">
+                {{ paymentDetail.id || '--' }}
+              </span>
+            </div>
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">订单ID：</span>
+              <span class="refund-detail-item__value">
+                {{ paymentDetail.orderId || '--' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="refund-detail-row">
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">订单号：</span>
+              <span class="refund-detail-item__value">
+                {{ paymentDetail.orderNumber || '--' }}
+              </span>
+            </div>
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">交易流水号：</span>
+              <span class="refund-detail-item__value">
+                {{ paymentDetail.transactionId || '--' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="refund-detail-row">
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">用户：</span>
+              <span class="refund-detail-item__value">
+                {{ paymentDetail.userName || '--' }}
+              </span>
+            </div>
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">电话：</span>
+              <span class="refund-detail-item__value">
+                {{ paymentDetail.phoneNumber || '--' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="refund-detail-row">
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">支付阶段：</span>
+              <span class="refund-detail-item__value">
+                {{ getPaymentStageText(paymentDetail.paymentStage) }}
+              </span>
+            </div>
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">支付渠道：</span>
+              <span class="refund-detail-item__value">
+                {{ getPaymentChannelText(paymentDetail.paymentChannel) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="refund-detail-row">
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">支付金额：</span>
+              <span class="refund-detail-item__value">
+                ¥{{ formatMoney(paymentDetail.amount) }}
+              </span>
+            </div>
+            <div class="refund-detail-item">
+              <span class="refund-detail-item__label">支付时间：</span>
+              <span class="refund-detail-item__value">
+                {{ formatDateTime(paymentDetail.payTime) }}
+              </span>
+            </div>
+          </div>
+        </div>
+        <n-empty v-else description="暂无支付流水详情" />
       </n-spin>
     </n-modal>
 
@@ -544,6 +712,9 @@ const hasRefundAuditPermission = computed(() =>
 )
 const hasPaymentListPermission = computed(() =>
   employeePermissions.includes('payment:list'),
+)
+const hasPaymentViewPermission = computed(() =>
+  employeePermissions.includes('payment:view'),
 )
 const hasPaymentStatementUpdatePermission = computed(() =>
   employeePermissions.includes('order:update:statement') ||
@@ -663,11 +834,17 @@ const formatDateTime = (value) => {
 
 const defaultPaymentStatement =
   '<p style="text-align: center;"><strong>支付协议（模拟文案）</strong></p><p><strong>1.</strong> 下单后请在规定时间内完成付款。</p><p><strong>2.</strong> 施工节点付款请以系统提示金额为准。</p><p><strong>3.</strong> 如有疑问请联系客服。</p>'
+const DEFAULT_DESIGN_DEPOSIT_DRAFT = 0.01
+const showDepositSettingModal = ref(false)
 const showPaymentStatementModal = ref(false)
+const depositSettingLoading = ref(false)
+const depositSettingSaving = ref(false)
 const paymentStatementLoading = ref(false)
 const paymentStatementSaving = ref(false)
 const paymentStatementCurrent = ref(defaultPaymentStatement)
 const paymentStatementDraft = ref(defaultPaymentStatement)
+const designDepositDraft = ref(DEFAULT_DESIGN_DEPOSIT_DRAFT)
+const designDepositSavedAmount = ref(null)
 const paymentStatementEditorRef = shallowRef()
 const paymentStatementToolbarConfig = {
   toolbarKeys: [
@@ -718,6 +895,48 @@ const getStatementPlainText = (html) => {
     .trim()
 }
 
+const normalizeDepositDraftAmount = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return null
+  }
+  return Number(amount.toFixed(2))
+}
+
+const loadDesignDepositDraft = async ({ silent = false } = {}) => {
+  depositSettingLoading.value = true
+  try {
+    const res = await orderAPI.getPaymentDefaultDeposit()
+    const amount = normalizeDepositDraftAmount(
+      res?.data?.depositAmount ?? res?.data?.amount,
+    )
+
+    if (res?.code === 200 && amount != null) {
+      designDepositSavedAmount.value = amount
+      designDepositDraft.value = amount
+      return amount
+    }
+
+    designDepositSavedAmount.value = null
+    designDepositDraft.value = DEFAULT_DESIGN_DEPOSIT_DRAFT
+    if (!silent) {
+      message.error(res?.msg || '获取全局默认定金失败')
+    }
+    return null
+  } catch (error) {
+    designDepositSavedAmount.value = null
+    designDepositDraft.value = DEFAULT_DESIGN_DEPOSIT_DRAFT
+    if (!silent) {
+      const msg =
+        error?.response?.data?.msg || error?.msg || error?.message || '获取全局默认定金失败'
+      message.error(String(msg))
+    }
+    return null
+  } finally {
+    depositSettingLoading.value = false
+  }
+}
+
 const handlePaymentStatementEditorCreated = (editor) => {
   paymentStatementEditorRef.value = editor
 }
@@ -766,6 +985,48 @@ const openPaymentStatementModal = async () => {
   await loadPaymentStatement({ silent: true })
   paymentStatementDraft.value = paymentStatementCurrent.value || defaultPaymentStatement
 }
+
+const openDepositSettingModal = async () => {
+  showDepositSettingModal.value = true
+  await loadDesignDepositDraft({ silent: false })
+}
+
+const closeDepositSettingModal = async () => {
+  await loadDesignDepositDraft({ silent: true })
+  showDepositSettingModal.value = false
+}
+
+const saveDesignDepositDraft = async () => {
+  const amount = normalizeDepositDraftAmount(designDepositDraft.value)
+  if (amount == null) {
+    message.warning('请输入有效的定金金额')
+    return
+  }
+
+  depositSettingSaving.value = true
+  try {
+    const res = await orderAPI.updatePaymentDefaultDeposit(amount)
+    if (res?.code !== 200) {
+      message.error(res?.msg || '默认定金保存失败')
+      return
+    }
+
+    designDepositDraft.value = amount
+    designDepositSavedAmount.value = amount
+    message.success('全局默认定金已保存')
+  } catch (error) {
+    const msg =
+      error?.response?.data?.msg || error?.msg || error?.message || '默认定金保存失败'
+    message.error(String(msg))
+    return
+  } finally {
+    depositSettingSaving.value = false
+  }
+
+  showDepositSettingModal.value = false
+}
+
+const reloadDefaultDepositAmount = () => loadDesignDepositDraft({ silent: false })
 
 const closePaymentStatementModal = () => {
   if (paymentStatementSaving.value) return
@@ -855,6 +1116,33 @@ const handleRefundPageChange = (page) => {
 const showRefundDetailModal = ref(false)
 const refundDetailLoading = ref(false)
 const refundDetail = ref(null)
+const showPaymentDetailModal = ref(false)
+const paymentDetailLoading = ref(false)
+const paymentDetail = ref(null)
+
+const openPaymentDetailModal = async (row) => {
+  if (!row?.id || !hasPaymentViewPermission.value) return
+  showPaymentDetailModal.value = true
+  paymentDetailLoading.value = true
+  paymentDetail.value = null
+  try {
+    const res = await orderAPI.getPaymentRecordDetail(row.id)
+    if (res.code === 200) {
+      paymentDetail.value = res.data || null
+      if (!paymentDetail.value) {
+        message.error('获取支付流水详情失败')
+      }
+      return
+    }
+    message.error(res.msg || '获取支付流水详情失败')
+  } catch (error) {
+    const msg =
+      error?.response?.data?.msg || error?.msg || error?.message || '获取支付流水详情失败'
+    message.error(String(msg))
+  } finally {
+    paymentDetailLoading.value = false
+  }
+}
 
 const openRefundDetailModal = async (row) => {
   if (!row?.id || !hasRefundViewPermission.value) return
@@ -1111,8 +1399,8 @@ onMounted(() => {
     ) minmax(150px, 0.95fr) minmax(110px, 0.82fr) minmax(100px, 0.72fr) minmax(
       110px,
       0.78fr
-    ) minmax(220px, 1.4fr) minmax(180px, 1fr);
-  --financial-table-min-width: 1440px;
+    ) minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(96px, 0.64fr);
+  --financial-table-min-width: 1540px;
 }
 
 .financial-list--refund {
@@ -1223,6 +1511,60 @@ onMounted(() => {
   :deep(.w-e-scroll) {
     min-height: 320px !important;
   }
+}
+
+.deposit-setting-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.deposit-setting-card {
+  padding: 18px 18px 16px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border-soft);
+  background: linear-gradient(180deg, var(--color-surface) 0%, #f8fbf8 100%);
+  box-shadow: var(--shadow-xs);
+}
+
+.deposit-setting-card__title {
+  color: var(--color-text-primary);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.deposit-setting-card__desc {
+  margin-top: 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.deposit-setting-card__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.deposit-setting-card__hint {
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.deposit-setting-inline-note {
+  padding: 12px 14px;
+  border-radius: var(--radius-lg);
+  background: rgba(60, 64, 97, 0.05);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .financial-modal-actions {

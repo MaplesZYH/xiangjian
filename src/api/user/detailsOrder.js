@@ -55,4 +55,27 @@ export default {
       },
     })
   },
+
+  // 6. 管理端查询订单选配变更记录
+  getAdminOptionalChangeList(orderId) {
+    return request({
+      url: '/order/optional-change/admin',
+      method: 'get',
+      params: {
+        orderId,
+      },
+    })
+  },
+
+  // 7. 管理端审核订单选配变更
+  auditAdminOptionalChange(data, operator) {
+    return request({
+      url: '/order/optional-change/admin/audit',
+      method: 'post',
+      params: {
+        operator,
+      },
+      data,
+    })
+  },
 }

@@ -508,6 +508,140 @@
     </n-modal>
 
     <n-modal
+      v-model:show="showOrderPaymentModal"
+      preset="card"
+      title="订单支付"
+      :mask-closable="!orderPaymentSubmitting"
+      :closable="!orderPaymentSubmitting"
+      :style="configModalStyle"
+    >
+      <n-space vertical size="large">
+        <div class="payment-summary-card">
+          <div class="payment-summary-card__title">
+            {{ createdOrderPaymentTarget.title }}
+          </div>
+          <div class="payment-summary-card__desc">
+            {{ createdOrderPaymentTarget.description }}
+          </div>
+          <div class="payment-summary-card__amount">
+            {{
+              createdOrderPaymentTarget.amountText ||
+              `¥${createdOrderPaymentTarget.amount?.toLocaleString?.() || 0}`
+            }}
+          </div>
+        </div>
+
+        <n-radio-group v-model:value="createdOrderPaymentForm.channel">
+          <n-space vertical>
+            <n-radio
+              v-for="option in paymentChannelOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </n-radio>
+          </n-space>
+        </n-radio-group>
+      </n-space>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button
+            :disabled="orderPaymentSubmitting"
+            @click="closeCreatedOrderPaymentModal"
+          >
+            稍后支付
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="orderPaymentSubmitting"
+            @click="submitCreatedOrderPayment"
+          >
+            去支付
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showOrderWechatPayModal"
+      preset="card"
+      title="微信扫码支付"
+      :style="configModalStyle"
+    >
+      <n-space vertical align="center" size="large">
+        <n-qr-code
+          v-if="orderWechatPayUrl"
+          :value="orderWechatPayUrl"
+          :size="220"
+          error-correction-level="M"
+        />
+        <n-empty v-else description="未获取到微信支付二维码" />
+        <div class="wechat-pay-tip">
+          请使用微信扫一扫完成支付。若暂不支付，订单会保留在用户中心的待支付列表中。
+        </div>
+      </n-space>
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="closeOrderWechatPayModal">关闭</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showDesignPaymentModal"
+      preset="card"
+      title="设计订单支付"
+      :mask-closable="!designSubmitting"
+      :closable="!designSubmitting"
+      :style="configModalStyle"
+    >
+      <n-space vertical size="large">
+        <div class="payment-summary-card">
+          <div class="payment-summary-card__title">
+            设计定制定金支付
+          </div>
+          <div class="payment-summary-card__desc">
+            设计订单已创建并生成定金账单，请选择支付方式继续。若暂不支付，可稍后在用户中心继续完成。
+          </div>
+          <div class="payment-summary-card__amount">
+            {{ designPaymentAmountText }}
+          </div>
+        </div>
+
+        <n-radio-group v-model:value="designPaymentForm.channel">
+          <n-space vertical>
+            <n-radio
+              v-for="option in paymentChannelOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </n-radio>
+          </n-space>
+        </n-radio-group>
+      </n-space>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button
+            :disabled="designSubmitting"
+            @click="closeDesignPaymentModal"
+          >
+            稍后支付
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="designSubmitting"
+            @click="submitDesignOrder"
+          >
+            确认并支付
+          </n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
       v-model:show="showDesignModal"
       preset="card"
       title="设计定制"
@@ -518,18 +652,36 @@
         :label-width="isCompactViewport ? undefined : 100"
       >
         <n-alert type="info" class="config-alert">
-          提交设计需求后将直接创建设计订单，并拉起支付流程。
+          点击下一步后会直接创建设计订单并生成定金账单。
         </n-alert>
 
         <n-form-item label="设计地址" required>
+          <n-cascader
+            v-model:value="selectedDesignRegionCode"
+            @update:value="handleDesignRegionUpdate"
+            :options="regionCascaderOptions"
+            check-strategy="child"
+            filterable
+            clearable
+            placeholder="请选择省 / 市 / 区"
+          />
+        </n-form-item>
+
+        <n-form-item label="详细地址" required>
           <n-input
-            v-model:value="designForm.orderAddress"
+            v-model:value="designAddressForm.detail"
             type="textarea"
-            placeholder="请输入完整设计地址"
+            placeholder="请输入街道门牌，例如：科华北路88号A栋1201"
             :rows="2"
-            maxlength="200"
+            maxlength="120"
             show-count
           />
+        </n-form-item>
+
+        <n-form-item label="预览地址：">
+          <div class="address-preview">
+            {{ designOrderAddress || '请先选择设计行政区并填写详细门牌地址' }}
+          </div>
         </n-form-item>
 
         <n-form-item label="设计需求">
@@ -563,9 +715,10 @@
           <n-button
             type="primary"
             :loading="designSubmitting"
-            @click="submitDesignOrder"
+            :disabled="designSubmitting"
+            @click="openDesignPaymentModal"
           >
-            提交并支付
+            下一步
           </n-button>
         </n-space>
       </template>
@@ -575,7 +728,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, reactive, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
@@ -589,6 +742,8 @@ import designOrderAPI from '@/api/user/designOrder'
 import chinaAreaData from 'china-area-data'
 import { validateStructuredAddress } from '@/utils/address'
 import { getAssetPrimaryUrl } from '@/utils/asset'
+import { appendDesignOrderProductBinding } from '@/utils/designOrderBinding'
+import { saveDesignOrderMainProductBinding } from '@/utils/designOrderMainProductStore'
 import { resolveModelAssetUrl, warmModelAsset } from '@/utils/modelAsset'
 import { useProductStore } from '@/stores/product/useProductStore'
 import { useAuthStore } from '@/stores/auth/useAuthStore'
@@ -620,6 +775,9 @@ const currentImageIndex = ref(0)
 const showImagePreview = ref(false)
 const show3DModal = ref(false)
 const showConfigModal = ref(false)
+const showOrderPaymentModal = ref(false)
+const showOrderWechatPayModal = ref(false)
+const showDesignPaymentModal = ref(false)
 const showDesignModal = ref(false)
 const isCompactViewport = useMaxWidth(768)
 const activeDetailSection = ref('params')
@@ -633,6 +791,13 @@ const addressForm = reactive({
   detail: '',
 })
 const selectedRegionCode = ref(null)
+const designAddressForm = reactive({
+  province: '',
+  city: '',
+  district: '',
+  detail: '',
+})
+const selectedDesignRegionCode = ref(null)
 const rawRegionData = chinaAreaData?.default || chinaAreaData || {}
 const regionRootMap = rawRegionData['86'] || {}
 const regionNameByCodeMap = new Map()
@@ -691,11 +856,11 @@ const getRegionNameByCode = (code) => regionNameByCodeMap.get(String(code || '')
 const normalizeOptionLabel = (value = '') =>
   String(value === undefined || value === null ? '' : value).trim()
 
-const handleRegionUpdate = (_value, _option, path) => {
+const applyRegionPathToForm = (form, path) => {
   if (!Array.isArray(path) || path.length < 3) {
-    addressForm.province = ''
-    addressForm.city = ''
-    addressForm.district = ''
+    form.province = ''
+    form.city = ''
+    form.district = ''
     return
   }
 
@@ -705,9 +870,17 @@ const handleRegionUpdate = (_value, _option, path) => {
   const cityName =
     cityNameRaw === '市辖区' || cityNameRaw === '县' ? provinceName : cityNameRaw
 
-  addressForm.province = provinceName
-  addressForm.city = cityName
-  addressForm.district = districtName
+  form.province = provinceName
+  form.city = cityName
+  form.district = districtName
+}
+
+const handleRegionUpdate = (_value, _option, path) => {
+  applyRegionPathToForm(addressForm, path)
+}
+
+const handleDesignRegionUpdate = (_value, _option, path) => {
+  applyRegionPathToForm(designAddressForm, path)
 }
 
 const cityOptionalProvinceSet = new Set([
@@ -732,8 +905,10 @@ const provinceAliasMap = {
   澳门: '澳门特别行政区',
 }
 const submitting = ref(false)
+const orderPaymentSubmitting = ref(false)
 const designSubmitting = ref(false)
 const loadingConfigs = ref(false)
+const orderWechatPayUrl = ref('')
 const collectLoading = computed(
   () => !!favoriteLoadingMap.value[Number(houseData.value?.id || 0)],
 )
@@ -748,6 +923,10 @@ const designForm = reactive({
   orderAddress: '',
   designRequirements: '',
   customerNotes: '',
+})
+const designPaymentPreviewAmount = ref(null)
+const designPaymentForm = reactive({
+  channel: 'ALIPAY',
 })
 let fetchOptionsPromise = null
 const defaultDetailImage = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
@@ -818,6 +997,35 @@ const modelModalStyle = computed(() => ({
 const configModalStyle = computed(() => ({
   width: isCompactViewport.value ? 'calc(100vw - 20px)' : 'min(92vw, 800px)',
 }))
+const createdOrderPaymentForm = reactive({
+  channel: 'ALIPAY',
+})
+const createdOrderPaymentTarget = reactive({
+  orderId: null,
+  billId: null,
+  amount: 0,
+  amountText: '',
+  title: '',
+  description: '',
+})
+const createdDesignPaymentTarget = reactive({
+  orderId: null,
+  billId: null,
+})
+const pendingBuildPaymentTracker = reactive({
+  orderId: null,
+  billId: null,
+})
+const pendingDesignPaymentTracker = reactive({
+  orderId: null,
+  billId: null,
+})
+const BUILD_PAYMENT_TRACKER_STORAGE_KEY = 'house-detail-build-payment-tracker'
+const DESIGN_PAYMENT_TRACKER_STORAGE_KEY = 'house-detail-design-payment-tracker'
+const paymentChannelOptions = [
+  { label: '支付宝支付', value: 'ALIPAY' },
+  { label: '微信支付', value: 'WECHAT' },
+]
 
 const normalizeRegionPart = (value = '') =>
   String(value).replace(/\s+/g, '').trim()
@@ -825,20 +1033,32 @@ const normalizeRegionPart = (value = '') =>
 const normalizeDetailPart = (value = '') =>
   String(value).replace(/\s+/g, ' ').trim()
 
-const orderAddress = computed(() => {
-  const province = normalizeRegionPart(addressForm.province)
-  const city = normalizeRegionPart(addressForm.city)
-  const district = normalizeRegionPart(addressForm.district)
-  const detail = normalizeDetailPart(addressForm.detail)
+const buildStructuredAddress = (form) => {
+  const province = normalizeRegionPart(form.province)
+  const city = normalizeRegionPart(form.city)
+  const district = normalizeRegionPart(form.district)
+  const detail = normalizeDetailPart(form.detail)
   return [province, city, district, detail].filter(Boolean).join('')
-})
+}
+
+const orderAddress = computed(() => buildStructuredAddress(addressForm))
+
+const designOrderAddress = computed(() => buildStructuredAddress(designAddressForm))
+
+const resetStructuredAddressForm = (form, regionCodeRef) => {
+  regionCodeRef.value = null
+  form.province = ''
+  form.city = ''
+  form.district = ''
+  form.detail = ''
+}
 
 const resetAddressForm = () => {
-  selectedRegionCode.value = null
-  addressForm.province = ''
-  addressForm.city = ''
-  addressForm.district = ''
-  addressForm.detail = ''
+  resetStructuredAddressForm(addressForm, selectedRegionCode)
+}
+
+const resetDesignAddressForm = () => {
+  resetStructuredAddressForm(designAddressForm, selectedDesignRegionCode)
 }
 
 const findProvinceFromAddress = (text) => {
@@ -887,45 +1107,57 @@ const resolveRegionCodesByNames = ({ province = '', city = '', district = '' }) 
   return [provinceCode, cityCode, districtCode]
 }
 
-const hydrateAddressForm = (rawAddress = '') => {
-  resetAddressForm()
+const hydrateStructuredAddressForm = (form, regionCodeRef, rawAddress = '') => {
+  resetStructuredAddressForm(form, regionCodeRef)
   const normalized = String(rawAddress || '').replace(/\s+/g, '').trim()
   if (!normalized) return
 
   let rest = normalized
   const province = findProvinceFromAddress(normalized)
   if (province) {
-    addressForm.province = province
+    form.province = province
     const index = normalized.indexOf(province)
     rest = index >= 0 ? normalized.slice(index + province.length) : normalized
   }
 
   const cityMatch = rest.match(/^(.+?(?:市|自治州|地区|盟))/)
   if (cityMatch) {
-    addressForm.city = cityMatch[1]
+    form.city = cityMatch[1]
     rest = rest.slice(cityMatch[1].length)
   }
 
   const districtMatch = rest.match(/^(.+?(?:区|县|旗|市))/)
   if (districtMatch) {
-    addressForm.district = districtMatch[1]
+    form.district = districtMatch[1]
     rest = rest.slice(districtMatch[1].length)
   }
 
-  if (!addressForm.city && cityOptionalProvinceSet.has(addressForm.province)) {
-    addressForm.city = addressForm.province
+  if (!form.city && cityOptionalProvinceSet.has(form.province)) {
+    form.city = form.province
   }
 
-  addressForm.detail = rest || normalized
+  form.detail = rest || normalized
 
   const matchedCodes = resolveRegionCodesByNames({
-    province: addressForm.province,
-    city: addressForm.city,
-    district: addressForm.district,
+    province: form.province,
+    city: form.city,
+    district: form.district,
   })
   if (matchedCodes.length > 0) {
-    selectedRegionCode.value = matchedCodes[matchedCodes.length - 1]
+    regionCodeRef.value = matchedCodes[matchedCodes.length - 1]
   }
+}
+
+const hydrateAddressForm = (rawAddress = '') => {
+  hydrateStructuredAddressForm(addressForm, selectedRegionCode, rawAddress)
+}
+
+const hydrateDesignAddressForm = (rawAddress = '') => {
+  hydrateStructuredAddressForm(
+    designAddressForm,
+    selectedDesignRegionCode,
+    rawAddress,
+  )
 }
 
 const validateOrderAddressForm = () => {
@@ -944,18 +1176,90 @@ const validateOrderAddressForm = () => {
   return true
 }
 
-const validateDesignForm = () => {
-  if (!String(designForm.orderAddress || '').trim()) {
-    message.warning('请输入设计地址')
+const validateDesignAddressForm = () => {
+  const errorMessage = validateStructuredAddress({
+    province: designAddressForm.province,
+    city: designAddressForm.city,
+    district: designAddressForm.district,
+    detail: designAddressForm.detail,
+    fullAddress: designOrderAddress.value,
+    addressLabel: '设计地址',
+  })
+  if (errorMessage) {
+    message.warning(errorMessage)
     return false
   }
   return true
 }
 
+const validateDesignForm = () => {
+  if (!validateDesignAddressForm()) {
+    return false
+  }
+
+  if (!houseData.value?.id) {
+    message.warning('当前主体产品信息缺失，请刷新页面后重试')
+    return false
+  }
+
+  const persistedDesignRequirements = buildPersistedDesignRequirements()
+  if (persistedDesignRequirements.length > 2000) {
+    message.warning('设计需求内容过长，请适当精简后再提交')
+    return false
+  }
+
+  return true
+}
+
+const buildPersistedDesignRequirements = () =>
+  appendDesignOrderProductBinding(String(designForm.designRequirements || '').trim(), {
+    mainProductId: houseData.value?.id,
+  })
+
+const designPaymentAmountText = computed(() => {
+  if (designPaymentPreviewAmount.value == null) {
+    return '以后端账单金额为准'
+  }
+
+  const amount = Number(designPaymentPreviewAmount.value)
+  return Number.isFinite(amount) && amount >= 0
+    ? `¥${amount.toLocaleString()}`
+    : '¥--'
+})
+
 const resetDesignForm = () => {
+  resetDesignAddressForm()
   designForm.orderAddress = ''
   designForm.designRequirements = ''
   designForm.customerNotes = ''
+  designPaymentForm.channel = 'ALIPAY'
+  designPaymentPreviewAmount.value = null
+}
+
+const resetCreatedDesignPaymentTarget = () => {
+  createdDesignPaymentTarget.orderId = null
+  createdDesignPaymentTarget.billId = null
+}
+
+const closeDesignPaymentModal = () => {
+  if (designSubmitting.value) return
+  if (createdDesignPaymentTarget.orderId) {
+    message.info('设计订单已创建，可在用户中心继续完成支付')
+  }
+  showDesignPaymentModal.value = false
+  showDesignModal.value = false
+  resetCreatedDesignPaymentTarget()
+  resetDesignForm()
+}
+
+const resetCreatedOrderPaymentTarget = () => {
+  createdOrderPaymentForm.channel = 'ALIPAY'
+  createdOrderPaymentTarget.orderId = null
+  createdOrderPaymentTarget.billId = null
+  createdOrderPaymentTarget.amount = 0
+  createdOrderPaymentTarget.amountText = ''
+  createdOrderPaymentTarget.title = ''
+  createdOrderPaymentTarget.description = ''
 }
 
 // 初始化配置
@@ -1102,49 +1406,21 @@ const handleOpenDesignModal = async () => {
   }
 
   resetDesignForm()
+  resetCreatedDesignPaymentTarget()
+  showDesignPaymentModal.value = false
   showDesignModal.value = true
 
   try {
-    const res = await userAPI.getUserDataById(userId)
-    if (res.code === 200 && res.data?.address) {
-      designForm.orderAddress = String(res.data.address).trim()
+    const userRes = await userAPI.getUserDataById(userId)
+    if (userRes.code === 200 && userRes.data?.address) {
+      hydrateDesignAddressForm(String(userRes.data.address).trim())
     }
   } catch (error) {
     void error
   }
 }
 
-const openPaymentPayload = (payload, targetWindow = null) => {
-  if (typeof payload !== 'string') return false
-
-  const content = payload.trim()
-  if (!content) return false
-
-  const nextWindow =
-    targetWindow || window.open('', '_blank', 'noopener,noreferrer')
-  if (!nextWindow) return false
-
-  if (
-    content.startsWith('http://') ||
-    content.startsWith('https://') ||
-    content.startsWith('//')
-  ) {
-    nextWindow.location.href = content
-    return true
-  }
-
-  if (content.includes('<form') || content.includes('<html')) {
-    nextWindow.document.open()
-    nextWindow.document.write(content)
-    nextWindow.document.close()
-    return true
-  }
-
-  nextWindow.close()
-  return false
-}
-
-const submitDesignOrder = async () => {
+const openDesignPaymentModal = async () => {
   const userId = getCurrentUserId()
   if (!userId) {
     message.warning('请先登录后再进行操作')
@@ -1157,41 +1433,510 @@ const submitDesignOrder = async () => {
   }
 
   designSubmitting.value = true
-  const paymentWindow = window.open('', '_blank', 'noopener,noreferrer')
 
   try {
     const res = await designOrderAPI.createAndPay(userId, {
-      orderAddress: String(designForm.orderAddress || '').trim(),
-      designRequirements: String(designForm.designRequirements || '').trim(),
+      mainProductId: Number(houseData.value?.id),
+      orderAddress: designOrderAddress.value,
+      designRequirements: buildPersistedDesignRequirements(),
       customerNotes: String(designForm.customerNotes || '').trim(),
-    })
+    }, 'ALIPAY')
 
     if (res.code !== 200 || !res.data) {
-      if (paymentWindow && !paymentWindow.closed) {
-        paymentWindow.close()
-      }
       message.error(res.msg || '设计订单创建失败')
       return
     }
 
-    const opened = openPaymentPayload(res.data.paymentPayload, paymentWindow)
+    createdDesignPaymentTarget.orderId = Number(res.data.orderId || 0) || null
+    createdDesignPaymentTarget.billId = Number(res.data.billId || 0) || null
+    saveDesignOrderMainProductBinding(res.data.orderId, houseData.value?.id)
+
+    const payloadAmount = parsePaymentBizContentAmount(res.data.paymentPayload)
+    designPaymentPreviewAmount.value =
+      Number.isFinite(payloadAmount) && payloadAmount >= 0 ? payloadAmount : null
+
+    showDesignModal.value = false
+    showDesignPaymentModal.value = true
+  } catch (error) {
+    console.error('创建设计订单失败', error)
+    message.error(error?.msg || error?.message || '创建设计订单失败')
+  } finally {
+    designSubmitting.value = false
+  }
+}
+
+const decodeHtmlEntities = (value) => {
+  if (typeof value !== 'string' || !value) return ''
+  if (typeof document === 'undefined') return value
+  const textarea = document.createElement('textarea')
+  textarea.innerHTML = value
+  return textarea.value
+}
+
+const parsePaymentBizContentAmount = (html) => {
+  if (typeof html !== 'string' || !html.trim()) return null
+
+  const match = html.match(
+    /<input[^>]*name=["']biz_content["'][^>]*value=["']([^"']*)["'][^>]*>/i,
+  )
+  const encodedBizContent = match?.[1]
+  if (!encodedBizContent) return null
+
+  const decodedBizContent = decodeHtmlEntities(encodedBizContent)
+  if (!decodedBizContent) return null
+
+  try {
+    const parsed = JSON.parse(decodedBizContent)
+    const amount = Number(parsed?.total_amount)
+    return Number.isFinite(amount) ? amount : null
+  } catch (error) {
+    return null
+  }
+}
+
+const openPaymentResultWindow = (
+  content,
+  isHtml = false,
+  targetWindow = null,
+  { allowSameWindowFallback = true } = {},
+) => {
+  if (!content) return false
+
+  const nextWindow = targetWindow || window.open('', '_blank')
+  if (!nextWindow) {
+    if (!allowSameWindowFallback) {
+      return false
+    }
+
+    if (isHtml) {
+      const container = document.createElement('div')
+      container.style.display = 'none'
+      container.innerHTML = content
+      document.body.appendChild(container)
+
+      const form = container.querySelector('form')
+      if (form) {
+        form.setAttribute('target', '_self')
+        form.submit()
+        setTimeout(() => {
+          container.remove()
+        }, 1000)
+        return true
+      }
+
+      container.remove()
+      return false
+    }
+
+    window.location.href = content
+    return true
+  }
+
+  if (isHtml) {
+    nextWindow.document.open()
+    nextWindow.document.write(content)
+    nextWindow.document.close()
+    return true
+  }
+
+  nextWindow.location.href = content
+  return true
+}
+
+const tryOpenPaymentPayload = (
+  payload,
+  visited = new Set(),
+  targetWindow = null,
+  options = {},
+) => {
+  if (!payload) return false
+
+  if (typeof payload === 'string') {
+    const content = payload.trim()
+    if (!content) return false
+
+    if (
+      content.startsWith('http://') ||
+      content.startsWith('https://') ||
+      content.startsWith('//')
+    ) {
+      return openPaymentResultWindow(content, false, targetWindow, options)
+    }
+
+    if (content.includes('<form') || content.includes('<html')) {
+      return openPaymentResultWindow(content, true, targetWindow, options)
+    }
+
+    return false
+  }
+
+  if (typeof payload !== 'object' || visited.has(payload)) return false
+  visited.add(payload)
+
+  const htmlContent =
+    payload.formHtml ||
+    payload.html ||
+    payload.body ||
+    payload.payHtml ||
+    payload.paymentHtml
+  if (typeof htmlContent === 'string' && htmlContent.trim()) {
+    return openPaymentResultWindow(htmlContent, true, targetWindow, options)
+  }
+
+  const redirectUrl =
+    payload.payUrl ||
+    payload.paymentUrl ||
+    payload.redirectUrl ||
+    payload.url ||
+    payload.codeUrl ||
+    payload.qrCodeUrl ||
+    payload.qrCode
+  if (typeof redirectUrl === 'string' && redirectUrl.trim()) {
+    return openPaymentResultWindow(redirectUrl, false, targetWindow, options)
+  }
+
+  return ['data', 'result', 'payload'].some((key) =>
+    tryOpenPaymentPayload(payload[key], visited, targetWindow, options),
+  )
+}
+
+const resolveWechatPayUrl = (payload, visited = new Set()) => {
+  if (!payload) return ''
+
+  if (typeof payload === 'string') {
+    const content = payload.trim()
+    return content.startsWith('weixin://') ? content : ''
+  }
+
+  if (typeof payload !== 'object' || visited.has(payload)) return ''
+  visited.add(payload)
+
+  const candidates = [
+    payload.data,
+    payload.result,
+    payload.payload,
+    payload.codeUrl,
+    payload.qrCode,
+    payload.qrCodeUrl,
+    payload.url,
+  ]
+
+  for (const candidate of candidates) {
+    const value = resolveWechatPayUrl(candidate, visited)
+    if (value) return value
+  }
+
+  return ''
+}
+
+const pickPendingBuildDepositBill = (bills = []) => {
+  const rows = Array.isArray(bills) ? bills : []
+  return (
+    rows.find((item) => item?.billType === 'BUILD_DEPOSIT') ||
+    rows.find((item) => item?.status === 'PENDING') ||
+    rows[0] ||
+    null
+  )
+}
+
+const loadPendingBuildDepositBill = async (orderId, userId) => {
+  if (!orderId || !userId) return null
+  const res = await orderAPI.getUserPaymentBills(orderId, userId)
+  if (!(res.code === 200 && Array.isArray(res.data))) {
+    return null
+  }
+  return pickPendingBuildDepositBill(res.data)
+}
+
+const persistPaymentTracker = (storageKey, tracker) => {
+  if (typeof window === 'undefined') return
+  const orderId = Number(tracker?.orderId || 0)
+  const billId = Number(tracker?.billId || 0)
+  if (!orderId || !billId) {
+    window.sessionStorage.removeItem(storageKey)
+    return
+  }
+  window.sessionStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      orderId,
+      billId,
+    }),
+  )
+}
+
+const hydratePaymentTracker = (storageKey, tracker) => {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = window.sessionStorage.getItem(storageKey)
+    if (!raw) return
+    const parsed = JSON.parse(raw)
+    tracker.orderId = Number(parsed?.orderId || 0) || null
+    tracker.billId = Number(parsed?.billId || 0) || null
+  } catch (error) {
+    void error
+  }
+}
+
+const clearBuildPaymentTracker = () => {
+  pendingBuildPaymentTracker.orderId = null
+  pendingBuildPaymentTracker.billId = null
+  persistPaymentTracker(BUILD_PAYMENT_TRACKER_STORAGE_KEY, null)
+}
+
+const clearDesignPaymentTracker = () => {
+  pendingDesignPaymentTracker.orderId = null
+  pendingDesignPaymentTracker.billId = null
+  persistPaymentTracker(DESIGN_PAYMENT_TRACKER_STORAGE_KEY, null)
+}
+
+const trackPendingBuildPayment = (orderId, billId) => {
+  pendingBuildPaymentTracker.orderId = Number(orderId || 0) || null
+  pendingBuildPaymentTracker.billId = Number(billId || 0) || null
+  persistPaymentTracker(
+    BUILD_PAYMENT_TRACKER_STORAGE_KEY,
+    pendingBuildPaymentTracker,
+  )
+}
+
+const trackPendingDesignPayment = (orderId, billId) => {
+  pendingDesignPaymentTracker.orderId = Number(orderId || 0) || null
+  pendingDesignPaymentTracker.billId = Number(billId || 0) || null
+  persistPaymentTracker(
+    DESIGN_PAYMENT_TRACKER_STORAGE_KEY,
+    pendingDesignPaymentTracker,
+  )
+}
+
+const confirmTrackedBuildPayment = async () => {
+  const userId = getCurrentUserId()
+  const orderId = pendingBuildPaymentTracker.orderId
+  const billId = pendingBuildPaymentTracker.billId
+  if (!userId || !orderId || !billId) return
+
+  try {
+    const confirmRes = await orderAPI.confirmBillPayment(billId, userId)
+    if (confirmRes?.code === 200 && confirmRes?.data?.paid) {
+      clearBuildPaymentTracker()
+      message.success('建房订单支付已确认，可前往用户中心查看最新状态')
+      return
+    }
+
+    const pendingBill = await loadPendingBuildDepositBill(orderId, userId)
+    if (!pendingBill || Number(pendingBill.id || 0) !== Number(billId)) {
+      clearBuildPaymentTracker()
+      message.success('建房订单支付状态已更新，可前往用户中心查看')
+    }
+  } catch (error) {
+    void error
+  }
+}
+
+const confirmTrackedDesignPayment = async () => {
+  const userId = getCurrentUserId()
+  const orderId = pendingDesignPaymentTracker.orderId
+  const billId = pendingDesignPaymentTracker.billId
+  if (!userId || !orderId || !billId) return
+
+  try {
+    const confirmRes = await designOrderAPI.confirmBillPayment(billId, userId)
+    if (confirmRes?.code === 200 && confirmRes?.data?.paid) {
+      clearDesignPaymentTracker()
+      message.success('设计订单支付已确认，可前往用户中心查看最新状态')
+    }
+  } catch (error) {
+    void error
+  }
+}
+
+const syncTrackedPaymentsOnReturn = () => {
+  confirmTrackedBuildPayment()
+  confirmTrackedDesignPayment()
+}
+
+const handleHouseDetailPageVisible = () => {
+  syncTrackedPaymentsOnReturn()
+}
+
+const closeCreatedOrderPaymentModal = () => {
+  if (orderPaymentSubmitting.value) return
+  if (createdOrderPaymentTarget.orderId) {
+    message.info('订单已创建，可在用户中心继续完成支付')
+  }
+  showOrderPaymentModal.value = false
+  resetCreatedOrderPaymentTarget()
+}
+
+const closeOrderWechatPayModal = () => {
+  showOrderWechatPayModal.value = false
+  orderWechatPayUrl.value = ''
+  syncTrackedPaymentsOnReturn()
+  resetCreatedOrderPaymentTarget()
+}
+
+const submitCreatedOrderPayment = async () => {
+  const userId = getCurrentUserId()
+  if (!userId || !createdOrderPaymentTarget.orderId || !createdOrderPaymentTarget.billId) {
+    message.error('订单支付信息缺失，请前往用户中心重试')
+    return
+  }
+
+  orderPaymentSubmitting.value = true
+  const paymentWindow =
+    createdOrderPaymentForm.channel === 'ALIPAY'
+      ? window.open('', '_blank')
+      : null
+
+  try {
+    const res = await orderAPI.payBill(
+      createdOrderPaymentTarget.billId,
+      userId,
+      createdOrderPaymentForm.channel,
+    )
+
+    if (res.code !== 200) {
+      if (paymentWindow && !paymentWindow.closed) {
+        paymentWindow.close()
+      }
+      message.error(res.msg || '支付发起失败')
+      return
+    }
+
+    const wechatUrl = resolveWechatPayUrl(res.data)
+    if (createdOrderPaymentForm.channel === 'WECHAT' && wechatUrl) {
+      if (paymentWindow && !paymentWindow.closed) {
+        paymentWindow.close()
+      }
+      trackPendingBuildPayment(
+        createdOrderPaymentTarget.orderId,
+        createdOrderPaymentTarget.billId,
+      )
+      orderWechatPayUrl.value = wechatUrl
+      showOrderPaymentModal.value = false
+      showOrderWechatPayModal.value = true
+      message.success('订单已创建，请使用微信扫码完成支付')
+      return
+    }
+
+    const opened = tryOpenPaymentPayload(res.data, new Set(), paymentWindow)
     if (!opened && paymentWindow && !paymentWindow.closed) {
       paymentWindow.close()
     }
-
-    showDesignModal.value = false
+    trackPendingBuildPayment(
+      createdOrderPaymentTarget.orderId,
+      createdOrderPaymentTarget.billId,
+    )
     message.success(
       opened
-        ? '设计订单已创建，请在新窗口完成支付'
-        : '设计订单已创建，请前往用户中心查看支付状态',
+        ? '订单已创建，请在新窗口完成支付'
+        : '订单已创建，可前往用户中心继续查看支付状态',
     )
-    router.push('/adminCenter')
+    showOrderPaymentModal.value = false
+    resetCreatedOrderPaymentTarget()
   } catch (error) {
     if (paymentWindow && !paymentWindow.closed) {
       paymentWindow.close()
     }
-    console.error('创建设计订单失败', error)
-    message.error(error?.msg || error?.message || '创建设计订单失败')
+    console.error('发起订单支付失败', error)
+    message.error(error?.msg || error?.message || '发起订单支付失败')
+  } finally {
+    orderPaymentSubmitting.value = false
+  }
+}
+
+const submitDesignOrder = async () => {
+  const userId = getCurrentUserId()
+  if (!userId) {
+    message.warning('请先登录后再进行操作')
+    router.push('/login')
+    return
+  }
+
+  if (
+    !createdDesignPaymentTarget.orderId ||
+    !createdDesignPaymentTarget.billId
+  ) {
+    message.warning('设计订单尚未创建，请重新点击下一步')
+    return
+  }
+
+  designSubmitting.value = true
+  const selectedChannel = designPaymentForm.channel || 'ALIPAY'
+  const paymentWindow =
+    selectedChannel === 'ALIPAY'
+      ? window.open('', '_blank')
+      : null
+
+  try {
+    const res = await designOrderAPI.payBill(
+      createdDesignPaymentTarget.billId,
+      userId,
+      selectedChannel,
+    )
+
+    if (res.code !== 200) {
+      if (paymentWindow && !paymentWindow.closed) {
+        paymentWindow.close()
+      }
+      message.error(res.msg || '设计订单支付拉起失败')
+      return
+    }
+
+    console.info('[design-order-payment] pay existing bill success', {
+      orderId: createdDesignPaymentTarget.orderId,
+      billId: createdDesignPaymentTarget.billId,
+      channel: selectedChannel,
+    })
+
+    const paymentPayload = res.data
+    const payloadAmount = parsePaymentBizContentAmount(paymentPayload)
+    if (Number.isFinite(payloadAmount) && payloadAmount >= 0) {
+      designPaymentPreviewAmount.value = payloadAmount
+    }
+    const wechatUrl = resolveWechatPayUrl(paymentPayload)
+
+    if (selectedChannel === 'WECHAT' && wechatUrl) {
+      trackPendingDesignPayment(
+        createdDesignPaymentTarget.orderId,
+        createdDesignPaymentTarget.billId,
+      )
+      orderWechatPayUrl.value = wechatUrl
+      showDesignPaymentModal.value = false
+      showDesignModal.value = false
+      resetCreatedDesignPaymentTarget()
+      showOrderWechatPayModal.value = true
+      message.success('设计订单已创建，请使用微信扫码完成支付')
+      return
+    }
+
+    const opened = tryOpenPaymentPayload(
+      paymentPayload,
+      new Set(),
+      paymentWindow,
+      { allowSameWindowFallback: false },
+    )
+    if (!opened && paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
+
+    trackPendingDesignPayment(
+      createdDesignPaymentTarget.orderId,
+      createdDesignPaymentTarget.billId,
+    )
+    showDesignPaymentModal.value = false
+    showDesignModal.value = false
+    resetCreatedDesignPaymentTarget()
+    message.success(
+      opened
+        ? '设计订单已创建，请在新窗口完成支付，稍后可在用户中心查看订单状态'
+        : '设计订单已创建，请允许浏览器弹出新窗口后重试支付',
+    )
+  } catch (error) {
+    if (paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
+    console.error('设计订单支付拉起失败', error)
+    message.error(error?.msg || error?.message || '设计订单支付拉起失败')
   } finally {
     designSubmitting.value = false
   }
@@ -1230,10 +1975,29 @@ const confirmSubmission = async () => {
 
     const res = await orderAPI.createOrder(userId, bodyData)
 
-    if (res.code === 200) {
-      message.success('下单成功！')
+    if (res.code === 200 && res.data) {
+      const orderId = Number(res.data)
+      const pendingBill = await loadPendingBuildDepositBill(orderId, userId)
+
       showConfigModal.value = false
-      router.push('/adminCenter') // 跳转到个人中心查看订单
+
+      if (!pendingBill) {
+        message.success('订单已创建，可前往用户中心继续支付')
+        return
+      }
+
+      createdOrderPaymentForm.channel = 'ALIPAY'
+      createdOrderPaymentTarget.orderId = orderId
+      createdOrderPaymentTarget.billId = pendingBill.id
+      createdOrderPaymentTarget.amount = Number(pendingBill.amount || 0)
+      createdOrderPaymentTarget.amountText = `¥${Number(
+        pendingBill.amount || 0,
+      ).toLocaleString()}`
+      createdOrderPaymentTarget.title =
+        pendingBill.billTitle || `${houseData.value.name || '建房订单'}定金`
+      createdOrderPaymentTarget.description =
+        '订单已创建，请选择支付方式完成首次支付。若暂时关闭，订单会保留在用户中心的待支付列表中。'
+      showOrderPaymentModal.value = true
     } else {
       message.error(res.msg || '提交失败')
     }
@@ -1441,6 +2205,17 @@ const fetchHouseDetail = async (id) => {
 }
 
 onMounted(() => {
+  hydratePaymentTracker(
+    BUILD_PAYMENT_TRACKER_STORAGE_KEY,
+    pendingBuildPaymentTracker,
+  )
+  hydratePaymentTracker(
+    DESIGN_PAYMENT_TRACKER_STORAGE_KEY,
+    pendingDesignPaymentTracker,
+  )
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleHouseDetailPageVisible)
+  syncTrackedPaymentsOnReturn()
   const houseId = route.params.id
   if (houseId) {
     fetchHouseDetail(houseId)
@@ -1448,6 +2223,17 @@ onMounted(() => {
   } else {
     router.push('/houseList')
   }
+})
+
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    handleHouseDetailPageVisible()
+  }
+}
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', handleHouseDetailPageVisible)
 })
 </script>
 
@@ -2022,6 +2808,38 @@ onMounted(() => {
 
 .config-alert {
   margin-bottom: 20px;
+}
+
+.payment-summary-card {
+  padding: 16px;
+  border: 1px solid var(--detail-border);
+  border-radius: var(--detail-radius-md);
+  background: #f7faf7;
+}
+
+.payment-summary-card__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--detail-text-main);
+}
+
+.payment-summary-card__desc {
+  margin-top: 8px;
+  color: var(--detail-text-secondary);
+  line-height: 1.6;
+}
+
+.payment-summary-card__amount {
+  margin-top: 14px;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--detail-accent);
+}
+
+.wechat-pay-tip {
+  text-align: center;
+  color: var(--detail-text-secondary);
+  line-height: 1.6;
 }
 
 .config-loading-state {

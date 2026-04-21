@@ -1,12 +1,13 @@
 import request from '@/api/request'
 
 export default {
-  createAndPay(userId, data) {
+  createAndPay(userId, data, channel) {
     return request({
       url: '/user/design-order/create-and-pay',
       method: 'post',
       params: {
         userId,
+        channel,
       },
       data,
     })
@@ -19,6 +20,16 @@ export default {
       params: {
         userId,
         channel,
+      },
+    })
+  },
+
+  confirmBillPayment(billId, userId) {
+    return request({
+      url: `/payment/bill/${billId}/confirm`,
+      method: 'get',
+      params: {
+        userId,
       },
     })
   },

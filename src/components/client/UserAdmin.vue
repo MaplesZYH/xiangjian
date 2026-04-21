@@ -189,11 +189,11 @@
                         <div class="order-list-table__cell">
                           <span class="order-list-table__label">支付状态</span>
                           <n-tag
-                            :type="getPaymentStatusType(row.paymentStatus)"
+                            :type="getDesignOrderPaymentStatusType(row.paymentStatus)"
                             size="small"
                             :bordered="false"
                           >
-                            {{ formatPaymentStatus(row.paymentStatus) }}
+                            {{ formatDesignOrderPaymentStatus(row.paymentStatus) }}
                           </n-tag>
                         </div>
                         <div class="order-list-table__cell order-list-table__cell--actions">
@@ -262,11 +262,12 @@
                   <n-spin :show="loadingDesignOrders">
                     <div
                       v-if="designOrderList.length > 0"
-                      class="order-list-table client-center-paper"
+                      class="order-list-table design-order-list-table client-center-paper"
                     >
                       <div class="order-list-table__head">
                         <div>设计单号</div>
                         <div>设计地址</div>
+                        <div>产品名称</div>
                         <div>设计状态</div>
                         <div>支付状态</div>
                         <div>操作</div>
@@ -285,6 +286,10 @@
                           <span>{{ row.orderAddress || '--' }}</span>
                         </div>
                         <div class="order-list-table__cell">
+                          <span class="order-list-table__label">产品名称</span>
+                          <span>{{ getDesignOrderListMainProductNameText(row) }}</span>
+                        </div>
+                        <div class="order-list-table__cell">
                           <span class="order-list-table__label">设计状态</span>
                           <n-tag
                             :type="getDesignOrderStatusType(row.designStatus)"
@@ -296,11 +301,11 @@
                         <div class="order-list-table__cell">
                           <span class="order-list-table__label">支付状态</span>
                           <n-tag
-                            :type="getPaymentStatusType(row.paymentStatus)"
+                            :type="getDesignOrderPaymentStatusType(row.paymentStatus)"
                             size="small"
                             :bordered="false"
                           >
-                            {{ formatPaymentStatus(row.paymentStatus) }}
+                            {{ formatDesignOrderPaymentStatus(row.paymentStatus) }}
                           </n-tag>
                         </div>
                         <div class="order-list-table__cell order-list-table__cell--actions">
@@ -455,16 +460,17 @@
                 class="p-4 mb-4 bg-gray-50 rounded order-progress-card"
               >
                 <n-steps
-                  :current="getCurrentStep(currentOrder.orderStatus)"
+                  :current="getCurrentBusinessFlowStep(currentOrder)"
                   :status="
                     Number(currentOrder.orderStatus) === 5 ? 'error' : 'process'
                   "
                 >
-                  <n-step title="订单提交" description="等待派单" />
-                  <n-step title="派单中" description="正在分配服务商" />
-                  <n-step title="已派单" description="服务商已接单" />
-                  <n-step title="施工中" description="项目建设中" />
-                  <n-step title="已完成" description="项目交付" />
+                  <n-step
+                    v-for="step in getOrderBusinessFlowSteps(currentOrder)"
+                    :key="step.key"
+                    :title="step.title"
+                    :description="step.description"
+                  />
                 </n-steps>
               </div>
 
@@ -496,16 +502,40 @@
                   </n-tag>
                 </n-descriptions-item>
                 <n-descriptions-item label="收货人">
-                  {{ userName }}
+                  {{ currentOrderContactName }}
                 </n-descriptions-item>
                 <n-descriptions-item label="联系电话">
-                  {{ userInfo.phone }}
+                  {{ currentOrderContactPhone }}
+                </n-descriptions-item>
+                <n-descriptions-item label="施工合同" :span="2">
+                  <div
+                    v-if="currentOrderContractUrls.length > 0"
+                    class="order-contract-actions"
+                  >
+                    <n-button
+                      v-for="(url, index) in currentOrderContractUrls"
+                      :key="`${url}-${index}`"
+                      tag="a"
+                      :href="url"
+                      target="_blank"
+                      type="primary"
+                      secondary
+                      size="small"
+                    >
+                      {{
+                        currentOrderContractUrls.length > 1
+                          ? `查看合同 ${index + 1}`
+                          : '查看合同'
+                      }}
+                    </n-button>
+                  </div>
+                  <span v-else>--</span>
                 </n-descriptions-item>
                 <n-descriptions-item label="施工地址" :span="2">
                   {{ currentOrder.orderAddress }}
                 </n-descriptions-item>
                 <n-descriptions-item label="备注信息" :span="2">
-                  {{ currentOrder.customerNotes }}
+                  {{ currentOrder.customerNotes || '--' }}
                 </n-descriptions-item>
               </n-descriptions>
 
@@ -581,6 +611,150 @@
                   </div>
                 </div>
               </div>
+
+              <n-divider title-placement="left">修改选配</n-divider>
+              <div class="user-option-adjust-panel client-center-soft-card">
+                <div class="user-option-adjust-panel__hint">
+                  纯追加选配会直接生效，并按后端账单生成补价单；减少、替换或混合调整会先提交后台审核，审核后再补价或退款。
+                </div>
+                <n-spin :show="userOptionConfigLoading">
+                  <n-grid cols="1 s:2" responsive="screen" :x-gap="12" :y-gap="16">
+                    <n-grid-item
+                      v-for="config in userOptionConfigList"
+                      :key="config.key"
+                    >
+                      <div class="select-wrapper">
+                        <span class="label">{{ config.label }}：</span>
+                        <n-select
+                          v-model:value="userOptionSelectionMap[config.key]"
+                          :options="config.options"
+                          size="small"
+                          clearable
+                          filterable
+                          placeholder="请选择"
+                        />
+                      </div>
+                    </n-grid-item>
+                  </n-grid>
+                </n-spin>
+                <n-empty
+                  v-if="!userOptionConfigLoading && userOptionConfigList.length === 0"
+                  description="暂无可调整的选配分类"
+                />
+                <div
+                  v-if="hasUserOptionSelectionChanges"
+                  class="user-option-adjust-panel__summary"
+                >
+                  <div class="user-option-adjust-panel__summary-title">
+                    本次变更类型：{{ userOptionChangeTypeLabel }}
+                  </div>
+                  <div class="user-option-adjust-panel__summary-text">
+                    {{ userOptionChangeSummaryText }}
+                  </div>
+                </div>
+                <div
+                  v-if="hasUserOptionSelectionChanges"
+                  class="user-option-adjust-panel__actions"
+                >
+                  <n-button @click="resetUserOptionSelectionChanges">
+                    撤销更改
+                  </n-button>
+                  <n-button
+                    type="primary"
+                    :loading="userOptionSubmitting"
+                    @click="submitUserOptionSelectionChanges"
+                  >
+                    提交变更
+                  </n-button>
+                </div>
+              </div>
+
+              <n-divider title-placement="left">选配变更记录</n-divider>
+              <n-spin :show="userOptionalChangeLoading">
+                <div
+                  v-if="visibleUserOptionalChangeRecords.length > 0"
+                  class="user-option-change-history"
+                >
+                  <div
+                    v-for="record in visibleUserOptionalChangeRecords"
+                    :key="record.id"
+                    class="user-option-change-history__item client-center-soft-card"
+                  >
+                    <div class="user-option-change-history__header">
+                      <div class="user-option-change-history__title">
+                        申请 #{{ record.id }}
+                      </div>
+                      <n-space size="small" wrap>
+                        <n-tag size="small" :bordered="false" type="info">
+                          {{ record.changeTypeLabel || '--' }}
+                        </n-tag>
+                        <n-tag
+                          size="small"
+                          :bordered="false"
+                          :type="getUserOptionalChangeStatusTagType(record.status)"
+                        >
+                          {{ record.statusLabel || record.status || '--' }}
+                        </n-tag>
+                      </n-space>
+                    </div>
+
+                    <div class="user-option-change-history__meta">
+                      <div>申请时间：{{ formatDateTime(record.createTime) }}</div>
+                      <div>
+                        订单阶段：{{ record.orderStatusSnapshotLabel || '--' }}
+                      </div>
+                      <div>
+                        理论差额：¥{{ formatAmount(record.theoreticalDiffAmount) }}
+                      </div>
+                      <div v-if="record.linkedBillTitle">
+                        关联账单：{{ record.linkedBillTitle }} /
+                        {{ record.linkedBillStatusLabel || '--' }}
+                        <template v-if="record.linkedBillAmount !== null && record.linkedBillAmount !== undefined">
+                          / ¥{{ formatAmount(record.linkedBillAmount) }}
+                        </template>
+                      </div>
+                      <div v-if="record.linkedRefundStatusLabel">
+                        退款状态：{{ record.linkedRefundStatusLabel }}
+                      </div>
+                      <div v-if="record.auditRemark">
+                        审核备注：{{ record.auditRemark }}
+                      </div>
+                    </div>
+
+                    <div class="user-option-change-history__snapshots">
+                      <div class="user-option-change-history__snapshot">
+                        <span class="user-option-change-history__snapshot-label">
+                          变更前
+                        </span>
+                        <span class="user-option-change-history__snapshot-text">
+                          {{ formatOptionalChangeSnapshot(record.oldOptionsSnapshot) }}
+                        </span>
+                      </div>
+                      <div class="user-option-change-history__snapshot">
+                        <span class="user-option-change-history__snapshot-label">
+                          目标选配
+                        </span>
+                        <span class="user-option-change-history__snapshot-text">
+                          {{ formatOptionalChangeSnapshot(record.targetOptionsSnapshot) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="record.linkedBillStatus === 'PENDING'"
+                      class="user-option-change-history__actions"
+                    >
+                      <n-tag size="small" type="warning" :bordered="false">
+                        待支付补价已移至“账单支付”
+                      </n-tag>
+                    </div>
+                  </div>
+                </div>
+                <n-empty
+                  v-else
+                  description="当前订单暂无选配变更记录"
+                />
+              </n-spin>
             </div>
           </n-tab-pane>
 
@@ -657,30 +831,40 @@
                         }}</n-tag>
                       </template>
 
-                      <n-descriptions
-                        bordered
-                        size="small"
-                        :column="2"
-                        class="construction-progress-desc"
+                      <div
+                        v-if="isPendingConstructionPaymentForCurrentNode"
+                        class="construction-action-card construction-action-card--warning"
                       >
-                        <n-descriptions-item label="本阶段费用">
-                          <span class="order-amount-strong"
-                            >¥{{
-                              currentNodeDetail.amount?.toLocaleString() || 0
-                            }}</span
+                        <div class="construction-action-card__title construction-action-card__title--warning">
+                          <n-icon class="construction-action-card__icon">
+                            <CardOutline />
+                          </n-icon>
+                          当前阶段待支付
+                        </div>
+                        <div class="construction-action-card__desc">
+                          <span>
+                            {{
+                              currentConstructionPayableBill
+                                ? `当前应付金额：¥${formatAmount(currentConstructionPayableBill.amount)}`
+                                : '当前阶段账单待生成，请点击下方按钮支付'
+                            }}
+                          </span>
+                        </div>
+                        <div class="construction-action-card__actions">
+                          <n-button
+                            type="warning"
+                            @click="openCurrentConstructionPayment"
                           >
-                        </n-descriptions-item>
-                        <n-descriptions-item label="支付状态">
-                          <n-tag
-                            :type="
-                              currentNodeDetail.isPaid ? 'success' : 'warning'
-                            "
-                            size="small"
+                            支付当前阶段款
+                          </n-button>
+                          <n-button
+                            secondary
+                            @click="detailTab = 'bills'"
                           >
-                            {{ currentNodeDetail.isPaid ? '已支付' : '待支付' }}
-                          </n-tag>
-                        </n-descriptions-item>
-                      </n-descriptions>
+                            查看账单列表
+                          </n-button>
+                        </div>
+                      </div>
 
                       <div
                         v-if="isPendingUserAudit"
@@ -702,26 +886,6 @@
                             >驳回整改</n-button
                           >
                         </div>
-                      </div>
-
-                      <div
-                        v-if="isPendingPayment"
-                        class="construction-action-card construction-action-card--warning"
-                      >
-                        <div class="construction-action-card__title construction-action-card__title--warning">
-                          <n-icon class="construction-action-card__icon"
-                            ><Time
-                          /></n-icon>
-                          验收已通过，请支付本阶段款项
-                        </div>
-                        <n-button type="warning" @click="openNodePaymentModal">
-                          <template #icon
-                            ><n-icon><CardOutline /></n-icon
-                          ></template>
-                          立即支付 ¥{{
-                            currentNodeDetail.amount?.toLocaleString()
-                          }}
-                        </n-button>
                       </div>
 
                       <n-scrollbar class="construction-timeline">
@@ -770,6 +934,75 @@
             <div v-else class="construction-empty-state construction-empty-state--padded">
               <n-empty description="订单尚未进入施工阶段或数据加载中" />
             </div>
+          </n-tab-pane>
+
+          <n-tab-pane name="bills" tab="账单支付" :disabled="!currentOrder">
+            <n-spin :show="pendingPaymentBillsLoading">
+              <div v-if="hasPendingPaymentBills" class="pending-payment-bills">
+                <div class="pending-payment-bills-table client-center-paper">
+                  <div class="pending-payment-bills-head">
+                    <div>账单标题</div>
+                    <div>账单类型</div>
+                    <div>应付金额</div>
+                    <div>账单说明</div>
+                    <div>创建时间</div>
+                    <div>操作</div>
+                  </div>
+                  <div
+                    v-for="row in pendingPaymentBillRows"
+                    :key="row.id || row.virtualKey"
+                    class="pending-payment-bills-row"
+                  >
+                    <div class="pending-payment-bills-cell">
+                      <span class="pending-payment-bills-label">账单标题</span>
+                      <span>{{ getPaymentBillDisplayTitle(row) }}</span>
+                    </div>
+                    <div class="pending-payment-bills-cell">
+                      <span class="pending-payment-bills-label">账单类型</span>
+                      <n-tag
+                        :type="getPaymentBillTypeTagType(row.billType)"
+                        size="small"
+                        :bordered="false"
+                      >
+                        {{ getPaymentBillTypeText(row.billType) }}
+                      </n-tag>
+                    </div>
+                    <div class="pending-payment-bills-cell">
+                      <span class="pending-payment-bills-label">应付金额</span>
+                      <span>¥{{ formatAmount(row.amount) }}</span>
+                    </div>
+                    <div class="pending-payment-bills-cell">
+                      <span class="pending-payment-bills-label">账单说明</span>
+                      <span class="pending-payment-bills-text">
+                        {{ row.remark || '--' }}
+                      </span>
+                    </div>
+                    <div class="pending-payment-bills-cell">
+                      <span class="pending-payment-bills-label">创建时间</span>
+                      <span>{{ formatDateTime(row.createTime) }}</span>
+                    </div>
+                    <div class="pending-payment-bills-cell pending-payment-bills-cell--actions">
+                      <span class="pending-payment-bills-label">操作</span>
+                      <div class="pending-payment-bills-actions">
+                        <n-button
+                          size="small"
+                          type="primary"
+                          @click="openPendingBillPaymentModal(row)"
+                        >
+                          去支付
+                        </n-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                v-else
+                class="construction-empty-state construction-empty-state--compact"
+              >
+                <n-empty description="当前订单暂无待支付账单" />
+              </div>
+            </n-spin>
           </n-tab-pane>
 
           <n-tab-pane
@@ -906,34 +1139,51 @@
 
       <template #footer>
         <n-space justify="end" align="center">
-          <div v-if="currentOrder">
+          <div v-if="currentOrder" class="order-footer-panel">
             <span
-              v-if="!hasUploadedContract(currentOrder)"
+              v-if="
+                currentOrderPaymentStatus !== 0 &&
+                !hasUploadedContract(currentOrder)
+              "
               class="order-footer-hint"
             >
               <n-icon
                 size="14"
                 class="order-footer-hint__icon"
               />
-              等待平台上传合同...
+              已完成首笔支付，等待平台上传合同...
             </span>
 
-            <n-button
+            <div
               v-if="
-                hasUploadedContract(currentOrder) &&
-                currentOrderPaymentStatus === 0
+                canOpenBillPaymentCenter ||
+                [1, 2].includes(currentOrderPaymentStatus)
               "
-              type="primary"
-              @click="openOrderPaymentModal"
+              class="order-footer-actions"
             >
-              支付定金
-            </n-button>
+              <n-button
+                v-if="canOpenBillPaymentCenter"
+                type="primary"
+                class="order-footer-actions__button"
+                @click="openBillPaymentTab"
+              >
+                账单支付
+              </n-button>
 
-            <n-tag
-              v-if="[1, 2].includes(currentOrderPaymentStatus)"
-              :type="getPaymentStatusType(currentOrderPaymentStatus)"
-              >{{ formatPaymentStatus(currentOrderPaymentStatus) }}</n-tag
-            >
+              <div
+                v-if="[1, 2].includes(currentOrderPaymentStatus)"
+                class="order-footer-actions__status"
+              >
+                <span class="order-footer-actions__status-label">支付状态</span>
+                <n-tag
+                  :type="getPaymentStatusType(currentOrderPaymentStatus)"
+                  size="medium"
+                  :bordered="false"
+                >
+                  {{ formatPaymentStatus(currentOrderPaymentStatus) }}
+                </n-tag>
+              </div>
+            </div>
           </div>
           <n-button @click="showDetailModal = false">关闭</n-button>
         </n-space>
@@ -967,15 +1217,20 @@
             </n-descriptions-item>
             <n-descriptions-item label="支付状态">
               <n-tag
-                :type="getPaymentStatusType(currentDesignOrder.paymentStatus)"
+                :type="
+                  getDesignOrderPaymentStatusType(currentDesignOrder.paymentStatus)
+                "
                 size="small"
                 :bordered="false"
               >
-                {{ formatPaymentStatus(currentDesignOrder.paymentStatus) }}
+                {{ formatDesignOrderPaymentStatus(currentDesignOrder.paymentStatus) }}
               </n-tag>
             </n-descriptions-item>
             <n-descriptions-item label="设计地址">
               {{ currentDesignOrder.orderAddress || '--' }}
+            </n-descriptions-item>
+            <n-descriptions-item label="产品名称">
+              {{ getDesignOrderMainProductNameText(currentDesignOrder) }}
             </n-descriptions-item>
             <n-descriptions-item label="设计定金">
               ¥{{ formatAmount(currentDesignOrder.depositAmount) }}
@@ -1032,6 +1287,13 @@
       <template #footer>
         <n-space justify="end">
           <n-button
+            v-if="canRepayDesignOrder(currentDesignOrder)"
+            type="warning"
+            @click="openDesignOrderPaymentModal"
+          >
+            继续支付
+          </n-button>
+          <n-button
             v-if="canMarkDesignOrderNoBuild(currentDesignOrder)"
             :loading="designDecisionSubmitting"
             @click="handleMarkDesignOrderNoBuild"
@@ -1047,6 +1309,57 @@
             继续建房
           </n-button>
           <n-button @click="showDesignDetailModal = false">关闭</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <n-modal
+      v-model:show="showDesignRepayModal"
+      preset="card"
+      title="设计订单支付"
+      :style="paymentModalStyle"
+      :mask-closable="!designRepaySubmitting"
+      :closable="!designRepaySubmitting"
+    >
+      <n-space vertical size="large">
+        <div class="payment-summary-card">
+          <div class="payment-summary-card__title">设计定金支付</div>
+          <div class="payment-summary-card__desc">
+            请选择支付方式继续完成当前设计订单定金支付。
+          </div>
+          <div class="payment-summary-card__amount">
+            {{ designRepayAmountText }}
+          </div>
+        </div>
+
+        <n-radio-group v-model:value="designRepayForm.channel">
+          <n-space vertical>
+            <n-radio
+              v-for="option in paymentChannelOptions"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </n-radio>
+          </n-space>
+        </n-radio-group>
+      </n-space>
+
+      <template #footer>
+        <n-space justify="end">
+          <n-button
+            :disabled="designRepaySubmitting"
+            @click="showDesignRepayModal = false"
+          >
+            取消
+          </n-button>
+          <n-button
+            type="primary"
+            :loading="designRepaySubmitting"
+            @click="submitDesignOrderRepayment"
+          >
+            确认支付
+          </n-button>
         </n-space>
       </template>
     </n-modal>
@@ -1332,12 +1645,15 @@ import { useRouter } from 'vue-router'
 import orderAPI from '@/api/user/userOrder.js'
 import designOrderAPI from '@/api/user/designOrder'
 import ConstructionAPI from '@/api/house/construction.js'
+import houseAPI from '@/api/house/house'
 import {
   AUTH_SCOPE_USER,
   getAuthStorage,
 } from '@/utils/auth'
+import { getDesignOrderMainProductBinding } from '@/utils/designOrderMainProductStore'
 import { useAuthStore } from '@/stores/auth/useAuthStore'
 import { useFavoriteStore } from '@/stores/favorite/useFavoriteStore'
+import { useOptionCatalogStore } from '@/stores/option/useOptionCatalogStore'
 import { useUserOrderStore } from '@/stores/order/useUserOrderStore'
 import { useUserProfileStore } from '@/stores/user/useUserProfileStore'
 import {
@@ -1367,6 +1683,7 @@ const message = useMessage()
 const notification = useNotification()
 const authStore = useAuthStore()
 const favoriteStore = useFavoriteStore()
+const optionCatalogStore = useOptionCatalogStore()
 const orderStore = useUserOrderStore()
 const userProfileStore = useUserProfileStore()
 const dialog = useDialog()
@@ -1419,6 +1736,20 @@ const showDesignDetailModal = ref(false)
 const loadingDesignDetail = ref(false)
 const currentDesignOrder = ref(null)
 const designDecisionSubmitting = ref(false)
+const showDesignRepayModal = ref(false)
+const designRepaySubmitting = ref(false)
+const designMainProductNameMap = reactive({})
+const designOrderListMainProductTextMap = reactive({})
+const designRepayForm = reactive({
+  channel: 'ALIPAY',
+})
+const userOptionConfigLoading = ref(false)
+const userOptionConfigList = ref([])
+const userOptionSelectionMap = reactive({})
+const userOptionInitialSelectionSignature = ref('')
+const userOptionSubmitting = ref(false)
+const userOptionalChangeLoading = ref(false)
+const userOptionalChangeRecords = ref([])
 
 const renderMenuIcon = (icon) => () =>
   h(NIcon, null, {
@@ -1511,16 +1842,19 @@ const statementModalStyle = computed(() => ({
 // 施工相关状态
 const constructionInfo = ref(null)
 const currentNodeDetail = ref(null)
+const pendingPaymentBillsLoading = ref(false)
+const pendingPaymentBills = ref([])
 const showAuditRejectModal = ref(false)
 const auditRejectReason = ref('')
 const showPaymentModal = ref(false)
 const paymentSubmitting = ref(false)
-const paymentScene = ref('order')
 const paymentForm = reactive({
   channel: 'ALIPAY',
 })
 const paymentTarget = reactive({
   orderId: null,
+  billId: null,
+  billType: '',
   nodeId: null,
   amount: 0,
   amountText: '',
@@ -1530,13 +1864,27 @@ const paymentTarget = reactive({
 const showWechatPayModal = ref(false)
 const wechatPayUrl = ref('')
 let paymentStatusPollTimer = null
+let designPaymentStatusPollTimer = null
 let constructionPaymentPollTimer = null
 const orderPaymentTracker = reactive({
   orderId: null,
+  billId: null,
+  billType: '',
+})
+const designOrderPaymentTracker = reactive({
+  orderId: null,
+  billId: null,
 })
 const constructionPaymentTracker = reactive({
   orderId: null,
   nodeId: null,
+  billId: null,
+})
+const paymentResultTarget = reactive({
+  orderId: null,
+  nodeId: null,
+  billId: null,
+  designOrderId: null,
 })
 
 const paymentChannelOptions = [
@@ -1544,11 +1892,15 @@ const paymentChannelOptions = [
   { label: '微信支付', value: 'WECHAT' },
 ]
 
-const paymentModalTitle = computed(() =>
-  paymentScene.value === 'order' ? '定金支付' : '节点支付',
-)
+const paymentModalTitle = computed(() => '账单支付')
 const currentOrderPaymentStatus = computed(() =>
   getOrderPaymentStatus(currentOrder.value),
+)
+const currentOrderContactName = computed(
+  () => currentOrder.value?.userName || userName.value || '--',
+)
+const currentOrderContactPhone = computed(
+  () => currentOrder.value?.userPhone || userInfo.value?.phone || '--',
 )
 
 const designOrderStatusMap = {
@@ -1560,15 +1912,43 @@ const designOrderStatusMap = {
   5: '已取消',
 }
 
-const getOrderPaymentPreviewText = () => '以公司实际要求为准'
+const designRepayAmountText = computed(() => {
+  const amount = Number(
+    currentDesignOrder.value?.depositAmount || currentDesignOrder.value?.paidAmount || 0,
+  )
+  return Number.isFinite(amount) && amount >= 0 ? `¥${amount.toLocaleString()}` : '¥--'
+})
+
+const logDesignOrderPaymentDebug = (message, payload = {}) => {
+  console.info('[design-order-payment]', message, payload)
+}
 
 const closeWechatPayModal = async () => {
-  const closedScene = paymentScene.value
+  const resultOrderId = paymentResultTarget.orderId
+  const resultNodeId = paymentResultTarget.nodeId
+  const resultBillId = paymentResultTarget.billId
+  const resultDesignOrderId = paymentResultTarget.designOrderId
   showWechatPayModal.value = false
   wechatPayUrl.value = ''
-  if (closedScene === 'node') {
-    await refreshConstructionAfterNodePayment()
+  paymentResultTarget.orderId = null
+  paymentResultTarget.nodeId = null
+  paymentResultTarget.billId = null
+  paymentResultTarget.designOrderId = null
+  if (resultDesignOrderId) {
+    await refreshDesignOrderAfterPayment(resultDesignOrderId)
     return
+  }
+  if (resultNodeId) {
+    if (resultBillId) {
+      await confirmUserBillPayment(resultBillId)
+    }
+    await refreshConstructionAfterNodePayment(resultOrderId, {
+      focusPaymentResult: true,
+    })
+    return
+  }
+  if (resultBillId) {
+    await confirmUserBillPayment(resultBillId)
   }
   await refreshOrderAfterPayment()
 }
@@ -1623,6 +2003,50 @@ const formatFavoriteArea = (item) => {
   const area = item?.buildArea || item?.area || item?.baseArea
   return area ? `${area} m²` : '面积待补充'
 }
+
+const appendContractUrl = (list, value) => {
+  if (typeof value !== 'string') return
+  const trimmed = value.trim()
+  if (!trimmed || list.includes(trimmed)) return
+  list.push(trimmed)
+}
+
+const extractOrderContractUrls = (order) => {
+  const urls = []
+  const contract = order?.orderContract
+  if (!contract) return urls
+
+  if (typeof contract === 'string') {
+    appendContractUrl(urls, contract)
+    return urls
+  }
+
+  if (Array.isArray(contract)) {
+    contract.forEach((item) => {
+      if (typeof item === 'string') {
+        appendContractUrl(urls, item)
+        return
+      }
+      appendContractUrl(urls, item?.fileUrl)
+      appendContractUrl(urls, item?.url)
+    })
+    return urls
+  }
+
+  if (typeof contract === 'object') {
+    appendContractUrl(urls, contract.fileUrl)
+    appendContractUrl(urls, contract.url)
+    if (Array.isArray(contract.contractUrls)) {
+      contract.contractUrls.forEach((item) => appendContractUrl(urls, item))
+    }
+  }
+
+  return urls
+}
+
+const currentOrderContractUrls = computed(() =>
+  extractOrderContractUrls(currentOrder.value).map((item) => resolveAssetUrl(item)),
+)
 
 const isOrderNeedingAttention = (order) => {
   const status = Number(order?.orderStatus)
@@ -1887,6 +2311,13 @@ const detailPaymentStageMap = {
   FINAL: '尾款',
 }
 
+const paymentBillTypeMap = {
+  BUILD_DEPOSIT: '建房定金',
+  ADJUSTMENT: '补差账单',
+  OPTION_CHANGE: '选配变更补价',
+  STAGE_PAYMENT: '节点进度款',
+}
+
 const getDetailPaymentChannelText = (channel) =>
   detailPaymentChannelMap[channel] || channel || '--'
 
@@ -1898,6 +2329,47 @@ const getDetailPaymentChannelType = (channel) => {
 
 const getDetailPaymentStageText = (stage) =>
   detailPaymentStageMap[stage] || stage || '--'
+
+const getPaymentBillTypeText = (billType) =>
+  paymentBillTypeMap[billType] || billType || '待支付账单'
+
+const getPaymentBillTypeTagType = (billType) => {
+  if (billType === 'BUILD_DEPOSIT') return 'warning'
+  if (billType === 'ADJUSTMENT') return 'error'
+  if (billType === 'OPTION_CHANGE') return 'warning'
+  if (billType === 'STAGE_PAYMENT') return 'info'
+  return 'default'
+}
+
+const resolveStagePaymentNodeName = (bill) => {
+  const relatedNodeId = Number(bill?.relatedNodeId || 0)
+  if (relatedNodeId > 0) {
+    const relatedNode = (constructionInfo.value?.nodeDetails || []).find(
+      (node) => Number(node?.nodeId || node?.id) === relatedNodeId,
+    )
+    if (relatedNode?.name) return relatedNode.name
+  }
+
+  const rawTitle = String(bill?.billTitle || '').trim()
+  if (!rawTitle) return ''
+  const titleParts = rawTitle.split(/[:：]/)
+  if (titleParts.length > 1) {
+    const nodeName = titleParts[titleParts.length - 1].trim()
+    if (nodeName) return nodeName
+  }
+  return rawTitle
+}
+
+const getPaymentBillDisplayTitle = (bill) => {
+  if (bill?.billType === 'BUILD_DEPOSIT') return '建房定金'
+  if (bill?.billType === 'OPTION_CHANGE') {
+    return bill?.billTitle || '选配变更补价'
+  }
+  if (bill?.billType === 'STAGE_PAYMENT') {
+    return resolveStagePaymentNodeName(bill) || '--'
+  }
+  return bill?.billTitle || '--'
+}
 
 const getPaymentStatusType = (status) => {
   if (status === 2) return 'success'
@@ -1998,6 +2470,348 @@ const formatCurrencyNumber = (value) => {
 const formatDateTime = (value) => {
   if (!value) return '--'
   return String(value).replace('T', ' ')
+}
+
+const normalizeOptionSelectionValue = (value) => {
+  const resolved = Number(value)
+  return Number.isFinite(resolved) && resolved > 0 ? resolved : null
+}
+
+const getOptionalCategoryLabel = (categoryId) => {
+  const normalizedCategoryId = Number(categoryId)
+  const config = userOptionConfigList.value.find(
+    (item) => Number(item.categoryId) === normalizedCategoryId,
+  )
+  if (config?.label) return config.label
+
+  const storeConfig = (optionCatalogStore.userCategoryConfigs || []).find(
+    (item) => Number(item?.id) === normalizedCategoryId,
+  )
+  return storeConfig?.name || `分类${normalizedCategoryId || '--'}`
+}
+
+const buildCurrentOptionalSelectionMap = () => {
+  const result = new Map()
+  const existingProducts = currentOrder.value?.house?.houseOptionalProducts || []
+  existingProducts.forEach((item) => {
+    const categoryId = Number(item?.categoryId)
+    const optionId = normalizeOptionSelectionValue(item?.optionalProductId)
+    if (categoryId > 0 && optionId) {
+      result.set(categoryId, optionId)
+    }
+  })
+  return result
+}
+
+const buildTargetOptionalSelectionMap = () => {
+  const result = new Map()
+  userOptionConfigList.value.forEach((config) => {
+    const optionId = normalizeOptionSelectionValue(
+      userOptionSelectionMap[config.key],
+    )
+    if (optionId) {
+      result.set(Number(config.categoryId), optionId)
+    }
+  })
+  return result
+}
+
+const buildTargetOptionalProductIds = () =>
+  userOptionConfigList.value
+    .map((config) =>
+      normalizeOptionSelectionValue(userOptionSelectionMap[config.key]),
+    )
+    .filter(Boolean)
+
+const classifyUserOptionSelectionChange = () => {
+  const currentSelectionMap = buildCurrentOptionalSelectionMap()
+  const targetSelectionMap = buildTargetOptionalSelectionMap()
+  let hasAdd = false
+  let hasReplace = false
+  let hasRemove = false
+
+  targetSelectionMap.forEach((targetId, categoryId) => {
+    const currentId = currentSelectionMap.get(categoryId)
+    if (!currentId) {
+      hasAdd = true
+      return
+    }
+    if (currentId !== targetId) {
+      hasReplace = true
+    }
+  })
+
+  currentSelectionMap.forEach((_, categoryId) => {
+    if (!targetSelectionMap.has(categoryId)) {
+      hasRemove = true
+    }
+  })
+
+  const typeCount =
+    Number(hasAdd) + Number(hasReplace) + Number(hasRemove)
+
+  if (typeCount > 1) return 'MIXED'
+  if (hasReplace) return 'REPLACE'
+  if (hasRemove) return 'REMOVE'
+  if (hasAdd) return 'ADD_ONLY'
+  return 'UNCHANGED'
+}
+
+const resetUserOptionSelectionMap = () => {
+  Object.keys(userOptionSelectionMap).forEach((key) => {
+    delete userOptionSelectionMap[key]
+  })
+}
+
+const buildUserOptionSelectionSignature = () =>
+  JSON.stringify(
+    userOptionConfigList.value.map((config) => [
+      config.key,
+      normalizeOptionSelectionValue(userOptionSelectionMap[config.key]),
+    ]),
+  )
+
+const buildUserOptionConfigList = (configs = []) =>
+  configs.map((category) => ({
+    label: category.name,
+    key: `cat_${category.id}`,
+    categoryId: Number(category.id),
+    options: (category.options || []).map((opt) => ({
+      label: opt.name || opt.label || `产品${opt.value ?? ''}`,
+      value: normalizeOptionSelectionValue(opt.value),
+    })),
+  }))
+
+const loadUserOptionConfigList = async () => {
+  if (userOptionConfigList.value.length > 0) {
+    return userOptionConfigList.value
+  }
+
+  userOptionConfigLoading.value = true
+  try {
+    const res = await optionCatalogStore.fetchUserCategoryConfigs()
+    if (res?.code === 200 && Array.isArray(res.data)) {
+      userOptionConfigList.value = buildUserOptionConfigList(res.data)
+    }
+    return userOptionConfigList.value
+  } catch (error) {
+    void error
+    return []
+  } finally {
+    userOptionConfigLoading.value = false
+  }
+}
+
+const hydrateUserOptionSelection = () => {
+  resetUserOptionSelectionMap()
+  const existingProducts = currentOrder.value?.house?.houseOptionalProducts || []
+  const baseConfigList =
+    Array.isArray(optionCatalogStore.userCategoryConfigs) &&
+    optionCatalogStore.userCategoryConfigs.length > 0
+      ? buildUserOptionConfigList(optionCatalogStore.userCategoryConfigs)
+      : buildUserOptionConfigList(userOptionConfigList.value)
+
+  userOptionConfigList.value = baseConfigList.map((config) => {
+    const found = existingProducts.find(
+      (item) => Number(item?.categoryId) === Number(config.categoryId),
+    )
+    const options = [...config.options]
+    const optionValue = normalizeOptionSelectionValue(found?.optionalProductId)
+
+    if (
+      found &&
+      optionValue &&
+      !options.some((item) => Number(item.value) === optionValue)
+    ) {
+      options.push({
+        label: found.name || `未知产品(ID:${optionValue})`,
+        value: optionValue,
+      })
+    }
+
+    userOptionSelectionMap[config.key] = optionValue
+    return {
+      ...config,
+      options,
+    }
+  })
+
+  userOptionInitialSelectionSignature.value = buildUserOptionSelectionSignature()
+}
+
+const getSelectedUserOptionRows = () =>
+  userOptionConfigList.value
+    .map((config) => {
+      const selectedValue = normalizeOptionSelectionValue(
+        userOptionSelectionMap[config.key],
+      )
+      if (!selectedValue) return null
+      const option = config.options.find(
+        (item) => Number(item.value) === selectedValue,
+      )
+      return option
+        ? `${config.label}：${option.label}`
+        : `${config.label}：产品ID ${selectedValue}`
+    })
+    .filter(Boolean)
+
+const formatOptionalChangeSnapshot = (snapshot = []) => {
+  if (!Array.isArray(snapshot) || snapshot.length === 0) {
+    return '无'
+  }
+  return snapshot
+    .map((item) => {
+      const categoryLabel = getOptionalCategoryLabel(item?.categoryId)
+      const name = item?.name || `产品${item?.id || '--'}`
+      return `${categoryLabel}：${name}`
+    })
+    .join('；')
+}
+
+const userOptionChangeTypeLabelMap = {
+  ADD_ONLY: '纯追加',
+  REMOVE: '减少',
+  REPLACE: '替换',
+  MIXED: '混合调整',
+  UNCHANGED: '未变更',
+}
+
+const userOptionChangeType = computed(() =>
+  hasUserOptionSelectionChanges.value
+    ? classifyUserOptionSelectionChange()
+    : 'UNCHANGED',
+)
+
+const userOptionChangeTypeLabel = computed(
+  () => userOptionChangeTypeLabelMap[userOptionChangeType.value] || '未变更',
+)
+
+const userOptionChangeSummaryText = computed(() => {
+  const selectedRows = getSelectedUserOptionRows()
+  return selectedRows.length > 0
+    ? selectedRows.join('；')
+    : '未选择任何选配'
+})
+
+const getUserOptionalChangeStatusTagType = (status) => {
+  switch (status) {
+    case 'PAID':
+    case 'APPROVED':
+    case 'REFUNDED':
+      return 'success'
+    case 'AUTO_APPROVED':
+    case 'PAYMENT_PENDING':
+    case 'REFUND_PENDING':
+      return 'warning'
+    case 'REJECTED':
+    case 'CANCELLED':
+      return 'error'
+    default:
+      return 'info'
+  }
+}
+
+const loadUserOptionalChangeRecords = async (
+  orderId = currentOrder.value?.id,
+) => {
+  const userId = getStoredUserId()
+  if (!orderId || !userId) {
+    userOptionalChangeRecords.value = []
+    return []
+  }
+
+  userOptionalChangeLoading.value = true
+  try {
+    const res = await orderAPI.getOptionalChangeList(orderId, userId)
+    if (res?.code === 200 && Array.isArray(res.data)) {
+      userOptionalChangeRecords.value = res.data
+      return userOptionalChangeRecords.value
+    }
+    userOptionalChangeRecords.value = []
+    return []
+  } catch (error) {
+    void error
+    userOptionalChangeRecords.value = []
+    return []
+  } finally {
+    userOptionalChangeLoading.value = false
+  }
+}
+
+const visibleUserOptionalChangeRecords = computed(() => {
+  if (!userOptionalChangeRecords.value.length) return []
+  return sortOptionalChangeRecords(userOptionalChangeRecords.value).slice(0, 1)
+})
+
+const hasUserOptionSelectionChanges = computed(
+  () =>
+    userOptionConfigList.value.length > 0 &&
+    buildUserOptionSelectionSignature() !==
+      userOptionInitialSelectionSignature.value,
+)
+
+const resetUserOptionSelectionChanges = () => {
+  hydrateUserOptionSelection()
+}
+
+const submitUserOptionSelectionChanges = async () => {
+  if (!hasUserOptionSelectionChanges.value) {
+    message.info('当前没有新的选配调整')
+    return
+  }
+
+  const userId = getStoredUserId()
+  const orderId = Number(currentOrder.value?.id || 0)
+  if (!userId || !orderId) {
+    message.error('订单信息缺失，请刷新后重试')
+    return
+  }
+
+  const changeType = classifyUserOptionSelectionChange()
+  const optionalProductIds = buildTargetOptionalProductIds()
+
+  userOptionSubmitting.value = true
+  try {
+    const res = await orderAPI.updateOrderProducts(userId, {
+      id: orderId,
+      optionalProductIds,
+    })
+
+    if (res?.code !== 200) {
+      message.error(res?.msg || '提交选配变更失败')
+      return
+    }
+
+    await syncCurrentOrderFromServer(orderId)
+    hydrateUserOptionSelection()
+    await Promise.all([
+      loadUserOptionalChangeRecords(orderId),
+      loadPendingPaymentBills(orderId),
+      loadDetailPaymentRecords(orderId),
+    ])
+    await fetchOrders()
+
+    const latestRecord = userOptionalChangeRecords.value[0] || null
+    if (latestRecord?.linkedBillStatus === 'PENDING') {
+      detailTab.value = 'bills'
+    }
+
+    if (changeType === 'ADD_ONLY') {
+      if (latestRecord?.linkedBillStatus === 'PENDING') {
+        message.success('选配已调整，补价账单已生成，请在账单支付中完成付款')
+      } else {
+        message.success('选配已调整成功')
+      }
+      return
+    }
+
+    message.success('选配变更申请已提交，等待后台审核')
+  } catch (error) {
+    void error
+    message.error('提交选配变更失败')
+  } finally {
+    userOptionSubmitting.value = false
+  }
 }
 
 const parseRefundAuditOperator = (value) => {
@@ -2349,6 +3163,8 @@ const closePaymentModal = () => {
 const resetPaymentTarget = () => {
   paymentForm.channel = 'ALIPAY'
   paymentTarget.orderId = null
+  paymentTarget.billId = null
+  paymentTarget.billType = ''
   paymentTarget.nodeId = null
   paymentTarget.amount = 0
   paymentTarget.amountText = ''
@@ -2597,23 +3413,147 @@ const resolveWechatPayUrl = (payload, visited = new Set()) => {
   return ''
 }
 
+const extractPaymentBillRows = (data) => {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.rows)) return data.rows
+  if (Array.isArray(data?.records)) return data.records
+  return []
+}
+
+const sortPendingPaymentBills = (rows = []) =>
+  [...rows].sort((a, b) => {
+    const timeA = a?.createTime ? new Date(a.createTime).getTime() : 0
+    const timeB = b?.createTime ? new Date(b.createTime).getTime() : 0
+    if (timeA !== timeB) return timeB - timeA
+    return Number(b?.id || 0) - Number(a?.id || 0)
+  })
+
+const sortOptionalChangeRecords = (records = []) =>
+  [...records].sort((a, b) => {
+    const timeA = a?.createTime ? new Date(a.createTime).getTime() : 0
+    const timeB = b?.createTime ? new Date(b.createTime).getTime() : 0
+    if (timeA !== timeB) return timeB - timeA
+    return Number(b?.id || 0) - Number(a?.id || 0)
+  })
+
+const logConstructionBillDebug = (label, extra = {}) => {
+  console.info('[user-center-construction-bill]', {
+    label,
+    orderId: currentOrder.value?.id || null,
+    detailTab: detailTab.value,
+    currentNodeStatus: constructionInfo.value?.currentNodeStatus ?? null,
+    currentNodeStatusText: constructionInfo.value?.currentNodeStatusText || '',
+    currentNodeName: constructionInfo.value?.currentNodeName || '',
+    currentNodeIndex: constructionInfo.value?.currentNodeIndex ?? null,
+    currentNodeDetailId: currentNodeDetail.value?.nodeId || null,
+    currentNodeDetailName: currentNodeDetail.value?.nodeName || '',
+    currentNodeDetailAmount: currentNodeDetail.value?.amount ?? null,
+    pendingBills: (pendingPaymentBills.value || []).map((item) => ({
+      id: item?.id || null,
+      billType: item?.billType || '',
+      relatedNodeId: item?.relatedNodeId || null,
+      amount: item?.amount ?? null,
+      billTitle: item?.billTitle || '',
+      isVirtualConstructionBill: !!item?.isVirtualConstructionBill,
+    })),
+    ...extra,
+  })
+}
+
+const syncPendingPaymentBillsState = (rows = []) => {
+  const nextRows = sortPendingPaymentBills(rows)
+  pendingPaymentBills.value = nextRows
+  if (currentOrder.value) {
+    currentOrder.value.pendingPaymentBills = nextRows
+  }
+  logConstructionBillDebug('syncPendingPaymentBillsState', {
+    nextBillCount: nextRows.length,
+  })
+  return nextRows
+}
+
+const loadPendingPaymentBills = async (orderId = currentOrder.value?.id) => {
+  const userId = getStoredUserId()
+  if (!orderId || !userId) {
+    pendingPaymentBills.value = []
+    return []
+  }
+
+  pendingPaymentBillsLoading.value = true
+  try {
+    const res = await orderAPI.getUserPaymentBills(orderId, userId)
+    console.info('[user-center-construction-bill] payment-bills response', {
+      orderId,
+      code: res?.code,
+      data: res?.data,
+    })
+    if (res.code === 200) {
+      return syncPendingPaymentBillsState(extractPaymentBillRows(res.data))
+    }
+    return pendingPaymentBills.value
+  } catch (error) {
+    void error
+    return pendingPaymentBills.value
+  } finally {
+    pendingPaymentBillsLoading.value = false
+  }
+}
+
+const findPendingBillById = (bills = [], billId) =>
+  bills.find((item) => Number(item?.id || 0) === Number(billId)) || null
+
+const findPendingStageBillByNodeId = (bills = [], nodeId) =>
+  bills.find(
+    (item) =>
+      item?.billType === 'STAGE_PAYMENT' &&
+      Number(item?.relatedNodeId || 0) === Number(nodeId),
+  ) || null
+
+const resolveConstructionPaymentBillId = async (orderId, nodeId) => {
+  if (!orderId || !nodeId) return null
+  const latestBills = await loadPendingPaymentBills(orderId)
+  return findPendingStageBillByNodeId(latestBills, nodeId)?.id || null
+}
+
 const refreshOrderAfterPayment = async () => {
   if (!currentOrder.value?.id) return
   stopPaymentStatusPolling()
-  orderPaymentTracker.orderId = null
   await syncCurrentOrderFromServer(currentOrder.value.id)
+  hydrateUserOptionSelection()
+  await loadUserOptionalChangeRecords(currentOrder.value.id)
+  await loadPendingPaymentBills(currentOrder.value.id)
   await loadDetailPaymentRecords(currentOrder.value.id)
   await fetchOrders()
 }
 
+const isConstructionNodeWaitingPayment = computed(() => {
+  if (!constructionInfo.value?.nodeDetails?.length) return false
+  return (
+    Number(constructionInfo.value.currentNodeStatus) ===
+    CONSTRUCTION_NODE_STATUS.WAIT_PAYMENT
+  )
+})
+
+const showConstructionPaymentResult = () => {
+  if (!showDetailModal.value || !currentOrder.value?.id) return
+  if (detailTab.value === 'bills') {
+    detailTab.value = 'payments'
+  }
+}
+
 const refreshConstructionAfterNodePayment = async (
   orderId = constructionPaymentTracker.orderId || currentOrder.value?.id,
+  options = {},
 ) => {
   if (!orderId) return
   await syncCurrentOrderFromServer(orderId)
+  await loadPendingPaymentBills(orderId)
   await loadDetailPaymentRecords(orderId)
   await loadConstructionFlow(orderId)
   await fetchOrders()
+  if (options.focusPaymentResult) {
+    showConstructionPaymentResult()
+  }
 }
 
 const syncCurrentOrderFromServer = async (orderId = currentOrder.value?.id) => {
@@ -2621,21 +3561,154 @@ const syncCurrentOrderFromServer = async (orderId = currentOrder.value?.id) => {
   return orderStore.syncCurrentOrderFromServer({ userId, orderId })
 }
 
+const syncDesignOrderDetailFromServer = async (
+  designOrderId = currentDesignOrder.value?.id,
+) => {
+  const userId = getStoredUserId()
+  if (!userId || !designOrderId) return null
+
+  try {
+    const res = await designOrderAPI.getDetail(designOrderId, userId)
+    logDesignOrderPaymentDebug('sync detail response', {
+      designOrderId,
+      code: res?.code,
+      paymentStatus: res?.data?.paymentStatus,
+      designStatus: res?.data?.designStatus,
+      pendingBillId: res?.data?.pendingBillId,
+    })
+    if (res.code === 200 && res.data) {
+      return res.data
+    }
+    return null
+  } catch (error) {
+    void error
+    return null
+  }
+}
+
+const confirmDesignOrderBillPayment = async (billId) => {
+  const userId = getStoredUserId()
+  if (!userId || !billId) return null
+
+  try {
+    const res = await designOrderAPI.confirmBillPayment(billId, userId)
+    logDesignOrderPaymentDebug('confirm bill response', {
+      billId,
+      code: res?.code,
+      paid: res?.data?.paid,
+      billStatus: res?.data?.billStatus,
+      compensated: res?.data?.compensated,
+    })
+    if (res.code === 200 && res.data) {
+      return res.data
+    }
+    return null
+  } catch (error) {
+    void error
+    return null
+  }
+}
+
+const confirmUserBillPayment = async (billId) => {
+  const userId = getStoredUserId()
+  if (!userId || !billId) return null
+
+  try {
+    const res = await orderAPI.confirmBillPayment(billId, userId)
+    if (res.code === 200 && res.data) {
+      return res.data
+    }
+    return null
+  } catch (error) {
+    void error
+    return null
+  }
+}
+
+const isDesignOrderPaymentDone = (detail) =>
+  !!detail && Number(detail.paymentStatus) >= 1
+
+const stopDesignPaymentStatusPolling = () => {
+  if (designPaymentStatusPollTimer) {
+    window.clearTimeout(designPaymentStatusPollTimer)
+    designPaymentStatusPollTimer = null
+  }
+  designOrderPaymentTracker.orderId = null
+  designOrderPaymentTracker.billId = null
+}
+
+const refreshDesignOrderAfterPayment = async (
+  designOrderId = designOrderPaymentTracker.orderId || currentDesignOrder.value?.id,
+  latestDetail = null,
+) => {
+  if (!designOrderId) return
+
+  await fetchDesignOrders()
+
+  const matchedRow =
+    designOrderList.value.find(
+      (item) => Number(item?.id) === Number(designOrderId),
+    ) || null
+  const resolvedDetail = latestDetail || (await syncDesignOrderDetailFromServer(designOrderId))
+  logDesignOrderPaymentDebug('refresh after payment', {
+    designOrderId,
+    listPaymentStatus: matchedRow?.paymentStatus,
+    detailPaymentStatus: resolvedDetail?.paymentStatus,
+    detailDesignStatus: resolvedDetail?.designStatus,
+    detailPendingBillId: resolvedDetail?.pendingBillId,
+  })
+
+  if (currentDesignOrder.value?.id && Number(currentDesignOrder.value.id) === Number(designOrderId)) {
+    currentDesignOrder.value = {
+      ...currentDesignOrder.value,
+      ...(matchedRow || {}),
+      ...(resolvedDetail || {}),
+    }
+  }
+}
+
 const stopPaymentStatusPolling = () => {
   if (paymentStatusPollTimer) {
     window.clearTimeout(paymentStatusPollTimer)
     paymentStatusPollTimer = null
   }
+  orderPaymentTracker.orderId = null
+  orderPaymentTracker.billId = null
+  orderPaymentTracker.billType = ''
 }
 
 const isInitialOrderPaymentDone = (status) => [1, 2, 3].includes(Number(status))
 
-const startPaymentStatusPolling = (orderId, attempts = 40, delay = 3000) => {
+const startPaymentStatusPolling = (
+  orderId,
+  billId = null,
+  billType = '',
+  attempts = 40,
+  delay = 3000,
+) => {
   stopPaymentStatusPolling()
   if (!orderId) return
   orderPaymentTracker.orderId = orderId
+  orderPaymentTracker.billId = billId
+  orderPaymentTracker.billType = billType || ''
 
   const poll = async () => {
+    if (billId) {
+      const confirmResult = await confirmUserBillPayment(billId)
+      let paid = !!confirmResult?.paid
+
+      if (!paid) {
+        const latestBills = await loadPendingPaymentBills(orderId)
+        paid = !findPendingBillById(latestBills, billId)
+      }
+
+      if (paid) {
+        await refreshOrderAfterPayment()
+        stopPaymentStatusPolling()
+        return
+      }
+    }
+
     const latestOrder = await syncCurrentOrderFromServer(orderId)
 
     if (!latestOrder) {
@@ -2648,7 +3721,7 @@ const startPaymentStatusPolling = (orderId, attempts = 40, delay = 3000) => {
       return
     }
 
-    if (isInitialOrderPaymentDone(latestOrder.paymentStatus)) {
+    if (!billId && isInitialOrderPaymentDone(latestOrder.paymentStatus)) {
       orderPaymentTracker.orderId = null
       await fetchOrders()
       stopPaymentStatusPolling()
@@ -2670,10 +3743,26 @@ const startPaymentStatusPolling = (orderId, attempts = 40, delay = 3000) => {
 const syncPendingOrderPaymentOnFocus = async () => {
   if (!orderPaymentTracker.orderId) return
 
+  if (orderPaymentTracker.billId) {
+    const confirmResult = await confirmUserBillPayment(orderPaymentTracker.billId)
+    let paid = !!confirmResult?.paid
+
+    if (!paid) {
+      const latestBills = await loadPendingPaymentBills(orderPaymentTracker.orderId)
+      paid = !findPendingBillById(latestBills, orderPaymentTracker.billId)
+    }
+
+    if (paid) {
+      stopPaymentStatusPolling()
+      await refreshOrderAfterPayment()
+      return
+    }
+  }
+
   const latestOrder = await syncCurrentOrderFromServer(orderPaymentTracker.orderId)
   if (!latestOrder) return
 
-  if (isInitialOrderPaymentDone(latestOrder.paymentStatus)) {
+  if (!orderPaymentTracker.billId && isInitialOrderPaymentDone(latestOrder.paymentStatus)) {
     orderPaymentTracker.orderId = null
     stopPaymentStatusPolling()
     await fetchOrders()
@@ -2681,23 +3770,149 @@ const syncPendingOrderPaymentOnFocus = async () => {
   }
 
   if (!paymentStatusPollTimer) {
-    startPaymentStatusPolling(orderPaymentTracker.orderId)
+    startPaymentStatusPolling(
+      orderPaymentTracker.orderId,
+      orderPaymentTracker.billId,
+      orderPaymentTracker.billType,
+    )
   }
+}
+
+const startDesignPaymentStatusPolling = (
+  designOrderId,
+  billId = null,
+  attempts = 40,
+  delay = 3000,
+) => {
+  stopDesignPaymentStatusPolling()
+  if (!designOrderId) return
+  designOrderPaymentTracker.orderId = designOrderId
+  designOrderPaymentTracker.billId = billId
+
+  const poll = async () => {
+    let latestDetail = null
+    const trackedBillId = Number(billId || 0)
+
+    if (trackedBillId > 0) {
+      const confirmResult = await confirmDesignOrderBillPayment(trackedBillId)
+      if (confirmResult?.paid) {
+        latestDetail = await syncDesignOrderDetailFromServer(designOrderId)
+        await refreshDesignOrderAfterPayment(designOrderId, latestDetail)
+        stopDesignPaymentStatusPolling()
+        return
+      }
+    }
+
+    latestDetail = latestDetail || (await syncDesignOrderDetailFromServer(designOrderId))
+    const latestPendingBillId = Number(latestDetail?.pendingBillId || 0)
+    if (
+      isDesignOrderPaymentDone(latestDetail) ||
+      (trackedBillId > 0 && latestPendingBillId !== trackedBillId)
+    ) {
+      await refreshDesignOrderAfterPayment(designOrderId, latestDetail)
+      stopDesignPaymentStatusPolling()
+      return
+    }
+
+    if (currentDesignOrder.value?.id && Number(currentDesignOrder.value.id) === Number(designOrderId) && latestDetail) {
+      currentDesignOrder.value = {
+        ...currentDesignOrder.value,
+        ...latestDetail,
+      }
+    }
+
+    if (attempts <= 1) {
+      stopDesignPaymentStatusPolling()
+      return
+    }
+
+    attempts -= 1
+    designPaymentStatusPollTimer = window.setTimeout(poll, delay)
+  }
+
+  designPaymentStatusPollTimer = window.setTimeout(poll, delay)
+}
+
+const syncPendingDesignOrderPaymentOnFocus = async () => {
+  if (!designOrderPaymentTracker.orderId) return
+
+  const trackedBillId = Number(designOrderPaymentTracker.billId || 0)
+  if (trackedBillId > 0) {
+    const confirmResult = await confirmDesignOrderBillPayment(trackedBillId)
+    if (confirmResult?.paid) {
+      const latestDetail = await syncDesignOrderDetailFromServer(
+        designOrderPaymentTracker.orderId,
+      )
+      stopDesignPaymentStatusPolling()
+      await refreshDesignOrderAfterPayment(
+        designOrderPaymentTracker.orderId,
+        latestDetail,
+      )
+      return
+    }
+  }
+
+  const latestDetail = await syncDesignOrderDetailFromServer(
+    designOrderPaymentTracker.orderId,
+  )
+  if (!latestDetail) return
+
+  await refreshDesignOrderAfterPayment(
+    designOrderPaymentTracker.orderId,
+    latestDetail,
+  )
+
+  const latestPendingBillId = Number(latestDetail.pendingBillId || 0)
+  if (
+    isDesignOrderPaymentDone(latestDetail) ||
+    (trackedBillId > 0 && latestPendingBillId !== trackedBillId)
+  ) {
+    stopDesignPaymentStatusPolling()
+    return
+  }
+
+  if (!designPaymentStatusPollTimer) {
+    startDesignPaymentStatusPolling(
+      designOrderPaymentTracker.orderId,
+      designOrderPaymentTracker.billId,
+    )
+  }
+}
+
+const initDesignOrderPaymentTracking = async () => {
+  stopDesignPaymentStatusPolling()
+}
+
+const handleReturnToPage = () => {
+  syncPendingOrderPaymentOnFocus()
+  syncPendingDesignOrderPaymentOnFocus()
+  syncPendingConstructionPaymentOnFocus()
 }
 
 const handleVisibilityChange = () => {
   if (document.visibilityState === 'visible') {
-    syncPendingOrderPaymentOnFocus()
+    handleReturnToPage()
   }
 }
 
-const stopConstructionPaymentPolling = () => {
+const handleWindowFocus = () => {
+  handleReturnToPage()
+}
+
+const clearConstructionPaymentTracking = () => {
+  constructionPaymentTracker.orderId = null
+  constructionPaymentTracker.nodeId = null
+  constructionPaymentTracker.billId = null
+}
+
+const stopConstructionPaymentPolling = (clearTracking = false) => {
   if (constructionPaymentPollTimer) {
     window.clearTimeout(constructionPaymentPollTimer)
     constructionPaymentPollTimer = null
   }
-  constructionPaymentTracker.orderId = null
-  constructionPaymentTracker.nodeId = null
+  if (clearTracking) {
+    clearConstructionPaymentTracking()
+  }
 }
 
 const isConstructionNodePaid = (statusData, nodeId) => {
@@ -2711,23 +3926,38 @@ const isConstructionNodePaid = (statusData, nodeId) => {
 const startConstructionPaymentPolling = (
   orderId,
   nodeId,
+  billId = null,
   attempts = 20,
   delay = 3000,
 ) => {
-  stopConstructionPaymentPolling()
+  stopConstructionPaymentPolling(true)
   if (!orderId || !nodeId) return
 
   constructionPaymentTracker.orderId = orderId
   constructionPaymentTracker.nodeId = nodeId
+  constructionPaymentTracker.billId = billId
 
   const poll = async () => {
+    if (billId) {
+      const confirmResult = await confirmUserBillPayment(billId)
+      if (confirmResult?.paid) {
+        await refreshConstructionAfterNodePayment(orderId, {
+          focusPaymentResult: true,
+        })
+        stopConstructionPaymentPolling(true)
+        return
+      }
+    }
+
     try {
       const res = await ConstructionAPI.getConstructionStatus(orderId)
       const flow = normalizeConstructionFlow(res?.data)
       if (res.code === 200 && flow) {
         if (isConstructionNodePaid(flow, nodeId)) {
-          await refreshConstructionAfterNodePayment(orderId)
-          stopConstructionPaymentPolling()
+          await refreshConstructionAfterNodePayment(orderId, {
+            focusPaymentResult: true,
+          })
+          stopConstructionPaymentPolling(true)
           return
         }
       }
@@ -2747,50 +3977,88 @@ const startConstructionPaymentPolling = (
   constructionPaymentPollTimer = window.setTimeout(poll, delay)
 }
 
-const openOrderPaymentModal = () => {
-  if (!currentOrder.value) return
-  if (!hasUploadedContract(currentOrder.value)) {
-    message.warning('请等待平台上传合同后再支付')
-    return
+const syncPendingConstructionPaymentOnFocus = async () => {
+  const trackedOrderId = constructionPaymentTracker.orderId
+  const trackedNodeId = constructionPaymentTracker.nodeId
+  const trackedBillId = constructionPaymentTracker.billId
+
+  if (!trackedOrderId || !trackedNodeId) return
+
+  if (trackedBillId) {
+    const confirmResult = await confirmUserBillPayment(trackedBillId)
+    if (confirmResult?.paid) {
+      await refreshConstructionAfterNodePayment(trackedOrderId, {
+        focusPaymentResult: true,
+      })
+      stopConstructionPaymentPolling(true)
+      return
+    }
   }
-  if (getOrderPaymentStatus(currentOrder.value) !== 0) {
-    message.info('当前订单已完成首笔支付，请按施工节点继续支付')
+
+  try {
+    const res = await ConstructionAPI.getConstructionStatus(trackedOrderId)
+    const flow = normalizeConstructionFlow(res?.data)
+    if (!(res.code === 200 && flow)) return
+
+    if (isConstructionNodePaid(flow, trackedNodeId)) {
+      await refreshConstructionAfterNodePayment(trackedOrderId, {
+        focusPaymentResult: true,
+      })
+      stopConstructionPaymentPolling(true)
+      return
+    }
+  } catch (error) {
+    console.error('Sync construction payment status on focus failed', error)
     return
   }
 
-  paymentScene.value = 'order'
-  paymentForm.channel = 'ALIPAY'
-  paymentTarget.orderId = currentOrder.value.id
-  paymentTarget.nodeId = null
-  paymentTarget.amount = 0
-  paymentTarget.amountText = getOrderPaymentPreviewText()
-  paymentTarget.title = `${getOrderProductName(currentOrder.value) || '订单'}定金`
-  paymentTarget.description = `合同上传后先支付定金，订单总价为 ¥${Number(currentOrder.value.totalAmount || 0).toLocaleString()}，订单号：${currentOrder.value.orderNumber || '--'}`
-  showPaymentModal.value = true
+  if (!constructionPaymentPollTimer) {
+    startConstructionPaymentPolling(
+      trackedOrderId,
+      trackedNodeId,
+      trackedBillId,
+    )
+  }
 }
 
-const openNodePaymentModal = () => {
-  if (!currentOrder.value?.id || !currentNodeDetail.value?.nodeId) return
+const openBillPaymentTab = async () => {
+  if (!currentOrder.value?.id) return
+  detailTab.value = 'bills'
+  await loadConstructionFlow(currentOrder.value.id)
+  await loadPendingPaymentBills(currentOrder.value.id)
+}
 
-  paymentScene.value = 'node'
+const openPendingBillPaymentModal = (bill) => {
+  if (!currentOrder.value?.id || !bill) return
+  if (!bill.id && !bill.isVirtualConstructionBill) {
+    message.warning('当前账单尚未生成，请刷新后重试')
+    return
+  }
+
   paymentForm.channel = 'ALIPAY'
   paymentTarget.orderId = currentOrder.value.id
-  paymentTarget.nodeId = currentNodeDetail.value.nodeId
-  paymentTarget.amount = Number(currentNodeDetail.value.amount || 0)
-  paymentTarget.amountText = ''
-  paymentTarget.title = currentNodeDetail.value.nodeName || '施工节点支付'
-  paymentTarget.description = `订单号：${currentOrder.value.orderNumber || '--'}`
+  paymentTarget.billId = bill.id || null
+  paymentTarget.billType = bill.billType || ''
+  paymentTarget.nodeId = bill.relatedNodeId || null
+  paymentTarget.amount = Number(bill.amount || 0)
+  paymentTarget.amountText = `¥${Number(bill.amount || 0).toLocaleString()}`
+  paymentTarget.title = getPaymentBillDisplayTitle(bill)
+  paymentTarget.description =
+    bill.remark || `订单号：${currentOrder.value.orderNumber || '--'}`
   showPaymentModal.value = true
 }
 
 const submitPayment = async () => {
   const userId = getStoredUserId()
-  const isOrderPayment = paymentScene.value === 'order'
-  const isNodePayment = paymentScene.value === 'node'
   const pollingOrderId = paymentTarget.orderId
   const pollingNodeId = paymentTarget.nodeId
+  const pollingBillId = paymentTarget.billId
   if (!userId || !paymentTarget.orderId) {
     message.error('登录状态失效，请重新登录')
+    return
+  }
+  if (!paymentTarget.billId && !paymentTarget.nodeId) {
+    message.error('未找到待支付账单')
     return
   }
 
@@ -2803,23 +4071,32 @@ const submitPayment = async () => {
     paymentForm.channel === 'ALIPAY' ? window.open('', '_blank') : null
 
   try {
-    const res =
-      paymentScene.value === 'order'
-        ? await orderAPI.payOrder(
+    const isConstructionStagePayment =
+      paymentTarget.billType === 'STAGE_PAYMENT' && Number(paymentTarget.nodeId || 0) > 0
+
+    const res = isConstructionStagePayment
+      ? await ConstructionAPI.payNode(
+          paymentTarget.orderId,
+          userId,
+          paymentTarget.nodeId,
+          paymentForm.channel,
+        )
+      : paymentTarget.billId
+        ? await orderAPI.payBill(
+            paymentTarget.billId,
             userId,
             paymentForm.channel,
-            paymentTarget.orderId,
           )
-        : await orderAPI.payOrderNode(
+        : await ConstructionAPI.payNode(
             paymentTarget.orderId,
             userId,
-            paymentForm.channel,
             paymentTarget.nodeId,
+            paymentForm.channel,
           )
 
     const paymentPayloadMeta = resolvePaymentPayloadMeta(res?.data)
     if (
-      isOrderPayment &&
+      !pollingNodeId &&
       Number.isFinite(paymentPayloadMeta?.totalAmount) &&
       paymentPayloadMeta.totalAmount >= 0
     ) {
@@ -2834,20 +4111,33 @@ const submitPayment = async () => {
     const paymentLabel =
       paymentChannelOptions.find((item) => item.value === paymentForm.channel)
         ?.label || '支付'
-    const paymentSubject = isOrderPayment ? '定金支付' : '节点支付'
+    const paymentSubject = paymentTarget.title || '账单支付'
+    const trackedConstructionBillId = pollingNodeId
+      ? pollingBillId || (await resolveConstructionPaymentBillId(pollingOrderId, pollingNodeId))
+      : null
     const wechatUrl = resolveWechatPayUrl(res.data)
     if (paymentForm.channel === 'WECHAT' && wechatUrl) {
       if (paymentWindow && !paymentWindow.closed) {
         paymentWindow.close()
       }
+      paymentResultTarget.orderId = pollingOrderId
+      paymentResultTarget.nodeId = pollingNodeId
+      paymentResultTarget.billId = pollingBillId || trackedConstructionBillId
       wechatPayUrl.value = wechatUrl
       showPaymentModal.value = false
       showWechatPayModal.value = true
-      if (isOrderPayment) {
-        startPaymentStatusPolling(pollingOrderId)
-      }
-      if (isNodePayment) {
-        startConstructionPaymentPolling(pollingOrderId, pollingNodeId)
+      if (pollingNodeId) {
+        startConstructionPaymentPolling(
+          pollingOrderId,
+          pollingNodeId,
+          trackedConstructionBillId,
+        )
+      } else {
+        startPaymentStatusPolling(
+          pollingOrderId,
+          pollingBillId,
+          paymentTarget.billType,
+        )
       }
       message.success(`请使用微信扫码完成${paymentSubject}`)
       return
@@ -2862,11 +4152,18 @@ const submitPayment = async () => {
     )
 
     showPaymentModal.value = false
-    if (isOrderPayment) {
-      startPaymentStatusPolling(pollingOrderId)
-    }
-    if (isNodePayment) {
-      startConstructionPaymentPolling(pollingOrderId, pollingNodeId)
+    if (pollingNodeId) {
+      startConstructionPaymentPolling(
+        pollingOrderId,
+        pollingNodeId,
+        trackedConstructionBillId,
+      )
+    } else {
+      startPaymentStatusPolling(
+        pollingOrderId,
+        pollingBillId,
+        paymentTarget.billType,
+      )
     }
   } catch (error) {
     if (paymentWindow && !paymentWindow.closed) {
@@ -2916,6 +4213,23 @@ const getDesignOrderStatusType = (status) => {
   return 'default'
 }
 
+const formatDesignOrderPaymentStatus = (status) => {
+  const numericStatus = Number(status)
+  if (numericStatus === 0) return '未支付'
+  if (numericStatus === 1) return '已支付'
+  if (numericStatus === 2) return '已结清'
+  if (numericStatus === 3) return '已退款'
+  return '未知'
+}
+
+const getDesignOrderPaymentStatusType = (status) => {
+  const numericStatus = Number(status)
+  if (numericStatus === 1) return 'info'
+  if (numericStatus === 2) return 'success'
+  if (numericStatus === 3) return 'error'
+  return 'warning'
+}
+
 const getDesignFileLabel = (file, index, fallbackPrefix = '文件') => {
   const fileUrl = String(file?.fileUrl || '').trim()
   if (!fileUrl) {
@@ -2928,6 +4242,90 @@ const getDesignFileLabel = (file, index, fallbackPrefix = '文件') => {
 
 const canContinueBuildDesignOrder = (order) =>
   Boolean(order?.canConvertToBuild)
+
+const resolveDesignOrderMainProductId = (order) => {
+  const deliveredMpId = Number(order?.deliveredMpId)
+  if (Number.isInteger(deliveredMpId) && deliveredMpId > 0) {
+    return deliveredMpId
+  }
+
+  return getDesignOrderMainProductBinding(order?.id)
+}
+
+const loadDesignOrderMainProductId = async (order, userId) => {
+  const deliveredMpId = Number(order?.deliveredMpId)
+  if (Number.isInteger(deliveredMpId) && deliveredMpId > 0) {
+    return deliveredMpId
+  }
+
+  const orderId = Number(order?.id)
+  if (userId && Number.isInteger(orderId) && orderId > 0) {
+    try {
+      const res = await designOrderAPI.getDetail(orderId, userId)
+      const detailDeliveredMpId = Number(res?.data?.deliveredMpId)
+      if (res?.code === 200 && Number.isInteger(detailDeliveredMpId) && detailDeliveredMpId > 0) {
+        return detailDeliveredMpId
+      }
+    } catch (error) {
+      void error
+    }
+  }
+
+  return getDesignOrderMainProductBinding(order?.id)
+}
+
+const ensureClientMainProductName = async (mainProductId) => {
+  const numericMainProductId = Number(mainProductId)
+  if (!Number.isInteger(numericMainProductId) || numericMainProductId <= 0) {
+    return ''
+  }
+  if (designMainProductNameMap[numericMainProductId]) {
+    return designMainProductNameMap[numericMainProductId]
+  }
+
+  try {
+    const res = await houseAPI.getClientHouseDetails(numericMainProductId)
+    const productName = String(res?.data?.name || '').trim()
+    if (productName) {
+      designMainProductNameMap[numericMainProductId] = productName
+      return productName
+    }
+  } catch (error) {
+    void error
+  }
+
+  return ''
+}
+
+const getDesignOrderMainProductNameText = (order) => {
+  const mainProductId = resolveDesignOrderMainProductId(order)
+  if (!mainProductId) return '--'
+  return designMainProductNameMap[mainProductId] || '加载中...'
+}
+
+const getDesignOrderListMainProductNameText = (order) =>
+  designOrderListMainProductTextMap[order?.id] || '--'
+
+const hydrateDesignOrderListMainProductNames = async (rows = [], userId = null) => {
+  await Promise.all(
+    rows.map(async (row) => {
+      const orderId = Number(row?.id)
+      if (!Number.isInteger(orderId) || orderId <= 0) return
+
+      const mainProductId = await loadDesignOrderMainProductId(row, userId)
+      if (!mainProductId) {
+        designOrderListMainProductTextMap[orderId] = '--'
+        return
+      }
+
+      const productName = await ensureClientMainProductName(mainProductId)
+      designOrderListMainProductTextMap[orderId] = productName || '--'
+    }),
+  )
+}
+
+const canRepayDesignOrder = (order) =>
+  Number(order?.paymentStatus) === 0 && Number(order?.pendingBillId) > 0
 
 const canMarkDesignOrderNoBuild = (order) =>
   Number(order?.designStatus) === 2 && !order?.buildOrderId
@@ -2963,6 +4361,27 @@ const fetchDesignOrders = async () => {
 
     designOrderList.value = rows
     designPagination.itemCount = Number(res.data.total || rows.length)
+    await hydrateDesignOrderListMainProductNames(rows, userId)
+    const trackedRow = rows.find(
+      (item) => Number(item?.id) === Number(designOrderPaymentTracker.orderId),
+    )
+    logDesignOrderPaymentDebug('fetch design orders', {
+      trackedOrderId: designOrderPaymentTracker.orderId,
+      trackedPaymentStatus: trackedRow?.paymentStatus,
+      trackedDesignStatus: trackedRow?.designStatus,
+      trackedPendingBillId: trackedRow?.pendingBillId,
+      total: rows.length,
+    })
+
+    if (trackedRow && Number(trackedRow.paymentStatus) >= 1) {
+      if (currentDesignOrder.value?.id && Number(currentDesignOrder.value.id) === Number(trackedRow.id)) {
+        currentDesignOrder.value = {
+          ...currentDesignOrder.value,
+          ...trackedRow,
+        }
+      }
+      stopDesignPaymentStatusPolling()
+    }
   } catch (error) {
     void error
     designOrderList.value = []
@@ -2993,6 +4412,21 @@ const openDesignOrderDetail = async (row) => {
         ...row,
         ...res.data,
       }
+      const mainProductId = resolveDesignOrderMainProductId(currentDesignOrder.value)
+      const productName = await ensureClientMainProductName(mainProductId)
+      if (mainProductId) {
+        designOrderListMainProductTextMap[row.id] = productName || '--'
+      }
+      if (
+        Number(designOrderPaymentTracker.orderId) === Number(row.id) &&
+        !isDesignOrderPaymentDone(res.data) &&
+        !designPaymentStatusPollTimer
+      ) {
+        startDesignPaymentStatusPolling(
+          designOrderPaymentTracker.orderId,
+          designOrderPaymentTracker.billId,
+        )
+      }
       return
     }
     message.error(res?.msg || '获取设计订单详情失败')
@@ -3004,6 +4438,101 @@ const openDesignOrderDetail = async (row) => {
   }
 }
 
+const openDesignOrderPaymentModal = async () => {
+  if (!currentDesignOrder.value?.id) return
+
+  if (!currentDesignOrder.value?.pendingBillId) {
+    const latestDetail = await syncDesignOrderDetailFromServer(currentDesignOrder.value.id)
+    if (latestDetail) {
+      currentDesignOrder.value = {
+        ...currentDesignOrder.value,
+        ...latestDetail,
+      }
+    }
+  }
+
+  if (!currentDesignOrder.value?.pendingBillId) {
+    message.warning('当前设计订单暂无可支付账单')
+    return
+  }
+
+  designRepayForm.channel = 'ALIPAY'
+  showDesignRepayModal.value = true
+}
+
+const submitDesignOrderRepayment = async () => {
+  const userId = getStoredUserId()
+  const designOrderId = currentDesignOrder.value?.id
+  const billId = currentDesignOrder.value?.pendingBillId
+  if (!userId || !designOrderId || !billId) {
+    message.error('未找到有效的设计订单支付信息')
+    return
+  }
+
+  designRepaySubmitting.value = true
+  const paymentWindow =
+    designRepayForm.channel === 'ALIPAY' ? window.open('', '_blank') : null
+
+  try {
+    const res = await designOrderAPI.payBill(
+      billId,
+      userId,
+      designRepayForm.channel,
+    )
+    logDesignOrderPaymentDebug('repay request response', {
+      designOrderId,
+      billId,
+      code: res?.code,
+      channel: designRepayForm.channel,
+    })
+
+    if (res.code !== 200) {
+      if (paymentWindow && !paymentWindow.closed) {
+        paymentWindow.close()
+      }
+      message.error(res.msg || '支付发起失败')
+      return
+    }
+
+    const wechatUrl = resolveWechatPayUrl(res.data)
+    if (designRepayForm.channel === 'WECHAT' && wechatUrl) {
+      if (paymentWindow && !paymentWindow.closed) {
+        paymentWindow.close()
+      }
+      paymentResultTarget.orderId = null
+      paymentResultTarget.nodeId = null
+      paymentResultTarget.designOrderId = designOrderId
+      wechatPayUrl.value = wechatUrl
+      showDesignRepayModal.value = false
+      showWechatPayModal.value = true
+      startDesignPaymentStatusPolling(designOrderId, billId)
+      message.success('请使用微信扫码完成设计定金支付')
+      return
+    }
+
+    const opened = tryOpenPaymentPayload(res.data, new Set(), paymentWindow)
+    if (!opened && paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
+
+    showDesignRepayModal.value = false
+    startDesignPaymentStatusPolling(designOrderId, billId)
+    message.success(
+      opened
+        ? '已发起设计定金支付，请在新窗口完成付款'
+        : '设计定金支付请求已发起',
+    )
+  } catch (error) {
+    if (paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
+    void error
+    message.error('设计定金支付请求失败')
+  } finally {
+    designRepaySubmitting.value = false
+  }
+}
+
 const handleContinueBuildFromDesign = async () => {
   const userId = getStoredUserId()
   const designOrderId = currentDesignOrder.value?.id
@@ -3012,11 +4541,29 @@ const handleContinueBuildFromDesign = async () => {
   designDecisionSubmitting.value = true
   try {
     const res = await designOrderAPI.continueBuild(designOrderId, userId)
-    if (res.code === 200) {
+    const buildOrderId = Number(res?.data)
+
+    if (res.code === 200 && Number.isInteger(buildOrderId) && buildOrderId > 0) {
+      currentDesignOrder.value = {
+        ...currentDesignOrder.value,
+        buildOrderId,
+        designStatus: 3,
+      }
       message.success('已从设计订单继续创建建房订单')
       showDesignDetailModal.value = false
+      activeMenu.value = 'orders'
+      activeOrderStatusTag.value = 'all'
       await fetchDesignOrders()
       await fetchOrders()
+      await viewOrderDetail(
+        {
+          id: buildOrderId,
+          orderStatus: 0,
+          paymentStatus: 1,
+          sourceDesignOrderId: designOrderId,
+        },
+        'info',
+      )
       return
     }
     message.error(res?.msg || '继续建房失败')
@@ -3061,6 +4608,9 @@ const viewOrderDetail = async (row, initialTab = 'info') => {
   orderStore.clearCurrentOrder()
   constructionInfo.value = null
   currentNodeDetail.value = null
+  pendingPaymentBills.value = []
+  userOptionalChangeRecords.value = []
+  resetUserOptionSelectionMap()
 
   try {
     const res = await orderStore.loadOrderDetail({
@@ -3070,9 +4620,16 @@ const viewOrderDetail = async (row, initialTab = 'info') => {
     })
 
     if (res?.code === 200 && currentOrder.value) {
+      await loadUserOptionConfigList()
+      hydrateUserOptionSelection()
+      syncPendingPaymentBillsState(
+        extractPaymentBillRows(currentOrder.value.pendingPaymentBills),
+      )
       if ([3, 4].includes(currentOrder.value.orderStatus)) {
         await loadConstructionFlow(currentOrder.value.id)
       }
+      await loadPendingPaymentBills(currentOrder.value.id)
+      await loadUserOptionalChangeRecords(currentOrder.value.id)
     } else {
       message.error('获取详情失败')
       currentOrder.value = row
@@ -3089,6 +4646,10 @@ const viewOrderDetail = async (row, initialTab = 'info') => {
 const applyConstructionStatus = async (statusData) => {
   const flow = normalizeConstructionFlow(statusData)
   constructionInfo.value = flow
+  console.info('[user-center-construction-bill] construction status', {
+    orderId: currentOrder.value?.id || null,
+    flow,
+  })
 
   if (!flow?.nodeDetails?.length) {
     currentNodeDetail.value = null
@@ -3130,6 +4691,11 @@ const handleNodeClick = async (node) => {
     const res = await ConstructionAPI.getConstructionDetail(orderId, nodeId)
     if (res.code === 200) {
       currentNodeDetail.value = res.data
+      console.info('[user-center-construction-bill] construction detail', {
+        orderId,
+        nodeId,
+        data: res?.data,
+      })
     }
   } catch (e) {
     message.error('加载节点详情失败')
@@ -3196,39 +4762,142 @@ const isPendingUserAudit = computed(() => {
   return currentNodeDetail.value.nodeId === activeNodeId
 })
 
-// 计算是否待支付：后端 WAIT_PAYMENT = 6
-const isPendingPayment = computed(() => {
-  if (!constructionInfo.value || !currentNodeDetail.value) return false
+const activeConstructionNodeId = computed(() => {
+  if (!constructionInfo.value?.nodeDetails?.length) return 0
+  const activeNode =
+    constructionInfo.value.nodeDetails[constructionInfo.value.currentNodeIndex] || null
+  return Number(activeNode?.nodeId || activeNode?.id || 0)
+})
+
+const currentConstructionPayableBill = computed(() => {
+  if (!currentOrder.value || !constructionInfo.value?.nodeDetails?.length) return null
 
   if (
     Number(constructionInfo.value.currentNodeStatus) !==
     CONSTRUCTION_NODE_STATUS.WAIT_PAYMENT
   ) {
-    return false
+    return null
   }
 
-  const activeNodeId =
-    constructionInfo.value.nodeDetails[constructionInfo.value.currentNodeIndex]
-      ?.nodeId
-  if (currentNodeDetail.value.nodeId !== activeNodeId) return false
+  const activeNode =
+    constructionInfo.value.nodeDetails[constructionInfo.value.currentNodeIndex] || null
+  const activeNodeId = activeConstructionNodeId.value
+  if (!activeNodeId) return null
 
-  // 校验金额和支付状态
-  if (
-    !currentNodeDetail.value.amount ||
-    currentNodeDetail.value.amount <= 0 ||
-    currentNodeDetail.value.isPaid !== 0
-  ) {
-    return false
+  const existingStageBill = findPendingStageBillByNodeId(
+    pendingPaymentBills.value,
+    activeNodeId,
+  )
+  if (existingStageBill) return existingStageBill
+
+  const resolvedAmount = [currentNodeDetail.value?.amount, activeNode?.amount]
+    .map((value) => Number(value))
+    .find((value) => Number.isFinite(value) && value > 0)
+
+  if (!(resolvedAmount > 0)) return null
+
+  return {
+    virtualKey: `construction-node-${currentOrder.value.id}-${activeNodeId}`,
+    isVirtualConstructionBill: true,
+    billType: 'STAGE_PAYMENT',
+    relatedNodeId: activeNodeId,
+    amount: resolvedAmount,
+    billTitle: activeNode?.name || currentNodeDetail.value?.nodeName || '当前施工节点',
+    remark: '当前施工阶段待支付，支付时若后端尚未生成账单，将按当前节点自动拉起支付。',
+    createTime:
+      currentOrder.value?.updateTime ||
+      currentOrder.value?.orderTime ||
+      currentOrder.value?.createTime ||
+      null,
   }
-
-  // 双重防御：根据文本内容再次过滤
-  const statusText = currentNodeDetail.value.statusText || ''
-  if (statusText.includes('驳回') || statusText.includes('整改')) {
-    return false
-  }
-
-  return true
 })
+
+watch(
+  () => currentConstructionPayableBill.value,
+  (value) => {
+    logConstructionBillDebug('currentConstructionPayableBill', {
+      currentConstructionPayableBill: value,
+    })
+  },
+  { immediate: true },
+)
+
+const isPendingConstructionPaymentForCurrentNode = computed(() => {
+  if (!currentConstructionPayableBill.value) return false
+  if (!currentNodeDetail.value) return false
+  return Number(currentNodeDetail.value.nodeId || 0) === activeConstructionNodeId.value
+})
+
+const currentPendingOptionalChangeBill = computed(() => {
+  const latestRecord = visibleUserOptionalChangeRecords.value[0] || null
+  if (!latestRecord) return null
+  if (String(latestRecord.changeType || '') !== 'ADD_ONLY') return null
+  if (latestRecord?.linkedBillStatus !== 'PENDING') return null
+
+  const billId = Number(latestRecord?.linkedBillId || 0)
+  if (!(billId > 0)) return null
+
+  const existingBill =
+    pendingPaymentBills.value.find(
+      (item) => Number(item?.id || 0) === billId,
+    ) || null
+  if (existingBill) return existingBill
+
+  return {
+    id: billId,
+    billType: 'OPTION_CHANGE',
+    amount: Number(latestRecord?.linkedBillAmount || 0),
+    billTitle: latestRecord?.linkedBillTitle || '选配变更补价',
+    remark: `订单号：${currentOrder.value?.orderNumber || '--'} / 变更申请 #${latestRecord?.id || '--'}`,
+    createTime: latestRecord?.createTime || null,
+  }
+})
+
+const pendingPaymentBillRows = computed(() => {
+  const rows = [...pendingPaymentBills.value]
+  if (
+    currentPendingOptionalChangeBill.value &&
+    !rows.some(
+      (item) =>
+        Number(item?.id || 0) === Number(currentPendingOptionalChangeBill.value?.id || 0),
+    )
+  ) {
+    rows.unshift(currentPendingOptionalChangeBill.value)
+  }
+  if (
+    currentConstructionPayableBill.value &&
+    !currentConstructionPayableBill.value.id
+  ) {
+    rows.unshift(currentConstructionPayableBill.value)
+  }
+  return sortPendingPaymentBills(rows)
+})
+
+const hasPendingPaymentBills = computed(() => pendingPaymentBillRows.value.length > 0)
+
+const canOpenBillPaymentCenter = computed(() => {
+  if (!currentOrder.value) return false
+  return (
+    Number(currentOrderPaymentStatus.value) === 0 ||
+    hasPendingPaymentBills.value ||
+    isConstructionNodeWaitingPayment.value
+  )
+})
+
+const openCurrentConstructionPayment = async () => {
+  if (!currentOrder.value?.id) return
+
+  await loadPendingPaymentBills(currentOrder.value.id)
+
+  const payableBill = currentConstructionPayableBill.value
+  if (!payableBill) {
+    message.warning('当前阶段暂未生成待支付账单，请稍后重试')
+    return
+  }
+
+  detailTab.value = 'bills'
+  openPendingBillPaymentModal(payableBill)
+}
 
 // 用户审核通过
 const handleUserAuditPass = () => {
@@ -3262,8 +4931,13 @@ const submitUserAudit = async (pass, reason = '') => {
       message.success(pass ? '验收通过' : '已驳回')
       showAuditRejectModal.value = false
       auditRejectReason.value = ''
+      await syncCurrentOrderFromServer(currentOrder.value.id)
       await loadConstructionFlow(currentOrder.value.id)
+      await loadPendingPaymentBills(currentOrder.value.id)
       await handleNodeClick({ nodeId: currentNodeDetail.value.nodeId })
+      if (pass) {
+        detailTab.value = 'bills'
+      }
     } else {
       message.error(res.msg || '操作失败')
     }
@@ -3285,11 +4959,71 @@ const getStatusType = (status) => {
   return map[status] || 'default'
 }
 
-const getCurrentStep = (status) => {
-  const numericStatus = Number(status)
-  if (Number.isFinite(numericStatus)) {
-    return Math.min(numericStatus + 1, 5)
+const getOrderBusinessFlowSteps = (order) => {
+  const paymentStatus = getOrderPaymentStatus(order)
+  const contractUploaded = hasUploadedContract(order)
+  const orderStatus = Number(order?.orderStatus)
+
+  const depositDescription =
+    paymentStatus > 0 ? '已完成首笔定金支付' : '待支付首笔定金'
+  const contractDescription = contractUploaded
+    ? '后台已上传合同'
+    : '等待后台上传合同'
+
+  let dispatchDescription = '等待平台派单'
+  if (orderStatus === 1) {
+    dispatchDescription = '平台正在分配服务商'
+  } else if (orderStatus >= 2) {
+    dispatchDescription = '服务商已接单'
   }
+
+  let pricingDescription = '待后台确认整单金额方案'
+  if (orderStatus >= 3) {
+    pricingDescription = '已确认开工金额方案'
+  } else if (orderStatus === 2) {
+    pricingDescription = '派单完成后由后台确认'
+  }
+
+  let loopDescription = '待进入节点循环'
+  if (orderStatus === 3) {
+    if (
+      Number(constructionInfo.value?.currentNodeStatus) ===
+      CONSTRUCTION_NODE_STATUS.WAIT_PAYMENT
+    ) {
+      loopDescription = '当前节点待支付'
+    } else {
+      loopDescription =
+        constructionInfo.value?.currentNodeStatusText || '施工进行中'
+    }
+  } else if (orderStatus >= 4) {
+    loopDescription = '全部节点已结束'
+  }
+
+  return [
+    { key: 'submit', title: '用户下单', description: '主体产品 + 选配产品' },
+    { key: 'deposit', title: '支付定金', description: depositDescription },
+    { key: 'contract', title: '上传合同', description: contractDescription },
+    { key: 'dispatch', title: '派单接单', description: dispatchDescription },
+    {
+      key: 'pricing',
+      title: '确认开工金额方案',
+      description: pricingDescription,
+    },
+    { key: 'loop', title: '节点循环', description: loopDescription },
+  ]
+}
+
+const getCurrentBusinessFlowStep = (order) => {
+  const paymentStatus = getOrderPaymentStatus(order)
+  const contractUploaded = hasUploadedContract(order)
+  const orderStatus = Number(order?.orderStatus)
+
+  if (orderStatus >= 4) return 6
+  if (orderStatus >= 3) return 6
+  if (orderStatus >= 2) return 5
+  if (orderStatus >= 1) return 4
+  if (contractUploaded) return 3
+  if (paymentStatus > 0) return 2
   return 1
 }
 
@@ -3319,6 +5053,12 @@ watch(
   { flush: 'post' },
 )
 
+watch(detailTab, (value) => {
+  if (value === 'bills' && showDetailModal.value && currentOrder.value?.id) {
+    loadPendingPaymentBills(currentOrder.value.id)
+  }
+})
+
 onMounted(() => {
   authStore.setActiveScope(AUTH_SCOPE_USER)
   userProfileStore.initializeProfile().catch((error) => {
@@ -3326,6 +5066,8 @@ onMounted(() => {
     router.push('/login')
   })
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleWindowFocus)
+  initDesignOrderPaymentTracking()
   if (activeMenu.value === 'orders') {
     fetchOrders()
   }
@@ -3345,6 +5087,7 @@ watch(activeMenu, (newVal) => {
   if (newVal === 'designOrders') {
     designPagination.page = 1
     fetchDesignOrders()
+    initDesignOrderPaymentTracking()
   }
   if (newVal === 'favorites') {
     favoritePagination.page = 1
@@ -3355,8 +5098,13 @@ watch(activeMenu, (newVal) => {
 onBeforeUnmount(() => {
   closePendingOrderNotification()
   stopPaymentStatusPolling()
-  stopConstructionPaymentPolling()
+  if (designPaymentStatusPollTimer) {
+    window.clearTimeout(designPaymentStatusPollTimer)
+    designPaymentStatusPollTimer = null
+  }
+  stopConstructionPaymentPolling(true)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', handleWindowFocus)
 })
 </script>
 
@@ -3464,6 +5212,11 @@ onBeforeUnmount(() => {
 .order-amount-strong {
   color: #d03050;
   font-weight: 700;
+}
+.order-contract-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .construction-progress-header {
   margin-bottom: 20px;
@@ -3581,14 +5334,62 @@ onBeforeUnmount(() => {
 .construction-empty-state--compact {
   padding: 40px 0;
 }
+.order-footer-panel {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.order-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.order-footer-actions__button {
+  min-width: 112px;
+  height: 36px;
+  padding: 0 18px;
+}
+.order-footer-actions__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-soft);
+  background: #fff;
+  box-sizing: border-box;
+}
+.order-footer-actions__status-label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1;
+  white-space: nowrap;
+}
 .order-footer-hint {
   color: var(--color-text-muted);
-  margin-right: 10px;
   font-size: 13px;
+  flex-shrink: 0;
 }
 .order-footer-hint__icon {
   vertical-align: text-bottom;
   margin-right: 2px;
+}
+.pending-bill-alert {
+  margin-bottom: 16px;
+}
+.pending-bill-alert__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .payment-summary {
   padding: 16px;
@@ -3644,6 +5445,10 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+.design-order-list-table {
+  min-width: 1240px;
+}
+
 .order-list-table__head,
 .order-list-table__row {
   display: grid;
@@ -3672,6 +5477,17 @@ onBeforeUnmount(() => {
 
 .order-list-table__cell--actions {
   justify-self: stretch;
+}
+
+.design-order-list-table .order-list-table__head,
+.design-order-list-table .order-list-table__row {
+  grid-template-columns:
+    minmax(220px, 1.4fr)
+    minmax(180px, 1fr)
+    minmax(180px, 1.1fr)
+    120px
+    120px
+    minmax(220px, 1.2fr);
 }
 
 .order-list-table__label {
@@ -3725,6 +5541,126 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--color-text-muted);
   margin-bottom: 6px;
+}
+
+.user-option-adjust-panel {
+  margin-top: 16px;
+  padding: 16px;
+}
+
+.user-option-adjust-panel__hint {
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.user-option-adjust-panel__summary {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(39, 110, 61, 0.06);
+}
+
+.user-option-adjust-panel__summary-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #276e3d;
+}
+
+.user-option-adjust-panel__summary-text {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.user-option-adjust-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.user-option-change-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.user-option-change-history__item {
+  padding: 16px;
+}
+
+.user-option-change-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-option-change-history__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.user-option-change-history__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.user-option-change-history__snapshots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.user-option-change-history__snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(60, 64, 97, 0.04);
+}
+
+.user-option-change-history__snapshot-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.user-option-change-history__snapshot-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.user-option-change-history__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.select-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.select-wrapper .label {
+  width: 90px;
+  margin-right: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: right;
+  flex: 0 0 auto;
 }
 
 .user-order-tabs {
@@ -3825,6 +5761,72 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
 }
 
+.pending-payment-bills {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.pending-payment-bills-table {
+  min-width: 1080px;
+  overflow: hidden;
+}
+
+.pending-payment-bills-head,
+.pending-payment-bills-row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.1fr)
+    140px
+    140px
+    minmax(240px, 1.4fr)
+    180px
+    minmax(140px, 0.8fr);
+  align-items: start;
+}
+
+.pending-payment-bills-head {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f7faf8 0%, #eef4ef 100%);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pending-payment-bills-row {
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.pending-payment-bills-cell {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.pending-payment-bills-cell--actions {
+  justify-self: stretch;
+}
+
+.pending-payment-bills-label {
+  display: none;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.pending-payment-bills-text {
+  display: inline-block;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.pending-payment-bills-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .refund-info-card__item {
   min-width: 0;
 }
@@ -3865,12 +5867,14 @@ onBeforeUnmount(() => {
   }
 
   .favorite-actions,
-  .construction-action-card__actions {
+  .construction-action-card__actions,
+  .user-option-adjust-panel__actions {
     flex-direction: column;
   }
 
   .favorite-actions :deep(.n-button),
-  .construction-action-card__actions :deep(.n-button) {
+  .construction-action-card__actions :deep(.n-button),
+  .user-option-adjust-panel__actions :deep(.n-button) {
     width: 100%;
   }
 
@@ -3881,26 +5885,30 @@ onBeforeUnmount(() => {
 
   .order-list-table,
   .option-detail-table,
-  .detail-payment-records-table {
+  .detail-payment-records-table,
+  .pending-payment-bills-table {
     min-width: 0;
   }
 
   .order-list-table__head,
   .option-detail-table__head,
-  .detail-payment-records-head {
+  .detail-payment-records-head,
+  .pending-payment-bills-head {
     display: none;
   }
 
   .order-list-table__row,
   .option-detail-table__row,
-  .detail-payment-records-row {
+  .detail-payment-records-row,
+  .pending-payment-bills-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
 
   .order-list-table__label,
   .option-detail-table__label,
-  .detail-payment-records-label {
+  .detail-payment-records-label,
+  .pending-payment-bills-label {
     display: block;
   }
 
@@ -3919,8 +5927,24 @@ onBeforeUnmount(() => {
     padding: 14px;
   }
 
+  .pending-bill-alert__content {
+    align-items: flex-start;
+  }
+
   .payment-summary__amount {
     font-size: 22px;
+  }
+
+  .select-wrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .select-wrapper .label {
+    width: auto;
+    margin-right: 0;
+    text-align: left;
   }
 
   .refund-info-card :deep(.n-space) {
@@ -3943,14 +5967,36 @@ onBeforeUnmount(() => {
     min-height: 46px;
   }
 
+  .user-option-change-history__header,
+  .user-option-change-history__meta,
+  .user-option-change-history__snapshots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-option-change-history__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .user-option-change-history__actions {
+    justify-content: stretch;
+  }
+
+  .user-option-change-history__actions :deep(.n-button) {
+    width: 100%;
+  }
+
   .order-list-table__actions,
-  .detail-payment-records-actions {
+  .detail-payment-records-actions,
+  .pending-payment-bills-actions {
     flex-direction: column;
     align-items: stretch;
   }
 
   .order-list-table__actions :deep(.n-button),
-  .detail-payment-records-actions :deep(.n-button) {
+  .detail-payment-records-actions :deep(.n-button),
+  .pending-payment-bills-actions :deep(.n-button) {
     width: 100%;
   }
 }

@@ -1,0 +1,1 @@
+export const DEFAULT_INITIAL_PAYMENT_AMOUNT = 0.01
