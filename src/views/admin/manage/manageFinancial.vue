@@ -7,660 +7,125 @@
 
     <n-tabs
       v-else
-      v-model:value="activeTab"
+      :value="activeTab"
       type="segment"
       animated
       class="financial-tabs"
-      @update:value="handleTabChange"
+      @update:value="handleTabChangeWithState"
     >
       <n-tab-pane
         v-if="hasPaymentListPermission"
         name="payment"
         tab="支付流水管理"
       >
-        <section class="financial-section">
-          <div class="financial-section__header">
-            <h3 class="financial-section__title">支付流水管理</h3>
-          </div>
-          <n-space vertical size="large">
-            <div class="financial-filter-row">
-              <div class="financial-filter-item financial-filter-item-keyword">
-                <n-input
-                  v-model:value="paymentFilters.keyword"
-                  placeholder="订单号 / 用户名 / 手机号"
-                  clearable
-                  @keydown.enter="handlePaymentSearch"
-                />
-              </div>
-              <div class="financial-filter-item financial-filter-item-actions">
-                <n-space>
-                  <n-button type="primary" @click="handlePaymentSearch">
-                    查询
-                  </n-button>
-                  <n-button type="warning" secondary @click="openDepositSettingModal">
-                    定金设置
-                  </n-button>
-                  <n-button type="info" secondary @click="openPaymentStatementModal">
-                    支付协议
-                  </n-button>
-                </n-space>
-              </div>
-            </div>
-
-            <div class="financial-list admin-shell-list financial-list--payment">
-              <div class="financial-table-scroll">
-                <div class="financial-table">
-                  <div class="list-header">
-                    <div class="header-item">支付流水ID</div>
-                    <div class="header-item">订单号</div>
-                    <div class="header-item">用户名</div>
-                    <div class="header-item">手机号</div>
-                    <div class="header-item">支付阶段</div>
-                    <div class="header-item">支付渠道</div>
-                    <div class="header-item">支付金额</div>
-                    <div class="header-item">交易流水号</div>
-                    <div class="header-item">支付时间</div>
-                    <div class="header-item">操作</div>
-                  </div>
-
-                  <n-spin :show="paymentLoading" class="financial-spin">
-                    <div v-if="paymentRecordList.length > 0" class="list-body">
-                      <div
-                        v-for="item in paymentRecordList"
-                        :key="item.id"
-                        class="list-row"
-                      >
-                        <div class="list-item" :title="String(item.id || '--')">
-                          {{ item.id || '--' }}
-                        </div>
-                        <div class="list-item" :title="item.orderNumber || '--'">
-                          {{ item.orderNumber || '--' }}
-                        </div>
-                        <div class="list-item" :title="item.userName || '--'">
-                          {{ item.userName || '--' }}
-                        </div>
-                        <div class="list-item" :title="item.phoneNumber || '--'">
-                          {{ item.phoneNumber || '--' }}
-                        </div>
-                        <div class="list-item" :title="getPaymentStageText(item.paymentStage)">
-                          {{ getPaymentStageText(item.paymentStage) }}
-                        </div>
-                        <div class="list-item">
-                          <n-tag
-                            :type="getPaymentChannelType(item.paymentChannel)"
-                            size="small"
-                          >
-                            {{ getPaymentChannelText(item.paymentChannel) }}
-                          </n-tag>
-                        </div>
-                        <div class="list-item" :title="`¥${formatMoney(item.amount)}`">
-                          ¥{{ formatMoney(item.amount) }}
-                        </div>
-                        <div
-                          class="list-item"
-                          :title="item.transactionId || '--'"
-                        >
-                          {{ item.transactionId || '--' }}
-                        </div>
-                        <div class="list-item" :title="formatDateTime(item.payTime)">
-                          {{ formatDateTime(item.payTime) }}
-                        </div>
-                        <div class="list-item actions">
-                          <n-button
-                            v-if="hasPaymentViewPermission"
-                            size="small"
-                            type="info"
-                            secondary
-                            @click="openPaymentDetailModal(item)"
-                          >
-                            详情
-                          </n-button>
-                          <span v-else>--</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div v-else class="empty-state">
-                      <n-empty description="暂无支付流水数据" />
-                    </div>
-                  </n-spin>
-                </div>
-              </div>
-            </div>
-
-            <div class="pagination-wrap">
-              <n-pagination
-                v-model:page="paymentPageInfo.page"
-                :page-size="paymentPageInfo.pageSize"
-                :item-count="paymentPageInfo.itemCount"
-                :page-slot="3"
-                show-quick-jumper
-                @update:page="handlePaymentPageChange"
-              />
-            </div>
-          </n-space>
-        </section>
+        <FinancialPaymentTab
+          :keyword="paymentFilters.keyword"
+          :loading="paymentLoading"
+          :records="paymentRecordList"
+          :page-info="paymentPageInfo"
+          :has-payment-view-permission="hasPaymentViewPermission"
+          :get-payment-stage-text="getPaymentStageText"
+          :get-payment-channel-type="getPaymentChannelType"
+          :get-payment-channel-text="getPaymentChannelText"
+          :format-money="formatMoney"
+          :format-date-time="formatDateTime"
+          @update:keyword="handlePaymentKeywordChange"
+          @search="handlePaymentSearch"
+          @open-deposit-setting="openDepositSettingModal"
+          @open-payment-statement="openPaymentStatementModal"
+          @open-detail="openPaymentDetailModal"
+          @page-change="handlePaymentPageChange"
+        />
       </n-tab-pane>
 
       <n-tab-pane v-if="hasRefundListPermission" name="refund" tab="退款管理">
-        <section class="financial-section">
-          <div class="financial-section__header">
-            <h3 class="financial-section__title">退款管理</h3>
-          </div>
-          <n-space vertical size="large">
-            <div class="financial-filter-row">
-              <div class="financial-filter-item financial-filter-item-input">
-                <n-input
-                  v-model:value="refundFilters.orderNumber"
-                  placeholder="订单号"
-                  clearable
-                  @keydown.enter="handleRefundSearch"
-                />
-              </div>
-              <div class="financial-filter-item financial-filter-item-select">
-                <n-select
-                  v-model:value="refundFilters.status"
-                  :options="refundStatusOptions"
-                  placeholder="退款状态"
-                  @update:value="handleRefundSearch"
-                />
-              </div>
-              <div class="financial-filter-item financial-filter-item-actions">
-                <n-space>
-                  <n-button type="primary" @click="handleRefundSearch">
-                    查询
-                  </n-button>
-                </n-space>
-              </div>
-            </div>
-
-            <div class="financial-list admin-shell-list financial-list--refund">
-              <div class="financial-table-scroll">
-                <div class="financial-table">
-                  <div class="list-header">
-                    <div class="header-item">订单号</div>
-                    <div class="header-item">用户名</div>
-                    <div class="header-item">手机号</div>
-                    <div class="header-item">支付金额</div>
-                    <div class="header-item">退款金额</div>
-                    <div class="header-item">退款状态</div>
-                    <div class="header-item">申请时间</div>
-                    <div class="header-item">操作</div>
-                  </div>
-
-                  <n-spin :show="refundLoading" class="financial-spin">
-                    <div v-if="refundList.length > 0" class="list-body">
-                      <div
-                        v-for="item in refundList"
-                        :key="item.id"
-                        class="list-row"
-                      >
-                        <div class="list-item" :title="item.orderNumber || '--'">
-                          {{ item.orderNumber || '--' }}
-                        </div>
-                        <div class="list-item" :title="item.userName || '--'">
-                          {{ item.userName || '--' }}
-                        </div>
-                        <div class="list-item" :title="item.userPhone || '--'">
-                          {{ item.userPhone || '--' }}
-                        </div>
-                        <div
-                          class="list-item"
-                          :title="`¥${formatMoney(item.paymentAmount)}`"
-                        >
-                          ¥{{ formatMoney(item.paymentAmount) }}
-                        </div>
-                        <div
-                          class="list-item"
-                          :title="`¥${formatMoney(item.refundAmount)}`"
-                        >
-                          ¥{{ formatMoney(item.refundAmount) }}
-                        </div>
-                        <div class="list-item">
-                          <n-tag :type="getRefundStatusType(item.status)" size="small">
-                            {{ getRefundStatusText(item.status) }}
-                          </n-tag>
-                        </div>
-                        <div class="list-item" :title="formatDateTime(item.createTime)">
-                          {{ formatDateTime(item.createTime) }}
-                        </div>
-                        <div class="list-item actions">
-                          <n-button
-                            v-if="hasRefundViewPermission"
-                            size="small"
-                            type="info"
-                            secondary
-                            @click="openRefundDetailModal(item)"
-                          >
-                            详情
-                          </n-button>
-                          <n-button
-                            v-if="hasRefundAuditPermission && Number(item.status) === 0"
-                            size="small"
-                            type="primary"
-                            @click="openAuditModal(item)"
-                          >
-                            审核
-                          </n-button>
-                          <n-button
-                            v-if="hasRefundAuditPermission && Number(item.status) === 3"
-                            size="small"
-                            type="warning"
-                            ghost
-                            @click="syncRefundStatus(item)"
-                          >
-                            同步状态
-                          </n-button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div v-else class="empty-state">
-                      <n-empty description="暂无退款数据" />
-                    </div>
-                  </n-spin>
-                </div>
-              </div>
-            </div>
-
-            <div class="pagination-wrap">
-              <n-pagination
-                v-model:page="refundPageInfo.page"
-                :page-size="refundPageInfo.pageSize"
-                :item-count="refundPageInfo.itemCount"
-                :page-slot="3"
-                show-quick-jumper
-                @update:page="handleRefundPageChange"
-              />
-            </div>
-          </n-space>
-        </section>
+        <FinancialRefundTab
+          :order-number="refundFilters.orderNumber"
+          :status="refundFilters.status"
+          :refund-status-options="refundStatusOptions"
+          :loading="refundLoading"
+          :records="refundList"
+          :page-info="refundPageInfo"
+          :has-refund-view-permission="hasRefundViewPermission"
+          :has-refund-audit-permission="hasRefundAuditPermission"
+          :get-refund-status-type="getRefundStatusType"
+          :get-refund-status-text="getRefundStatusText"
+          :format-money="formatMoney"
+          :format-date-time="formatDateTime"
+          @update:order-number="handleRefundOrderNumberChange"
+          @update:status="handleRefundStatusChange"
+          @search="handleRefundSearch"
+          @open-detail="openRefundDetailModal"
+          @open-audit="openAuditModal"
+          @sync-status="syncRefundStatus"
+          @page-change="handleRefundPageChange"
+        />
       </n-tab-pane>
     </n-tabs>
 
-    <n-modal
-      v-model:show="showPaymentStatementModal"
-      preset="card"
-      title="支付协议"
-      style="width: 980px; max-width: calc(100vw - 32px)"
-      :mask-closable="!paymentStatementSaving"
-      :closable="!paymentStatementSaving"
-    >
-      <n-space vertical size="large">
-        <n-spin :show="paymentStatementLoading">
-          <n-form label-placement="top">
-            <n-form-item label="支付协议内容">
-              <div class="payment-agreement-editor-wrap">
-                <Toolbar
-                  :editor="paymentStatementEditorRef"
-                  :default-config="paymentStatementToolbarConfig"
-                  mode="default"
-                  class="payment-agreement-toolbar"
-                />
-                <Editor
-                  v-model="paymentStatementDraft"
-                  :default-config="paymentStatementEditorConfig"
-                  mode="default"
-                  class="payment-agreement-editor"
-                  @onCreated="handlePaymentStatementEditorCreated"
-                />
-              </div>
-            </n-form-item>
-          </n-form>
-        </n-spin>
-      </n-space>
+    <FinancialPaymentStatementModal
+      :show="showPaymentStatementModal"
+      :loading="paymentStatementLoading"
+      :saving="paymentStatementSaving"
+      :draft="paymentStatementDraft"
+      :editor-ref="paymentStatementEditorRef"
+      :toolbar-config="paymentStatementToolbarConfig"
+      :editor-config="paymentStatementEditorConfig"
+      :has-update-permission="hasPaymentStatementUpdatePermission"
+      @update:show="handlePaymentStatementModalShowChange"
+      @update:draft="handlePaymentStatementDraftChange"
+      @editor-created="handlePaymentStatementEditorCreated"
+      @restore-current="restorePaymentStatementFromCurrent"
+      @cancel="closePaymentStatementModal"
+      @save="savePaymentStatement"
+    />
 
-      <template #footer>
-        <div class="financial-modal-actions">
-          <n-button
-            :disabled="paymentStatementLoading || paymentStatementSaving"
-            @click="restorePaymentStatementFromCurrent"
-          >
-            恢复线上内容
-          </n-button>
-          <div class="financial-modal-actions__group">
-            <n-button :disabled="paymentStatementSaving" @click="closePaymentStatementModal">
-              取消
-            </n-button>
-            <n-button
-              type="primary"
-              :loading="paymentStatementSaving"
-              :disabled="!hasPaymentStatementUpdatePermission"
-              @click="savePaymentStatement"
-            >
-              保存
-            </n-button>
-          </div>
-        </div>
-      </template>
-    </n-modal>
+    <FinancialDepositSettingModal
+      :show="showDepositSettingModal"
+      :loading="depositSettingLoading"
+      :saving="depositSettingSaving"
+      :draft-amount="designDepositDraft"
+      :saved-amount="designDepositSavedAmount"
+      :format-money="formatMoney"
+      @update:show="handleDepositSettingModalShowChange"
+      @update:draft-amount="handleDesignDepositDraftChange"
+      @reload="reloadDefaultDepositAmount"
+      @cancel="closeDepositSettingModal"
+      @save="saveDesignDepositDraft"
+    />
 
-    <n-modal
-      v-model:show="showDepositSettingModal"
-      preset="card"
-      title="定金设置"
-      style="width: min(520px, calc(100vw - 24px))"
-    >
-      <div class="deposit-setting-panel">
-        <section class="deposit-setting-card">
-          <div class="deposit-setting-card__title">设计订单定金</div>
-          <div class="deposit-setting-card__desc">
-            这里直接读取并修改后端全局默认定金，保存后后续新建设计订单会立即按新金额生效。
-          </div>
+    <FinancialRefundDetailModal
+      :show="showRefundDetailModal"
+      :loading="refundDetailLoading"
+      :detail="refundDetail"
+      :get-refund-status-type="getRefundStatusType"
+      :get-refund-status-text="getRefundStatusText"
+      :format-money="formatMoney"
+      :format-date-time="formatDateTime"
+      :get-refund-audit-operator-phone="getRefundAuditOperatorPhone"
+      @update:show="handleRefundDetailModalShowChange"
+    />
 
-          <n-form label-placement="top">
-            <n-form-item label="定金金额">
-              <n-input-number
-                v-model:value="designDepositDraft"
-                :min="0.01"
-                :precision="2"
-                :step="100"
-                style="width: 100%"
-                placeholder="请输入设计订单定金"
-              />
-            </n-form-item>
-          </n-form>
+    <FinancialPaymentDetailModal
+      :show="showPaymentDetailModal"
+      :loading="paymentDetailLoading"
+      :detail="paymentDetail"
+      :get-payment-stage-text="getPaymentStageText"
+      :get-payment-channel-text="getPaymentChannelText"
+      :format-money="formatMoney"
+      :format-date-time="formatDateTime"
+      @update:show="handlePaymentDetailModalShowChange"
+    />
 
-          <div class="deposit-setting-card__status">
-            <span>当前已保存：</span>
-            <strong>
-              {{
-                designDepositSavedAmount == null
-                  ? '未设置'
-                  : `¥${formatMoney(designDepositSavedAmount)}`
-              }}
-            </strong>
-          </div>
-          <div class="deposit-setting-card__hint">
-            已创建的历史订单不会回溯修改，实际支付金额仍以后端实时生成账单为准。
-          </div>
-        </section>
-
-        <div class="deposit-setting-inline-note">
-          建房订单定金继续按订单详情里的单笔链路处理；这里仅维护“新订单默认定金”。
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="financial-modal-actions">
-          <n-button :disabled="depositSettingLoading" @click="reloadDefaultDepositAmount">
-            刷新
-          </n-button>
-          <div class="financial-modal-actions__group">
-            <n-button :disabled="depositSettingSaving" @click="closeDepositSettingModal">取消</n-button>
-            <n-button
-              type="primary"
-              :loading="depositSettingSaving"
-              @click="saveDesignDepositDraft"
-            >
-              保存
-            </n-button>
-          </div>
-        </div>
-      </template>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showRefundDetailModal"
-      preset="card"
-      title="退款详情"
-      style="width: min(760px, calc(100vw - 24px))"
-    >
-      <n-spin :show="refundDetailLoading">
-        <div v-if="refundDetail" class="refund-detail-panel">
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">订单号：</span>
-              <span class="refund-detail-item__value">
-                {{ refundDetail.orderNumber || '--' }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付订单号：</span>
-              <span class="refund-detail-item__value">
-                {{ refundDetail.paymentRecordId || '--' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">用户：</span>
-              <span class="refund-detail-item__value">
-                {{ refundDetail.userName || '--' }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">电话：</span>
-              <span class="refund-detail-item__value">
-                {{ refundDetail.userPhone || '--' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">退款状态：</span>
-              <span class="refund-detail-item__value">
-                <n-tag :type="getRefundStatusType(refundDetail.status)">
-                  {{ getRefundStatusText(refundDetail.status) }}
-                </n-tag>
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付金额：</span>
-              <span class="refund-detail-item__value">
-                ¥{{ formatMoney(refundDetail.paymentAmount) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">退款金额：</span>
-              <span class="refund-detail-item__value">
-                ¥{{ formatMoney(refundDetail.refundAmount) }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">咨询电话：</span>
-              <span class="refund-detail-item__value">
-                {{ getRefundAuditOperatorPhone(refundDetail.auditOperator) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">审核时间：</span>
-              <span class="refund-detail-item__value">
-                {{ formatDateTime(refundDetail.auditTime) }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">申请时间：</span>
-              <span class="refund-detail-item__value">
-                {{ formatDateTime(refundDetail.createTime) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item refund-detail-item--full">
-              <span class="refund-detail-item__label">更新时间：</span>
-              <span class="refund-detail-item__value">
-                {{ formatDateTime(refundDetail.updateTime) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-block">
-            <div class="refund-detail-block__label">用户原因</div>
-            <div class="refund-detail-block__value">
-              {{ refundDetail.reason || '--' }}
-            </div>
-          </div>
-
-          <div class="refund-detail-block">
-            <div class="refund-detail-block__label">审核备注</div>
-            <div class="refund-detail-block__value">
-              {{ refundDetail.auditRemark || '--' }}
-            </div>
-          </div>
-        </div>
-      </n-spin>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showPaymentDetailModal"
-      preset="card"
-      title="支付流水详情"
-      style="width: min(760px, calc(100vw - 24px))"
-    >
-      <n-spin :show="paymentDetailLoading">
-        <div v-if="paymentDetail" class="refund-detail-panel">
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付流水ID：</span>
-              <span class="refund-detail-item__value">
-                {{ paymentDetail.id || '--' }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">订单ID：</span>
-              <span class="refund-detail-item__value">
-                {{ paymentDetail.orderId || '--' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">订单号：</span>
-              <span class="refund-detail-item__value">
-                {{ paymentDetail.orderNumber || '--' }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">交易流水号：</span>
-              <span class="refund-detail-item__value">
-                {{ paymentDetail.transactionId || '--' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">用户：</span>
-              <span class="refund-detail-item__value">
-                {{ paymentDetail.userName || '--' }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">电话：</span>
-              <span class="refund-detail-item__value">
-                {{ paymentDetail.phoneNumber || '--' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付阶段：</span>
-              <span class="refund-detail-item__value">
-                {{ getPaymentStageText(paymentDetail.paymentStage) }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付渠道：</span>
-              <span class="refund-detail-item__value">
-                {{ getPaymentChannelText(paymentDetail.paymentChannel) }}
-              </span>
-            </div>
-          </div>
-
-          <div class="refund-detail-row">
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付金额：</span>
-              <span class="refund-detail-item__value">
-                ¥{{ formatMoney(paymentDetail.amount) }}
-              </span>
-            </div>
-            <div class="refund-detail-item">
-              <span class="refund-detail-item__label">支付时间：</span>
-              <span class="refund-detail-item__value">
-                {{ formatDateTime(paymentDetail.payTime) }}
-              </span>
-            </div>
-          </div>
-        </div>
-        <n-empty v-else description="暂无支付流水详情" />
-      </n-spin>
-    </n-modal>
-
-    <n-modal
-      v-model:show="showAuditModal"
-      preset="card"
-      title="退款审核"
-      style="width: min(560px, calc(100vw - 24px))"
-      :mask-closable="!auditSubmitting"
-      :closable="!auditSubmitting"
-    >
-      <n-form label-placement="left" label-width="96">
-        <n-form-item label="订单号">
-          <n-input :value="auditForm.orderNumber" disabled />
-        </n-form-item>
-        <n-form-item label="支付流水ID">
-          <n-input :value="String(auditForm.paymentRecordId || '')" disabled />
-        </n-form-item>
-        <n-form-item label="审核结果">
-          <n-radio-group v-model:value="auditForm.approved">
-            <n-space>
-              <n-radio :value="true">通过</n-radio>
-              <n-radio :value="false">拒绝</n-radio>
-            </n-space>
-          </n-radio-group>
-        </n-form-item>
-        <n-form-item label="退款金额" required>
-          <n-input-number
-            v-model:value="auditForm.refundAmount"
-            :min="0.01"
-            :precision="2"
-            :step="1"
-            :disabled="!auditForm.approved"
-            style="width: 100%"
-            placeholder="请输入退款金额"
-          />
-        </n-form-item>
-        <n-form-item label="审核备注" required>
-          <n-input
-            v-model:value="auditForm.reason"
-            type="textarea"
-            :rows="4"
-            maxlength="200"
-            show-count
-            :placeholder="
-              auditForm.approved ? '请输入通过备注' : '请输入拒绝原因（将回传给用户）'
-            "
-          />
-        </n-form-item>
-      </n-form>
-
-      <template #footer>
-        <div class="financial-modal-actions financial-modal-actions--end">
-          <n-button :disabled="auditSubmitting" @click="closeAuditModal">
-            取消
-          </n-button>
-          <n-button
-            type="primary"
-            :loading="auditSubmitting"
-            @click="submitAudit"
-          >
-            确认审核
-          </n-button>
-        </div>
-      </template>
-    </n-modal>
+    <FinancialRefundAuditModal
+      :show="showAuditModal"
+      :submitting="auditSubmitting"
+      :form="auditForm"
+      @update:show="handleAuditModalShowChange"
+      @update:field="handleAuditFormFieldChange"
+      @cancel="closeAuditModal"
+      @submit="submitAudit"
+    />
   </div>
 </template>
 
@@ -668,7 +133,6 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessage } from 'naive-ui'
-import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import '@wangeditor/editor/dist/css/style.css'
 import orderAPI from '@/api/user/userOrder'
 import { usePaymentStore } from '@/stores/payment/usePaymentStore'
@@ -678,6 +142,13 @@ import {
   getToken,
   resolveClientScope,
 } from '@/utils/auth'
+import FinancialDepositSettingModal from '@/views/admin/financial/FinancialDepositSettingModal.vue'
+import FinancialPaymentDetailModal from '@/views/admin/financial/FinancialPaymentDetailModal.vue'
+import FinancialPaymentStatementModal from '@/views/admin/financial/FinancialPaymentStatementModal.vue'
+import FinancialPaymentTab from '@/views/admin/financial/FinancialPaymentTab.vue'
+import FinancialRefundAuditModal from '@/views/admin/financial/FinancialRefundAuditModal.vue'
+import FinancialRefundDetailModal from '@/views/admin/financial/FinancialRefundDetailModal.vue'
+import FinancialRefundTab from '@/views/admin/financial/FinancialRefundTab.vue'
 
 const message = useMessage()
 const paymentStore = usePaymentStore()
@@ -1083,6 +554,10 @@ const handlePaymentSearch = () => {
   fetchPaymentRecordList()
 }
 
+const handlePaymentKeywordChange = (value) => {
+  paymentFilters.keyword = value
+}
+
 const handlePaymentPageChange = (page) => {
   paymentPageInfo.page = page
   fetchPaymentRecordList()
@@ -1102,6 +577,14 @@ const fetchRefundList = async () => {
 const handleRefundSearch = () => {
   refundPageInfo.page = 1
   fetchRefundList()
+}
+
+const handleRefundOrderNumberChange = (value) => {
+  refundFilters.orderNumber = value
+}
+
+const handleRefundStatusChange = (value) => {
+  refundFilters.status = value
 }
 
 const handleRefundPageChange = (page) => {
@@ -1178,6 +661,51 @@ const auditForm = reactive({
 const closeAuditModal = (force = false) => {
   if (auditSubmitting.value && !force) return
   showAuditModal.value = false
+}
+
+const handlePaymentStatementDraftChange = (value) => {
+  paymentStatementDraft.value = value
+}
+
+const handleDesignDepositDraftChange = (value) => {
+  designDepositDraft.value = value
+}
+
+const handlePaymentStatementModalShowChange = (value) => {
+  if (value) {
+    showPaymentStatementModal.value = true
+    return
+  }
+  closePaymentStatementModal()
+}
+
+const handleDepositSettingModalShowChange = (value) => {
+  if (value) {
+    showDepositSettingModal.value = true
+    return
+  }
+  void closeDepositSettingModal()
+}
+
+const handleRefundDetailModalShowChange = (value) => {
+  showRefundDetailModal.value = value
+}
+
+const handlePaymentDetailModalShowChange = (value) => {
+  showPaymentDetailModal.value = value
+}
+
+const handleAuditModalShowChange = (value) => {
+  if (value) {
+    showAuditModal.value = true
+    return
+  }
+  closeAuditModal()
+}
+
+const handleAuditFormFieldChange = ({ key, value }) => {
+  if (!key) return
+  auditForm[key] = value
 }
 
 const openAuditModal = (row) => {
@@ -1272,6 +800,11 @@ const handleTabChange = (tab) => {
   }
 }
 
+const handleTabChangeWithState = (tab) => {
+  activeTab.value = tab
+  handleTabChange(tab)
+}
+
 onMounted(() => {
   if (activeTab.value === 'payment') {
     fetchPaymentRecordList()
@@ -1295,296 +828,6 @@ onMounted(() => {
   }
 }
 
-.financial-section {
-  padding: 18px 14px 16px;
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
-}
-
-.financial-section__header {
-  margin-bottom: 18px;
-}
-
-.financial-section__title {
-  color: var(--color-text-primary);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.financial-filter-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  overflow-x: auto;
-  min-width: 720px;
-}
-
-.financial-filter-item {
-  flex: 0 0 auto;
-}
-
-.financial-filter-item-input {
-  width: 180px;
-}
-
-.financial-filter-item-select {
-  width: 180px;
-}
-
-.financial-filter-item-keyword {
-  width: 240px;
-}
-
-.financial-filter-item-actions {
-  min-width: 220px;
-}
-
-.financial-table-shell {
-  margin-bottom: 0;
-  box-shadow: none;
-}
-
-.financial-list {
-  width: 100%;
-
-  .financial-table {
-    min-width: var(--financial-table-min-width);
-    width: max-content;
-  }
-
-  .financial-spin {
-    width: 100%;
-
-    :deep(.n-spin-content) {
-      width: 100%;
-    }
-  }
-
-  .list-header,
-  .list-body {
-    min-width: var(--financial-table-min-width);
-    box-sizing: border-box;
-  }
-
-  .list-header,
-  .list-row {
-    display: grid;
-    grid-template-columns: var(--financial-grid-columns);
-    gap: 16px;
-    padding: 12px 16px;
-    align-items: center;
-    min-width: var(--financial-table-min-width);
-    box-sizing: border-box;
-  }
-
-  .header-item,
-  .list-item {
-    min-width: 0;
-  }
-
-  .list-item {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.financial-list--payment {
-  --financial-grid-columns: minmax(120px, 0.72fr) minmax(220px, 1.4fr) minmax(
-      120px,
-      0.85fr
-    ) minmax(150px, 0.95fr) minmax(110px, 0.82fr) minmax(100px, 0.72fr) minmax(
-      110px,
-      0.78fr
-    ) minmax(220px, 1.4fr) minmax(180px, 1fr) minmax(96px, 0.64fr);
-  --financial-table-min-width: 1540px;
-}
-
-.financial-list--refund {
-  --financial-grid-columns: minmax(220px, 1.4fr) minmax(120px, 0.7fr) minmax(
-      140px,
-      0.82fr
-    ) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(110px, 0.72fr) minmax(
-      180px,
-      1fr
-    ) 240px;
-  --financial-table-min-width: 1320px;
-}
-
-.financial-table-scroll {
-  width: 100%;
-  overflow: visible;
-  border: none;
-  border-radius: inherit;
-  background: var(--color-surface);
-}
-
-.refund-detail-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.refund-detail-row {
-  display: flex;
-  gap: 12px;
-}
-
-.refund-detail-item {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-soft);
-  border: 1px solid var(--color-border-soft);
-}
-
-.refund-detail-item--full {
-  flex: 1 1 100%;
-}
-
-.refund-detail-item__label {
-  flex: 0 0 auto;
-  color: var(--color-text-secondary);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.refund-detail-item__value {
-  min-width: 0;
-  color: var(--color-text-primary);
-  font-weight: 500;
-  word-break: break-all;
-}
-
-.refund-detail-block {
-  padding: 14px 16px;
-  border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, var(--color-surface) 0%, #f8fbf8 100%);
-  border: 1px solid var(--color-border-soft);
-  box-shadow: var(--shadow-xs);
-}
-
-.refund-detail-block__label {
-  margin-bottom: 8px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.refund-detail-block__value {
-  color: var(--color-text-primary);
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.payment-agreement-editor-wrap {
-  width: 100%;
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-xs);
-}
-
-.payment-agreement-toolbar {
-  border-bottom: 1px solid var(--color-border-soft);
-  background: linear-gradient(180deg, #f8fbf8 0%, #f2f7f3 100%);
-}
-
-.payment-agreement-editor {
-  min-height: 360px;
-
-  :deep(.w-e-text-container) {
-    min-height: 320px !important;
-    max-height: 52vh;
-    overflow-y: auto !important;
-  }
-
-  :deep(.w-e-scroll) {
-    min-height: 320px !important;
-  }
-}
-
-.deposit-setting-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.deposit-setting-card {
-  padding: 18px 18px 16px;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--color-border-soft);
-  background: linear-gradient(180deg, var(--color-surface) 0%, #f8fbf8 100%);
-  box-shadow: var(--shadow-xs);
-}
-
-.deposit-setting-card__title {
-  color: var(--color-text-primary);
-  font-size: 17px;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.deposit-setting-card__desc {
-  margin-top: 6px;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.deposit-setting-card__status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-  color: var(--color-text-primary);
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.deposit-setting-card__hint {
-  margin-top: 8px;
-  color: var(--color-text-muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.deposit-setting-inline-note {
-  padding: 12px 14px;
-  border-radius: var(--radius-lg);
-  background: rgba(60, 64, 97, 0.05);
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.financial-modal-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.financial-modal-actions--end {
-  justify-content: flex-end;
-}
-
-.financial-modal-actions__group {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 @media (max-width: 768px) {
   .financial-page {
     padding: 0;
@@ -1603,94 +846,6 @@ onMounted(() => {
     :deep(.n-tabs-nav-scroll-content) {
       min-width: max-content;
     }
-
-  }
-
-  .financial-section {
-    padding: 16px 0 12px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    box-shadow: none;
-  }
-
-  .financial-section__header {
-    margin-bottom: 16px;
-    padding-inline: 12px;
-  }
-
-  .financial-section__title {
-    font-size: 18px;
-  }
-
-  .financial-filter-row {
-    min-width: 0;
-    flex-direction: column;
-    align-items: stretch;
-    overflow: visible;
-  }
-
-  .financial-filter-item,
-  .financial-filter-item-input,
-  .financial-filter-item-select,
-  .financial-filter-item-actions {
-    width: 100%;
-  }
-
-  .financial-filter-item-actions :deep(.n-space) {
-    width: 100%;
-  }
-
-  .financial-filter-item-actions :deep(.n-space > .n-space-item) {
-    flex: 1 1 100%;
-  }
-
-  .financial-filter-item-actions :deep(.n-button) {
-    width: 100%;
-  }
-
-  .financial-filter-row,
-  .pagination-wrap {
-    padding-inline: 12px;
-  }
-
-  .financial-list {
-    .list-header,
-    .list-row {
-      gap: 12px;
-      padding: 12px;
-    }
-  }
-
-  .financial-modal-actions,
-  .financial-modal-actions__group {
-    width: 100%;
-  }
-
-  .financial-modal-actions {
-    justify-content: stretch;
-  }
-
-  .financial-modal-actions > *,
-  .financial-modal-actions__group > * {
-    flex: 1 1 100%;
-  }
-
-  .payment-agreement-editor {
-    min-height: 280px;
-
-    :deep(.w-e-text-container) {
-      min-height: 240px !important;
-      max-height: 46vh;
-    }
-
-    :deep(.w-e-scroll) {
-      min-height: 240px !important;
-    }
-  }
-
-  .refund-detail-row {
-    flex-direction: column;
   }
 }
 </style>
