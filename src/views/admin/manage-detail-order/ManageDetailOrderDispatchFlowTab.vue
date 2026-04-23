@@ -89,16 +89,24 @@
                       <div v-if="isConstructionFlowCompleted(constructionInfo)">
                         已完成
                       </div>
+                      <div v-else class="flow-step-summary__current">
+                        {{ getConstructionStepSummary(node, index, constructionInfo) }}
+                      </div>
                       <div
-                        v-else-if="index === constructionInfo.currentNodeIndex"
-                        class="flow-step-summary__current"
+                        v-if="node.subSteps?.length"
+                        class="flow-step-sub-steps"
                       >
-                        {{ constructionInfo.currentNodeStatusText }}
+                        <span
+                          v-for="subStep in node.subSteps"
+                          :key="subStep.key"
+                          :class="[
+                            'flow-step-sub-steps__item',
+                            subStep.done && 'flow-step-sub-steps__item--done',
+                          ]"
+                        >
+                          {{ subStep.name }}
+                        </span>
                       </div>
-                      <div v-else-if="index < constructionInfo.currentNodeIndex">
-                        已完成
-                      </div>
-                      <div v-else>待进行</div>
                     </div>
                   </template>
                 </n-step>
@@ -183,7 +191,7 @@
       </div>
 
       <div v-else class="empty-flow">
-        <n-empty description="请先在第 3 步“确认开工金额方案”中完成金额确认并开启施工" />
+        <n-empty description="请先在第 3 步“确认开工节点金额”中完成同步并开启施工" />
       </div>
     </n-spin>
   </div>
@@ -272,6 +280,16 @@ const getConstructionStepStatus = (index, currentIndex, flow) => {
   if (index === Number(currentIndex)) return 'process'
   if (index < Number(currentIndex)) return 'finish'
   return 'wait'
+}
+
+const getConstructionStepSummary = (node, index, flow) => {
+  if (node?.statusText) return node.statusText
+  if (isConstructionFlowCompleted(flow)) return '已完成'
+  if (index === Number(flow?.currentNodeIndex)) {
+    return flow?.currentNodeStatusText || '进行中'
+  }
+  if (index < Number(flow?.currentNodeIndex)) return '已完成'
+  return '待进行'
 }
 </script>
 
@@ -431,6 +449,27 @@ const getConstructionStepStatus = (index, currentIndex, flow) => {
 .flow-step-summary__current {
   color: var(--color-brand-700);
   font-weight: 700;
+}
+
+.flow-step-sub-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.flow-step-sub-steps__item {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.flow-step-sub-steps__item--done {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
 }
 
 .flow-node-detail-desc {

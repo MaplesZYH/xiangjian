@@ -20,6 +20,7 @@ export const useManageDetailOrderOptionalChange = ({
   const showOptionalChangeAuditModal = ref(false)
   const currentOptionalChangeAuditRecord = ref(null)
   const optionalChangePaymentRecordLoading = ref(false)
+  const optionalChangePaymentRecords = ref([])
   const optionalChangePaymentRecordOptions = ref([])
   const optionalChangeAuditForm = reactive({
     approved: true,
@@ -42,6 +43,49 @@ export const useManageDetailOrderOptionalChange = ({
       if (timeA !== timeB) return timeB - timeA
       return Number(b?.id || 0) - Number(a?.id || 0)
     })
+
+  const sortPaymentRecords = (records = []) =>
+    [...records].sort((a, b) => {
+      const timeA = a?.payTime ? new Date(a.payTime).getTime() : 0
+      const timeB = b?.payTime ? new Date(b.payTime).getTime() : 0
+      if (timeA !== timeB) return timeB - timeA
+      return Number(b?.id || 0) - Number(a?.id || 0)
+    })
+
+  const isConstructionStagePaymentRecord = (record) => {
+    const stage = String(record?.paymentStage || '').trim()
+    if (!stage) return false
+    return stage.includes('施工进度款') || stage === 'NODE'
+  }
+
+  const formatPaymentRecordOptionLabel = (record) =>
+    `#${record?.id || '--'} | ${record?.paymentStage || '--'} | ¥${formatCurrencyAmount(record?.amount)} | ${formatDateTime(record?.payTime)}`
+
+  const resolveOptionalChangePaymentRecordId = (record) => {
+    const candidates = [
+      record?.paymentRecordId,
+      record?.linkedPaymentRecordId,
+      record?.refundDetail?.paymentRecordId,
+    ]
+
+    for (const candidate of candidates) {
+      const resolvedId = Number(candidate || 0)
+      if (resolvedId > 0) return resolvedId
+    }
+
+    return null
+  }
+
+  const resolveAutoPaymentRecord = (
+    record = currentOptionalChangeAuditRecord.value,
+    paymentRecords = optionalChangePaymentRecords.value,
+  ) => {
+    void record
+    const rows = sortPaymentRecords(paymentRecords)
+    if (!rows.length) return null
+
+    return rows.find((item) => isConstructionStagePaymentRecord(item)) || null
+  }
 
   const visibleOptionalChangeRecords = computed(() => {
     if (!optionalChangeRecords.value.length) return []
@@ -126,12 +170,43 @@ export const useManageDetailOrderOptionalChange = ({
   const resolveOptionalChangeAuditMode = (record) =>
     resolveOptionalChangeAllowedModes(record)[0] || 'direct'
 
+  const resolvedOptionalChangePaymentRecord = computed(() =>
+    resolveAutoPaymentRecord(),
+  )
+
+  const resolvedOptionalChangePaymentRecordText = computed(() => {
+    if (optionalChangePaymentRecordLoading.value) {
+      return '系统正在识别最近一次已支付节点进度款...'
+    }
+
+    if (!resolvedOptionalChangePaymentRecord.value) return ''
+    return formatPaymentRecordOptionLabel(resolvedOptionalChangePaymentRecord.value)
+  })
+
+  const resolvedOptionalChangePaymentRecordMissing = computed(() => {
+    if (!showOptionalChangeAuditModal.value) return false
+    if (optionalChangeAuditForm.mode !== 'refund') return false
+    if (optionalChangePaymentRecordLoading.value) return false
+    return !resolvedOptionalChangePaymentRecord.value
+  })
+
   const resetOptionalChangeAuditForm = () => {
     optionalChangeAuditForm.approved = true
     optionalChangeAuditForm.mode = 'direct'
     optionalChangeAuditForm.finalChargeAmount = null
     optionalChangeAuditForm.finalRefundAmount = null
     optionalChangeAuditForm.paymentRecordId = null
+  }
+
+  const syncResolvedOptionalChangePaymentRecord = (
+    record = currentOptionalChangeAuditRecord.value,
+  ) => {
+    const resolvedRecord = resolveAutoPaymentRecord(
+      record,
+      optionalChangePaymentRecords.value,
+    )
+    optionalChangeAuditForm.paymentRecordId = Number(resolvedRecord?.id || 0) || null
+    return resolvedRecord
   }
 
   const loadAdminOptionalChangeList = async (
@@ -164,6 +239,7 @@ export const useManageDetailOrderOptionalChange = ({
     orderId = currentDispatchOrder.value?.id || detailOrder.value?.id,
   ) => {
     if (!orderId || !canViewPaymentRecordList.value) {
+      optionalChangePaymentRecords.value = []
       optionalChangePaymentRecordOptions.value = []
       return []
     }
@@ -176,18 +252,21 @@ export const useManageDetailOrderOptionalChange = ({
         orderId,
       })
       if (res?.code !== 200 || !res.data) {
+        optionalChangePaymentRecords.value = []
         optionalChangePaymentRecordOptions.value = []
         return []
       }
 
-      const rows = res.data.rows || res.data.records || []
+      const rows = sortPaymentRecords(res.data.rows || res.data.records || [])
+      optionalChangePaymentRecords.value = rows
       optionalChangePaymentRecordOptions.value = rows.map((item) => ({
-        label: `#${item.id} | ${item.paymentStage || '--'} | ¥${formatCurrencyAmount(item.amount)} | ${formatDateTime(item.payTime)}`,
+        label: formatPaymentRecordOptionLabel(item),
         value: Number(item.id),
       }))
       return optionalChangePaymentRecordOptions.value
     } catch (error) {
       console.error(error)
+      optionalChangePaymentRecords.value = []
       optionalChangePaymentRecordOptions.value = []
       return []
     } finally {
@@ -230,6 +309,7 @@ export const useManageDetailOrderOptionalChange = ({
 
     if (optionalChangeAuditForm.mode === 'refund') {
       await loadOptionalChangePaymentRecordOptions()
+      syncResolvedOptionalChangePaymentRecord(record)
     }
   }
 
@@ -239,6 +319,7 @@ export const useManageDetailOrderOptionalChange = ({
     if (!orderId) return
     await orderManageStore.fetchOrderDetailInternal(orderId)
     orderManageStore.syncDispatchListItem()
+    await orderManageStore.initDispatchState()
     await loadAdminOptionalChangeList(orderId)
     if (Number(detailOrder.value?.orderStatus) >= 3) {
       await loadConstructionStatus()
@@ -285,7 +366,7 @@ export const useManageDetailOrderOptionalChange = ({
           return
         }
         if (!(paymentRecordId > 0)) {
-          message.warning('退款必须关联已支付流水')
+          message.warning('系统未识别到最近一次已支付节点进度款，请先确认节点账单已完成支付')
           return
         }
         payload.finalRefundAmount = refundAmount
@@ -318,6 +399,7 @@ export const useManageDetailOrderOptionalChange = ({
   watch(showOptionalChangeAuditModal, (show) => {
     if (!show) {
       currentOptionalChangeAuditRecord.value = null
+      optionalChangePaymentRecords.value = []
       optionalChangePaymentRecordOptions.value = []
       resetOptionalChangeAuditForm()
     }
@@ -325,14 +407,16 @@ export const useManageDetailOrderOptionalChange = ({
 
   watch(
     () => optionalChangeAuditForm.mode,
-    (mode) => {
+    async (mode) => {
       if (mode === 'refund' && showOptionalChangeAuditModal.value) {
-        loadOptionalChangePaymentRecordOptions()
+        await loadOptionalChangePaymentRecordOptions()
+        syncResolvedOptionalChangePaymentRecord()
         return
       }
 
       if (mode !== 'refund') {
         optionalChangeAuditForm.paymentRecordId = null
+        optionalChangePaymentRecords.value = []
         optionalChangePaymentRecordOptions.value = []
       }
     },
@@ -366,6 +450,8 @@ export const useManageDetailOrderOptionalChange = ({
     visibleOptionalChangeRecords,
     currentOptionalChangeAuditModeOptions,
     currentOptionalChangeAuditModeHint,
+    resolvedOptionalChangePaymentRecordText,
+    resolvedOptionalChangePaymentRecordMissing,
     getOptionalChangeStatusTagType,
     formatAdminOptionalChangeSnapshot,
     loadAdminOptionalChangeList,

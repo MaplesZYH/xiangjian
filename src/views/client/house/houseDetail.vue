@@ -1003,6 +1003,7 @@ const createdOrderPaymentForm = reactive({
 const createdOrderPaymentTarget = reactive({
   orderId: null,
   billId: null,
+  billType: '',
   amount: 0,
   amountText: '',
   title: '',
@@ -1015,6 +1016,7 @@ const createdDesignPaymentTarget = reactive({
 const pendingBuildPaymentTracker = reactive({
   orderId: null,
   billId: null,
+  billType: '',
 })
 const pendingDesignPaymentTracker = reactive({
   orderId: null,
@@ -1256,6 +1258,7 @@ const resetCreatedOrderPaymentTarget = () => {
   createdOrderPaymentForm.channel = 'ALIPAY'
   createdOrderPaymentTarget.orderId = null
   createdOrderPaymentTarget.billId = null
+  createdOrderPaymentTarget.billType = ''
   createdOrderPaymentTarget.amount = 0
   createdOrderPaymentTarget.amountText = ''
   createdOrderPaymentTarget.title = ''
@@ -1629,29 +1632,87 @@ const resolveWechatPayUrl = (payload, visited = new Set()) => {
   return ''
 }
 
-const pickPendingBuildDepositBill = (bills = []) => {
-  const rows = Array.isArray(bills) ? bills : []
-  return (
-    rows.find((item) => item?.billType === 'BUILD_DEPOSIT') ||
-    rows.find((item) => item?.status === 'PENDING') ||
-    rows[0] ||
-    null
-  )
+const extractPendingBuildBills = (payload) => {
+  const rows = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.rows)
+      ? payload.rows
+      : Array.isArray(payload?.records)
+        ? payload.records
+        : []
+
+  return rows.filter((item) => item && item.status !== 'PAID')
 }
 
-const loadPendingBuildDepositBill = async (orderId, userId) => {
-  if (!orderId || !userId) return null
+const pickLatestPendingBillByType = (bills = [], billType = '') => {
+  const matchedRows = extractPendingBuildBills(bills).filter(
+    (item) => item?.billType === billType,
+  )
+  if (matchedRows.length === 0) return null
+
+  return matchedRows.sort(
+    (left, right) => Number(right?.id || 0) - Number(left?.id || 0),
+  )[0]
+}
+
+const pickPendingBuildDepositBill = (bills = []) =>
+  pickLatestPendingBillByType(bills, 'BUILD_DEPOSIT') ||
+  extractPendingBuildBills(bills).find((item) => item?.status === 'PENDING') ||
+  extractPendingBuildBills(bills)[0] ||
+  null
+
+const pickPendingInitialOptionBill = (bills = []) =>
+  pickLatestPendingBillByType(bills, 'OPTION_CHANGE')
+
+const loadPendingBuildBills = async (orderId, userId) => {
+  if (!orderId || !userId) return []
   const res = await orderAPI.getUserPaymentBills(orderId, userId)
-  if (!(res.code === 200 && Array.isArray(res.data))) {
-    return null
+  if (res.code !== 200) return []
+  return extractPendingBuildBills(res.data)
+}
+
+const buildCreatedOrderPaymentTargetCopy = (bill = {}) => {
+  const billType = String(bill?.billType || '')
+  if (billType === 'OPTION_CHANGE') {
+    return {
+      title: bill.billTitle || `${houseData.value.name || '建房订单'}选配补价`,
+      description:
+        '定金支付已确认，请继续支付初始选配补价。若暂时关闭，可稍后在用户中心待支付账单中继续处理。',
+    }
   }
-  return pickPendingBuildDepositBill(res.data)
+
+  return {
+    title: bill.billTitle || `${houseData.value.name || '建房订单'}定金`,
+    description:
+      '订单已创建，请先完成定金支付。若暂时关闭，订单会保留在用户中心的待支付列表中。',
+  }
+}
+
+const openCreatedOrderPaymentModal = (orderId, bill) => {
+  const normalizedOrderId = Number(orderId || 0) || null
+  const normalizedBillId = Number(bill?.id || 0) || null
+  if (!normalizedOrderId || !normalizedBillId) return false
+
+  const amount = Number(bill?.amount || 0)
+  const copy = buildCreatedOrderPaymentTargetCopy(bill)
+
+  createdOrderPaymentForm.channel = 'ALIPAY'
+  createdOrderPaymentTarget.orderId = normalizedOrderId
+  createdOrderPaymentTarget.billId = normalizedBillId
+  createdOrderPaymentTarget.billType = String(bill?.billType || '')
+  createdOrderPaymentTarget.amount = amount
+  createdOrderPaymentTarget.amountText = `¥${amount.toLocaleString()}`
+  createdOrderPaymentTarget.title = copy.title
+  createdOrderPaymentTarget.description = copy.description
+  showOrderPaymentModal.value = true
+  return true
 }
 
 const persistPaymentTracker = (storageKey, tracker) => {
   if (typeof window === 'undefined') return
   const orderId = Number(tracker?.orderId || 0)
   const billId = Number(tracker?.billId || 0)
+  const billType = String(tracker?.billType || '')
   if (!orderId || !billId) {
     window.sessionStorage.removeItem(storageKey)
     return
@@ -1661,6 +1722,7 @@ const persistPaymentTracker = (storageKey, tracker) => {
     JSON.stringify({
       orderId,
       billId,
+      billType,
     }),
   )
 }
@@ -1673,6 +1735,7 @@ const hydratePaymentTracker = (storageKey, tracker) => {
     const parsed = JSON.parse(raw)
     tracker.orderId = Number(parsed?.orderId || 0) || null
     tracker.billId = Number(parsed?.billId || 0) || null
+    tracker.billType = String(parsed?.billType || '')
   } catch (error) {
     void error
   }
@@ -1681,6 +1744,7 @@ const hydratePaymentTracker = (storageKey, tracker) => {
 const clearBuildPaymentTracker = () => {
   pendingBuildPaymentTracker.orderId = null
   pendingBuildPaymentTracker.billId = null
+  pendingBuildPaymentTracker.billType = ''
   persistPaymentTracker(BUILD_PAYMENT_TRACKER_STORAGE_KEY, null)
 }
 
@@ -1690,9 +1754,10 @@ const clearDesignPaymentTracker = () => {
   persistPaymentTracker(DESIGN_PAYMENT_TRACKER_STORAGE_KEY, null)
 }
 
-const trackPendingBuildPayment = (orderId, billId) => {
+const trackPendingBuildPayment = (orderId, billId, billType = '') => {
   pendingBuildPaymentTracker.orderId = Number(orderId || 0) || null
   pendingBuildPaymentTracker.billId = Number(billId || 0) || null
+  pendingBuildPaymentTracker.billType = String(billType || '')
   persistPaymentTracker(
     BUILD_PAYMENT_TRACKER_STORAGE_KEY,
     pendingBuildPaymentTracker,
@@ -1712,19 +1777,41 @@ const confirmTrackedBuildPayment = async () => {
   const userId = getCurrentUserId()
   const orderId = pendingBuildPaymentTracker.orderId
   const billId = pendingBuildPaymentTracker.billId
+  const billType = pendingBuildPaymentTracker.billType
   if (!userId || !orderId || !billId) return
 
   try {
     const confirmRes = await orderAPI.confirmBillPayment(billId, userId)
     if (confirmRes?.code === 200 && confirmRes?.data?.paid) {
+      const pendingBills = await loadPendingBuildBills(orderId, userId)
       clearBuildPaymentTracker()
+      if (billType === 'BUILD_DEPOSIT') {
+        const pendingInitialOptionBill = pickPendingInitialOptionBill(pendingBills)
+        if (pendingInitialOptionBill) {
+          openCreatedOrderPaymentModal(orderId, pendingInitialOptionBill)
+          message.success('定金支付已确认，请继续支付初始选配补价')
+          return
+        }
+      }
+
       message.success('建房订单支付已确认，可前往用户中心查看最新状态')
       return
     }
 
-    const pendingBill = await loadPendingBuildDepositBill(orderId, userId)
-    if (!pendingBill || Number(pendingBill.id || 0) !== Number(billId)) {
+    const pendingBills = await loadPendingBuildBills(orderId, userId)
+    const currentPendingBill = extractPendingBuildBills(pendingBills).find(
+      (item) => Number(item?.id || 0) === Number(billId),
+    )
+    if (!currentPendingBill) {
+      const pendingInitialOptionBill =
+        billType === 'BUILD_DEPOSIT' ? pickPendingInitialOptionBill(pendingBills) : null
       clearBuildPaymentTracker()
+      if (pendingInitialOptionBill) {
+        openCreatedOrderPaymentModal(orderId, pendingInitialOptionBill)
+        message.success('定金支付状态已更新，请继续支付初始选配补价')
+        return
+      }
+
       message.success('建房订单支付状态已更新，可前往用户中心查看')
     }
   } catch (error) {
@@ -1770,8 +1857,8 @@ const closeCreatedOrderPaymentModal = () => {
 const closeOrderWechatPayModal = () => {
   showOrderWechatPayModal.value = false
   orderWechatPayUrl.value = ''
-  syncTrackedPaymentsOnReturn()
   resetCreatedOrderPaymentTarget()
+  syncTrackedPaymentsOnReturn()
 }
 
 const submitCreatedOrderPayment = async () => {
@@ -1810,6 +1897,7 @@ const submitCreatedOrderPayment = async () => {
       trackPendingBuildPayment(
         createdOrderPaymentTarget.orderId,
         createdOrderPaymentTarget.billId,
+        createdOrderPaymentTarget.billType,
       )
       orderWechatPayUrl.value = wechatUrl
       showOrderPaymentModal.value = false
@@ -1825,6 +1913,7 @@ const submitCreatedOrderPayment = async () => {
     trackPendingBuildPayment(
       createdOrderPaymentTarget.orderId,
       createdOrderPaymentTarget.billId,
+      createdOrderPaymentTarget.billType,
     )
     message.success(
       opened
@@ -1969,7 +2058,6 @@ const confirmSubmission = async () => {
       orderAddress: orderAddress.value,
       customerNotes: submitNote.value || '无特别说明',
       mpId: houseData.value.id,
-      optionalProductIds: optionalProductIds,
       // paymentMethod: '未支付', // 后端可能自行处理默认值
     }
 
@@ -1977,27 +2065,59 @@ const confirmSubmission = async () => {
 
     if (res.code === 200 && res.data) {
       const orderId = Number(res.data)
-      const pendingBill = await loadPendingBuildDepositBill(orderId, userId)
+      let initialOptionBillCreated = optionalProductIds.length === 0
+
+      if (optionalProductIds.length > 0) {
+        try {
+          const updateRes = await orderAPI.updateOrderProducts(userId, {
+            id: orderId,
+            optionalProductIds,
+          })
+
+          if (updateRes?.code === 200) {
+            initialOptionBillCreated = true
+          } else {
+            message.warning(
+              updateRes?.msg ||
+                '订单已创建，但初始选配补价单创建失败，请稍后在用户中心重新调整选配',
+            )
+          }
+        } catch (updateError) {
+          void updateError
+          message.warning(
+            '订单已创建，但初始选配补价单创建失败，请稍后在用户中心重新调整选配',
+          )
+        }
+      }
+
+      const pendingBills = await loadPendingBuildBills(orderId, userId)
+      const depositBill = pickPendingBuildDepositBill(pendingBills)
+      const initialOptionBill = pickPendingInitialOptionBill(pendingBills)
 
       showConfigModal.value = false
 
-      if (!pendingBill) {
-        message.success('订单已创建，可前往用户中心继续支付')
+      if (depositBill && openCreatedOrderPaymentModal(orderId, depositBill)) {
         return
       }
 
-      createdOrderPaymentForm.channel = 'ALIPAY'
-      createdOrderPaymentTarget.orderId = orderId
-      createdOrderPaymentTarget.billId = pendingBill.id
-      createdOrderPaymentTarget.amount = Number(pendingBill.amount || 0)
-      createdOrderPaymentTarget.amountText = `¥${Number(
-        pendingBill.amount || 0,
-      ).toLocaleString()}`
-      createdOrderPaymentTarget.title =
-        pendingBill.billTitle || `${houseData.value.name || '建房订单'}定金`
-      createdOrderPaymentTarget.description =
-        '订单已创建，请选择支付方式完成首次支付。若暂时关闭，订单会保留在用户中心的待支付列表中。'
-      showOrderPaymentModal.value = true
+      if (initialOptionBill && openCreatedOrderPaymentModal(orderId, initialOptionBill)) {
+        if (!initialOptionBillCreated) {
+          message.warning('定金账单未找到，已为你打开初始选配补价单')
+        }
+        return
+      }
+
+      if (optionalProductIds.length > 0 && !initialOptionBillCreated) {
+        message.warning('订单已创建，但初始选配未落账，请前往用户中心重新处理')
+        return
+      }
+
+      if (optionalProductIds.length > 0) {
+        message.success('订单已创建，定金与初始选配账单已拆分，可前往用户中心继续支付')
+        return
+      }
+
+      message.success('订单已创建，可前往用户中心继续支付')
     } else {
       message.error(res.msg || '提交失败')
     }

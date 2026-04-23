@@ -141,15 +141,45 @@ export const hasConstructionFlowStarted = (flow) => {
   return Array.isArray(flow.nodeDetails) && flow.nodeDetails.length > 0
 }
 
+const resolveConstructionStatusText = (status, fallbackText = '') => {
+  const normalizedFallbackText = String(fallbackText || '').trim()
+  if (normalizedFallbackText) return normalizedFallbackText
+
+  return CONSTRUCTION_NODE_STATUS_MAP[Number(status)] || ''
+}
+
+const normalizeConstructionSubSteps = (subSteps) => {
+  if (!Array.isArray(subSteps)) return []
+
+  return subSteps.map((item, index) => ({
+    key: item?.key || `sub-step-${index}`,
+    name: item?.name || `步骤${index + 1}`,
+    done: Boolean(item?.done),
+  }))
+}
+
 export const normalizeConstructionFlow = (flow) => {
   if (!hasConstructionFlowStarted(flow)) return null
 
-  const currentNodeStatus = Number(flow.currentNodeStatus)
-  const currentNodeStatusText =
-    CONSTRUCTION_NODE_STATUS_MAP[currentNodeStatus] || flow.currentNodeStatusText
+  const nodeDetails = (flow.nodeDetails || []).map((node) => ({
+    ...node,
+    statusText: resolveConstructionStatusText(node?.status, node?.statusText),
+    subSteps: normalizeConstructionSubSteps(node?.subSteps),
+  }))
+  const currentNodeIndex = Number(flow.currentNodeIndex)
+  const activeNode =
+    currentNodeIndex >= 0 && currentNodeIndex < nodeDetails.length
+      ? nodeDetails[currentNodeIndex]
+      : nodeDetails[0] || null
 
   return {
     ...flow,
-    currentNodeStatusText,
+    nodeDetails,
+    currentNodeName:
+      flow.currentNodeName || activeNode?.name || activeNode?.nodeName || '',
+    currentNodeStatusText: resolveConstructionStatusText(
+      flow.currentNodeStatus,
+      flow.currentNodeStatusText,
+    ),
   }
 }

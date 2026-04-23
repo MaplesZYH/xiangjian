@@ -89,49 +89,31 @@
           </n-form-item>
 
           <n-form-item label="支付流水">
-            <n-select
-              v-if="canViewPaymentRecordList && paymentRecordOptions.length > 0"
-              :value="auditForm.paymentRecordId"
-              :options="paymentRecordOptions"
-              :loading="paymentRecordLoading"
-              clearable
-              filterable
-              placeholder="请选择退款关联的支付流水"
-              @update:value="
-                emit('update:audit-form-field', {
-                  key: 'paymentRecordId',
-                  value: $event,
-                })
-              "
-            />
-            <n-input-number
-              v-else
-              :value="auditForm.paymentRecordId"
-              :min="1"
+            <n-input
+              :value="resolvedPaymentRecordText || ''"
               class="full-width-input"
-              placeholder="请输入支付流水ID"
-              @update:value="
-                emit('update:audit-form-field', {
-                  key: 'paymentRecordId',
-                  value: $event,
-                })
+              :placeholder="
+                paymentRecordLoading
+                  ? '系统正在识别最近一次已支付节点进度款...'
+                  : '系统将自动关联最近一次已支付节点进度款'
               "
+              disabled
             />
           </n-form-item>
 
           <n-alert
-            v-if="
-              !canViewPaymentRecordList ||
-              paymentRecordOptions.length === 0
-            "
+            v-if="resolvedPaymentRecordMissing"
             type="warning"
             class="inline-alert-md"
           >
-            {{
-              canViewPaymentRecordList
-                ? '当前订单未查询到可选支付流水，请手动填写支付流水ID。'
-                : '当前账号无支付流水查看权限，如需退款请手动填写支付流水ID。'
-            }}
+            系统暂未识别到最近一次已支付节点进度款。请先确认上一笔节点账单已支付，再发起退款审核。
+          </n-alert>
+          <n-alert
+            v-else
+            type="info"
+            class="inline-alert-md"
+          >
+            退款会自动关联系统识别的最近一次已支付节点进度款，无需手动填写支付流水。
           </n-alert>
         </template>
       </template>
@@ -181,6 +163,14 @@ const props = defineProps({
     default: () => [],
   },
   paymentRecordLoading: {
+    type: Boolean,
+    default: false,
+  },
+  resolvedPaymentRecordText: {
+    type: String,
+    default: '',
+  },
+  resolvedPaymentRecordMissing: {
     type: Boolean,
     default: false,
   },

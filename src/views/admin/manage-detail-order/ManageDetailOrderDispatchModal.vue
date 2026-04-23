@@ -49,7 +49,7 @@
           />
         </n-tab-pane>
 
-        <n-tab-pane name="pricing" tab="3. 确认开工金额方案" :disabled="!detailOrder?.id">
+        <n-tab-pane name="pricing" tab="3. 确认开工节点金额" :disabled="!detailOrder?.id">
           <ManageDetailOrderDispatchPricingTab
             :detail-order="detailOrder"
             :construction-pricing-process-text="constructionPricingProcessText"

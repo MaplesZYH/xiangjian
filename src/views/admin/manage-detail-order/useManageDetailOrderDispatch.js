@@ -85,14 +85,14 @@ export const useManageDetailOrderDispatch = ({
     () => Number(detailOrder.value?.orderStatus) >= 3,
   )
 
-  const constructionPricingButtonText = computed(() => '确认开工金额方案')
+  const constructionPricingButtonText = computed(() => '确认开工节点金额')
 
   const canOpenConstructionPricingEntry = computed(
     () => canDispatch.value && Number(detailOrder.value?.orderStatus) !== 5,
   )
 
   const canManageMaterialDispatch = computed(
-    () => canDispatch.value && Number(detailOrder.value?.orderStatus) !== 5,
+    () => canDispatch.value && Number(detailOrder.value?.orderStatus) < 4,
   )
 
   const canStartConstructionEntry = computed(
@@ -106,7 +106,7 @@ export const useManageDetailOrderDispatch = ({
 
   const canSyncConstructionPricePlan = computed(
     () =>
-      constructionWorkflowStarted.value &&
+      Number(detailOrder.value?.orderStatus) === 3 &&
       hasConstructionNodeInstances.value &&
       canConfigureConstructionPrice.value,
   )
@@ -167,7 +167,7 @@ export const useManageDetailOrderDispatch = ({
 
   const handleGoToConstructionPricing = async () => {
     if (!canOpenConstructionPricingEntry.value) {
-      message.warning('请先完成合同上传后，再确认开工金额方案')
+      message.warning('请先完成合同上传后，再确认开工节点金额')
       return
     }
     dispatchTab.value = 'pricing'
@@ -194,7 +194,7 @@ export const useManageDetailOrderDispatch = ({
       }
       await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
       orderManageStore.syncDispatchListItem()
-      message.success('建房定金已更新，后续金额方案已按新定金重算')
+      message.success('建房定金已更新，剩余未支付节点金额已按新定金重算')
     } catch (error) {
       message.error(getErrorMessage(error, '保存建房定金失败'))
     } finally {
@@ -204,14 +204,14 @@ export const useManageDetailOrderDispatch = ({
 
   const handleConfirmConstructionPricing = () => {
     if (!canStartConstructionEntry.value) {
-      message.warning('请先完成派单并等待全部服务商接单后，再确认开工金额方案')
+      message.warning('请先完成派单并等待全部服务商接单后，再确认开工节点金额')
       return
     }
 
     dialog.warning({
-      title: '确认金额方案并开启施工',
+      title: '确认节点金额并开启施工',
       content:
-        '确认后将调用后端开启施工流程，并按当前订单总价与定金同步施工节点金额。',
+        '确认后将调用后端开启施工流程，并按后端规则同步当前节点金额。',
       positiveText: '确认开启',
       negativeText: '再检查一下',
       onPositiveClick: async () => {
@@ -222,7 +222,7 @@ export const useManageDetailOrderDispatch = ({
 
           const res = await orderManageStore.submitConstructionPricePlan()
           if (res.code !== 200) {
-            message.error(res.msg || '同步金额方案失败')
+            message.error(res.msg || '同步节点金额失败')
             dispatchTab.value = 'pricing'
             return false
           }
@@ -231,7 +231,7 @@ export const useManageDetailOrderDispatch = ({
           orderManageStore.syncDispatchListItem()
           await loadConstructionStatus()
           dispatchTab.value = 'bills'
-          message.success('金额方案已确认，用户可按当前节点账单继续支付')
+          message.success('节点金额已确认，用户可按当前节点账单继续支付')
           return true
         } finally {
           planSubmitting.value = false
@@ -242,7 +242,7 @@ export const useManageDetailOrderDispatch = ({
 
   const handleSyncConstructionPricePlan = async () => {
     if (!canSyncConstructionPricePlan.value) {
-      message.warning('当前订单暂不满足同步金额方案的条件')
+      message.warning('当前订单暂不满足同步节点金额的条件')
       return
     }
 
@@ -250,7 +250,7 @@ export const useManageDetailOrderDispatch = ({
     try {
       const res = await orderManageStore.submitConstructionPricePlan()
       if (res.code !== 200) {
-        message.error(res.msg || '同步金额方案失败')
+        message.error(res.msg || '同步节点金额失败')
         return
       }
 
@@ -259,7 +259,7 @@ export const useManageDetailOrderDispatch = ({
       await loadConstructionStatus()
       message.success('已按后端规则同步未支付节点金额')
     } catch (error) {
-      message.error(getErrorMessage(error, '同步金额方案失败'))
+      message.error(getErrorMessage(error, '同步节点金额失败'))
     } finally {
       planSubmitting.value = false
     }

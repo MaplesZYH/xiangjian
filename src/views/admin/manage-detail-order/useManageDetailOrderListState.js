@@ -272,9 +272,7 @@ export const useManageDetailOrderListState = ({
     filters[key] = value
   }
 
-  const canOpenDispatchEntry = (item) =>
-    Number(item?.orderStatus) !== 5 &&
-    (Number(item?.orderStatus) < 4 || Number(item?.paymentStatus) === 2)
+  const canOpenDispatchEntry = (item) => Number(item?.orderStatus) < 4
 
   return {
     activeTodoFilter,

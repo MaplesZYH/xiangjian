@@ -28,7 +28,7 @@
         type="warning"
         class="inline-alert-sm"
       >
-        合同已上传，订单地址无法再修改，但选配产品仍可继续调整。
+        合同已上传后，订单地址无法再修改；如需调整选配，请按当前业务阶段走选配变更流程处理。
       </n-alert>
 
       <n-divider dashed />

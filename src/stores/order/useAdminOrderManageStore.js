@@ -510,14 +510,14 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
 
   const constructionPricePlanStatusText = computed(() => {
     if (!constructionInfo.value?.nodeDetails?.length) return '待开启施工'
-    if (constructionPricePlanReady.value) return '金额配置完成'
-    if (constructionPricePlanDirty.value) return '待保存'
-    return '等待配置'
+    if (constructionPricePlanReady.value) return '同步方案已就绪'
+    if (constructionPricePlanDirty.value) return '待同步'
+    return '等待同步'
   })
 
   const constructionPricePlanHint = computed(() => {
     if (!constructionInfo.value?.nodeDetails?.length) {
-      return '请先在第 3 步点击“开启施工”，由后端初始化施工节点后再设置金额。'
+      return '请先在第 3 步点击“开启施工”，由后端初始化施工节点后再同步节点金额。'
     }
     if (buildDepositSeedAmount.value <= 0) {
       return '暂未识别到首笔建房定金金额，请先确认订单已完成首笔支付。'
@@ -525,7 +525,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     if (constructionPricePlanDirty.value) {
       return '首节点定金将按当前首笔支付金额作为基准；第 2-5 节点金额会按后端当前规则，基于“订单总价 - 首笔定金”计算 20% / 50% / 28% / 2%。'
     }
-    return '当前节点金额已与后端规则对齐。'
+    return '当前剩余未支付节点金额已与后端规则对齐。'
   })
 
   const resolvedCurrentNodeAmount = computed(() => {
@@ -612,8 +612,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
           ratioText: getConstructionStageRatioText(index + 1),
           amount: nodeAmount,
           targetAmount,
-          statusText: statusSummary.text,
+          isPaid: Number(node?.isPaid) === 1,
+          statusText: node?.statusText || statusSummary.text,
           statusType: statusSummary.type,
+          subSteps: Array.isArray(node?.subSteps) ? node.subSteps : [],
         }
       })
     }
@@ -639,6 +641,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
         item.sortOrder,
         depositDraftAmount.value,
       ),
+      isPaid: false,
       statusText: '待确认',
       statusType: 'default',
     }))
@@ -1265,7 +1268,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     resetEditableNodePriceDraft()
     return {
       code: 200,
-      msg: '已恢复为当前后端节点金额配置',
+      msg: '已恢复为当前后端节点金额同步结果',
     }
   }
 
@@ -1342,14 +1345,14 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     return nodes.map((node, index) => ({
       nodeId: node.nodeId,
       // 后端 /construction/admin/price 当前语义是：
-      // 仅以首节点传入的定金为种子，后续节点金额由后端按 20/50/28/2 自动落值。
+      // 仅以首节点传入的定金为同步种子，后续节点金额由后端按 20/50/28/2 自动落值。
       amount: index === 0 ? depositAmount : 0,
     }))
   }
 
   const submitConstructionPricePlan = async () => {
     if (!currentDispatchOrder.value?.id) {
-      throw new Error('订单信息缺失，无法设置节点金额')
+      throw new Error('订单信息缺失，无法同步节点金额')
     }
     const rawAmount =
       constructionInfo.value?.nodeDetails?.length && depositNode.value?.nodeId
@@ -1362,7 +1365,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     }
 
     if (!constructionInfo.value?.nodeDetails?.length) {
-      throw new Error('请先开启施工，由后端初始化施工节点后再设置金额')
+      throw new Error('请先开启施工，由后端初始化施工节点后再同步节点金额')
     }
 
     const nodePrices = buildEditableNodePricePayload()

@@ -613,9 +613,15 @@
               </div>
 
               <n-divider title-placement="left">修改选配</n-divider>
-              <div class="user-option-adjust-panel client-center-soft-card">
+              <div
+                :class="[
+                  'user-option-adjust-panel',
+                  'client-center-soft-card',
+                  !canAdjustUserOptions && 'user-option-adjust-panel--disabled',
+                ]"
+              >
                 <div class="user-option-adjust-panel__hint">
-                  纯追加选配会直接生效，并按后端账单生成补价单；减少、替换或混合调整会先提交后台审核，审核后再补价或退款。
+                  {{ userOptionAdjustmentHintText }}
                 </div>
                 <n-spin :show="userOptionConfigLoading">
                   <n-grid cols="1 s:2" responsive="screen" :x-gap="12" :y-gap="16">
@@ -632,6 +638,7 @@
                           clearable
                           filterable
                           placeholder="请选择"
+                          :disabled="!canAdjustUserOptions || userOptionSubmitting"
                         />
                       </div>
                     </n-grid-item>
@@ -662,6 +669,7 @@
                   <n-button
                     type="primary"
                     :loading="userOptionSubmitting"
+                    :disabled="!canAdjustUserOptions"
                     @click="submitUserOptionSelectionChanges"
                   >
                     提交变更
@@ -741,12 +749,60 @@
                     </div>
 
                     <div
-                      v-if="record.linkedBillStatus === 'PENDING'"
+                      v-if="
+                        shouldShowOptionalChangePendingBillTag(record) ||
+                        canApplyRefundForLatestOptionalChange ||
+                        canCancelRefundForLatestOptionalChange ||
+                        canViewRefundDetailForLatestOptionalChange ||
+                        latestOptionalChangeRefundPaymentRecordMissing
+                      "
                       class="user-option-change-history__actions"
                     >
-                      <n-tag size="small" type="warning" :bordered="false">
-                        待支付补价已移至“账单支付”
-                      </n-tag>
+                      <n-space size="small" wrap>
+                        <n-tag
+                          v-if="shouldShowOptionalChangePendingBillTag(record)"
+                          size="small"
+                          type="warning"
+                          :bordered="false"
+                        >
+                          待支付补价已移至“账单支付”
+                        </n-tag>
+                        <n-tag
+                          v-if="latestOptionalChangeRefundPaymentRecordMissing"
+                          size="small"
+                          type="default"
+                          :bordered="false"
+                        >
+                          未找到关联选配支付流水
+                        </n-tag>
+                        <n-button
+                          v-if="canApplyRefundForLatestOptionalChange"
+                          size="small"
+                          type="error"
+                          ghost
+                          @click="openLatestOptionalChangeRefundModal"
+                        >
+                          申请退款
+                        </n-button>
+                        <n-button
+                          v-if="canCancelRefundForLatestOptionalChange"
+                          size="small"
+                          type="warning"
+                          secondary
+                          @click="cancelLatestOptionalChangeRefundApply"
+                        >
+                          取消退款申请
+                        </n-button>
+                        <n-button
+                          v-if="canViewRefundDetailForLatestOptionalChange"
+                          size="small"
+                          type="primary"
+                          secondary
+                          @click="openLatestOptionalChangeRefundDetailModal"
+                        >
+                          退款详情
+                        </n-button>
+                      </n-space>
                     </div>
                   </div>
                 </div>
@@ -804,15 +860,32 @@
                       @click="handleNodeClick(node)"
                     >
                       <template #description>
-                        <span class="construction-progress-step__desc">
-                          {{
-                            getNodeStepDescription(
-                              index,
-                              constructionInfo.currentNodeIndex,
-                              constructionInfo,
-                            )
-                          }}
-                        </span>
+                        <div class="construction-progress-step__meta">
+                          <span class="construction-progress-step__desc">
+                            {{
+                              getNodeStepDescription(
+                                index,
+                                constructionInfo.currentNodeIndex,
+                                constructionInfo,
+                              )
+                            }}
+                          </span>
+                          <div
+                            v-if="node.subSteps?.length"
+                            class="construction-progress-step__sub-steps"
+                          >
+                            <span
+                              v-for="subStep in node.subSteps"
+                              :key="subStep.key"
+                              :class="[
+                                'construction-progress-step__sub-step',
+                                subStep.done && 'construction-progress-step__sub-step--done',
+                              ]"
+                            >
+                              {{ subStep.name }}
+                            </span>
+                          </div>
+                        </div>
                       </template>
                     </n-step>
                   </n-steps>
@@ -827,7 +900,7 @@
                     >
                       <template #header-extra>
                         <n-tag size="small" type="primary">{{
-                          currentNodeDetail.statusText
+                          currentNodeDetailStatusText
                         }}</n-tag>
                       </template>
 
@@ -845,8 +918,8 @@
                           <span>
                             {{
                               currentConstructionPayableBill
-                                ? `当前应付金额：¥${formatAmount(currentConstructionPayableBill.amount)}`
-                                : '当前阶段账单待生成，请点击下方按钮支付'
+                                ? `当前应付金额：¥${formatAmount(currentConstructionPayableBill.amount)}，请前往“账单支付”完成付款`
+                                : '当前阶段待支付账单生成后，会统一展示在“账单支付”中'
                             }}
                           </span>
                         </div>
@@ -855,13 +928,7 @@
                             type="warning"
                             @click="openCurrentConstructionPayment"
                           >
-                            支付当前阶段款
-                          </n-button>
-                          <n-button
-                            secondary
-                            @click="detailTab = 'bills'"
-                          >
-                            查看账单列表
+                            前往账单支付
                           </n-button>
                         </div>
                       </div>
@@ -1081,7 +1148,7 @@
                       <span class="detail-payment-records-label">操作</span>
                       <div class="detail-payment-records-actions">
                         <n-button
-                          v-if="canApplyRefundForPaymentRecord(row)"
+                          v-if="canApplyRefundForPaymentRecordInList(row)"
                           size="small"
                           type="error"
                           ghost
@@ -1094,7 +1161,7 @@
                           }}
                         </n-button>
                         <n-button
-                          v-if="canCancelRefundForPaymentRecord(row)"
+                          v-if="canCancelRefundForPaymentRecordInList(row)"
                           size="small"
                           type="warning"
                           secondary
@@ -1103,7 +1170,7 @@
                           取消退款申请
                         </n-button>
                         <n-button
-                          v-if="canViewRefundDetailForPaymentRecord(row)"
+                          v-if="canViewRefundDetailForPaymentRecordInList(row)"
                           size="small"
                           type="primary"
                           secondary
@@ -1113,9 +1180,9 @@
                         </n-button>
                         <span
                           v-if="
-                            !canApplyRefundForPaymentRecord(row) &&
-                            !canCancelRefundForPaymentRecord(row) &&
-                            !canViewRefundDetailForPaymentRecord(row)
+                            !canApplyRefundForPaymentRecordInList(row) &&
+                            !canCancelRefundForPaymentRecordInList(row) &&
+                            !canViewRefundDetailForPaymentRecordInList(row)
                           "
                           class="detail-payment-records-empty-action"
                         >
@@ -1484,6 +1551,12 @@
           :bordered="false"
         >
           <n-space justify="space-between" align="center">
+            <div class="refund-info-card__item">
+              <div class="refund-info-card__label">系统关联流水</div>
+              <div class="refund-info-card__value">
+                #{{ refundTarget.paymentRecordId || '--' }}
+              </div>
+            </div>
             <div class="refund-info-card__item">
               <div class="refund-info-card__label">支付阶段</div>
               <div class="refund-info-card__value">
@@ -2330,6 +2403,12 @@ const getDetailPaymentChannelType = (channel) => {
 const getDetailPaymentStageText = (stage) =>
   detailPaymentStageMap[stage] || stage || '--'
 
+const isConstructionStagePaymentRecord = (record) => {
+  const stage = String(record?.paymentStage || '').trim()
+  if (!stage) return false
+  return stage.includes('施工进度款') || stage === 'NODE'
+}
+
 const getPaymentBillTypeText = (billType) =>
   paymentBillTypeMap[billType] || billType || '待支付账单'
 
@@ -2404,7 +2483,6 @@ const refundTarget = ref({
   paymentAmount: 0,
 })
 const refundForm = reactive({
-  paymentRecordId: '',
   reason: '',
 })
 const refundQuickReason = ref(null)
@@ -2448,7 +2526,6 @@ const closeRefundModal = () => {
     paymentStage: '',
     paymentAmount: 0,
   }
-  refundForm.paymentRecordId = ''
   refundForm.reason = ''
   refundQuickReason.value = null
 }
@@ -2738,10 +2815,122 @@ const loadUserOptionalChangeRecords = async (
   }
 }
 
+const sortedUserOptionalChangeRecords = computed(() =>
+  sortOptionalChangeRecords(userOptionalChangeRecords.value),
+)
+
+const latestUserOptionalChangeRecord = computed(
+  () => sortedUserOptionalChangeRecords.value[0] || null,
+)
+
 const visibleUserOptionalChangeRecords = computed(() => {
-  if (!userOptionalChangeRecords.value.length) return []
-  return sortOptionalChangeRecords(userOptionalChangeRecords.value).slice(0, 1)
+  const latestRecord = latestUserOptionalChangeRecord.value
+  return latestRecord ? [latestRecord] : []
 })
+
+const currentOrderConstructionFlow = computed(() =>
+  normalizeConstructionFlow(currentOrder.value?.constructionFlow || null),
+)
+
+const hasCurrentOrderConstructionStarted = computed(
+  () =>
+    Boolean(constructionInfo.value?.nodeDetails?.length) ||
+    Boolean(currentOrderConstructionFlow.value?.nodeDetails?.length),
+)
+
+const hasPaidConstructionStagePaymentRecord = computed(() =>
+  detailPaymentRecords.value.some((record) => isConstructionStagePaymentRecord(record)),
+)
+
+const canAdjustUserOptions = computed(() => {
+  const orderId = Number(currentOrder.value?.id || 0)
+  if (!(orderId > 0)) return false
+
+  const orderStatus = Number(currentOrder.value?.orderStatus ?? -1)
+  return orderStatus >= 0 && orderStatus < 4
+})
+
+const userOptionAdjustmentHintText = computed(() => {
+  if (!currentOrder.value?.id) {
+    return '请先打开订单详情后查看当前选配。'
+  }
+
+  const orderStatus = Number(currentOrder.value?.orderStatus ?? -1)
+  if (orderStatus >= 4) {
+    return '当前订单已完结或已取消，选配内容仅支持查看，不可再提交变更。'
+  }
+
+  if (!hasCurrentOrderConstructionStarted.value) {
+    return '当前订单尚未开启施工。提交后会按后端规则处理：纯追加会直接更新总价并生成补价账单；减少、替换或混合调整会提交后台审核，审核通过后在未支付节点进度款时仅调整总价，不走真实退款。'
+  }
+
+  if (!hasPaidConstructionStagePaymentRecord.value) {
+    return '当前订单已开启施工，但尚未支付任何节点进度款。提交后会按后端规则处理：纯追加会直接生成补价账单；减少、替换或混合调整会提交后台审核，审核通过后仅调整总价，不走真实退款。'
+  }
+
+  return '当前订单已存在已支付节点进度款。提交后会按后端规则处理：纯追加会直接生成补价账单；减少、替换或混合调整会提交后台审核，审核后按当前订单最近一次已支付节点进度款处理退款。'
+})
+
+const latestOptionalChangeNeedsRefundSource = computed(() => {
+  const latestRecord = latestUserOptionalChangeRecord.value
+  if (!latestRecord) return false
+
+  const status = String(latestRecord?.status || '').trim()
+
+  return (
+    ['REFUND_PENDING', 'REFUNDED', 'REFUND_FAILED'].includes(status) ||
+    Boolean(resolveOptionalChangePaymentRecordId(latestRecord)) ||
+    Boolean(latestRecord?.linkedRefundStatusLabel)
+  )
+})
+
+const getLatestConstructionStagePaymentRecord = (records = []) =>
+  [...records]
+    .filter((record) => isConstructionStagePaymentRecord(record))
+    .sort((a, b) => {
+      const timeA = a?.payTime ? new Date(a.payTime).getTime() : 0
+      const timeB = b?.payTime ? new Date(b.payTime).getTime() : 0
+      if (timeA !== timeB) return timeB - timeA
+      return Number(b?.id || 0) - Number(a?.id || 0)
+    })[0] || null
+
+const latestOptionalChangeRefundPaymentRecord = computed(() => {
+  if (!latestOptionalChangeNeedsRefundSource.value) {
+    return null
+  }
+
+  const linkedPaymentRecordId = resolveOptionalChangePaymentRecordId(
+    latestUserOptionalChangeRecord.value,
+  )
+
+  if (linkedPaymentRecordId) {
+    return (
+      findDetailPaymentRecordById(linkedPaymentRecordId) ||
+      getLatestConstructionStagePaymentRecord(detailPaymentRecords.value)
+    )
+  }
+
+  return getLatestConstructionStagePaymentRecord(detailPaymentRecords.value)
+})
+
+const latestOptionalChangeRefundPaymentRecordMissing = computed(() => {
+  if (!latestOptionalChangeNeedsRefundSource.value) return false
+  if (latestOptionalChangeRefundPaymentRecord.value) return false
+
+  return true
+})
+
+const canApplyRefundForLatestOptionalChange = computed(() =>
+  canApplyRefundForPaymentRecord(latestOptionalChangeRefundPaymentRecord.value),
+)
+
+const canCancelRefundForLatestOptionalChange = computed(() =>
+  canCancelRefundForPaymentRecord(latestOptionalChangeRefundPaymentRecord.value),
+)
+
+const canViewRefundDetailForLatestOptionalChange = computed(() =>
+  canViewRefundDetailForPaymentRecord(latestOptionalChangeRefundPaymentRecord.value),
+)
 
 const hasUserOptionSelectionChanges = computed(
   () =>
@@ -2755,6 +2944,11 @@ const resetUserOptionSelectionChanges = () => {
 }
 
 const submitUserOptionSelectionChanges = async () => {
+  if (!canAdjustUserOptions.value) {
+    message.warning('订单信息缺失，请刷新后重试')
+    return
+  }
+
   if (!hasUserOptionSelectionChanges.value) {
     message.info('当前没有新的选配调整')
     return
@@ -2791,13 +2985,16 @@ const submitUserOptionSelectionChanges = async () => {
     ])
     await fetchOrders()
 
-    const latestRecord = userOptionalChangeRecords.value[0] || null
-    if (latestRecord?.linkedBillStatus === 'PENDING') {
+    const latestRecord = latestUserOptionalChangeRecord.value
+    if (shouldShowOptionalChangePendingBillTag(latestRecord)) {
       detailTab.value = 'bills'
     }
 
     if (changeType === 'ADD_ONLY') {
-      if (latestRecord?.linkedBillStatus === 'PENDING') {
+      const latestOptionChangeBill = latestPendingOptionalChangeBill.value
+      if (latestOptionChangeBill) {
+        detailTab.value = 'bills'
+        openPendingBillPaymentModal(latestOptionChangeBill)
         message.success('选配已调整，补价账单已生成，请在账单支付中完成付款')
       } else {
         message.success('选配已调整成功')
@@ -2903,7 +3100,7 @@ const canApplyRefundForPaymentRecord = (record) => {
 
   const refundStatus = getPaymentRecordRefundStatus(record)
 
-  if (isRefundActiveStatus(refundStatus) || refundStatus === 4) {
+  if (isRefundActiveStatus(refundStatus)) {
     return false
   }
 
@@ -2914,6 +3111,39 @@ const canApplyRefundForPaymentRecord = (record) => {
   return true
 }
 
+const resolvePaymentRecordId = (record) => {
+  const value = Number(record?.id || record?.paymentRecordId || 0)
+  return value > 0 ? value : null
+}
+
+const findDetailPaymentRecordById = (paymentRecordId) => {
+  const normalizedId = Number(paymentRecordId || 0)
+  if (!(normalizedId > 0)) return null
+
+  return (
+    detailPaymentRecords.value.find(
+      (item) => resolvePaymentRecordId(item) === normalizedId,
+    ) || null
+  )
+}
+
+const resolveOptionalChangePaymentRecordId = (record) => {
+  const candidates = [
+    record?.paymentRecordId,
+    record?.linkedPaymentRecordId,
+    record?.refundDetail?.paymentRecordId,
+  ]
+
+  for (const candidate of candidates) {
+    const resolvedId = Number(candidate || 0)
+    if (resolvedId > 0) {
+      return resolvedId
+    }
+  }
+
+  return null
+}
+
 const canCancelRefundForPaymentRecord = (record) => {
   if (!canApplyRefund.value || !record) return false
   return getPaymentRecordRefundStatus(record) === 0
@@ -2921,6 +3151,29 @@ const canCancelRefundForPaymentRecord = (record) => {
 
 const canViewRefundDetailForPaymentRecord = (record) =>
   canViewRefund.value && getPaymentRecordRefundStatus(record) === 4
+
+const isLatestOptionalChangeRefundPaymentRecord = (record) => {
+  const latestRecordId = resolvePaymentRecordId(latestOptionalChangeRefundPaymentRecord.value)
+  const currentRecordId = resolvePaymentRecordId(record)
+  return Boolean(
+    latestOptionalChangeNeedsRefundSource.value &&
+      latestRecordId &&
+      currentRecordId &&
+      latestRecordId === currentRecordId,
+  )
+}
+
+const canApplyRefundForPaymentRecordInList = (record) =>
+  isLatestOptionalChangeRefundPaymentRecord(record) &&
+  canApplyRefundForPaymentRecord(record)
+
+const canCancelRefundForPaymentRecordInList = (record) =>
+  isLatestOptionalChangeRefundPaymentRecord(record) &&
+  canCancelRefundForPaymentRecord(record)
+
+const canViewRefundDetailForPaymentRecordInList = (record) =>
+  isLatestOptionalChangeRefundPaymentRecord(record) &&
+  canViewRefundDetailForPaymentRecord(record)
 
 const hasDetailPaymentRecords = computed(() => detailPaymentRecords.value.length > 0)
 
@@ -2937,33 +3190,50 @@ const loadDetailPaymentRecords = async (orderId) => {
   }
 }
 
-const openRefundModal = (paymentRecord) => {
+const openRefundModal = (
+  paymentRecord,
+  { paymentStageText = '', productName = '' } = {},
+) => {
   if (!canApplyRefundForPaymentRecord(paymentRecord)) {
     message.warning('当前订单暂不支持申请退款')
     return
   }
 
+  const paymentRecordId = resolvePaymentRecordId(paymentRecord)
+
   refundTarget.value = {
     orderId: currentOrder.value?.id || paymentRecord?.orderId || null,
     orderNumber: currentOrder.value?.orderNumber || '--',
-    productName: getOrderProductName(currentOrder.value),
+    productName: productName || getOrderProductName(currentOrder.value),
     paidAmount: Number(currentOrder.value?.paidAmount || 0),
-    paymentRecordId: paymentRecord?.id || null,
-    paymentStage: getDetailPaymentStageText(paymentRecord?.paymentStage),
+    paymentRecordId,
+    paymentStage:
+      paymentStageText || getDetailPaymentStageText(paymentRecord?.paymentStage),
     paymentAmount: Number(paymentRecord?.amount || 0),
   }
 
-  refundForm.paymentRecordId = String(paymentRecord?.id || '')
   refundForm.reason = ''
   refundQuickReason.value = null
 
   showRefundModal.value = true
 }
 
+const openLatestOptionalChangeRefundModal = () => {
+  const paymentRecord = latestOptionalChangeRefundPaymentRecord.value
+  if (!paymentRecord) {
+    message.warning('未获取到当前订单最近一次已支付节点进度款，请先完成节点付款后再重试')
+    return
+  }
+
+  openRefundModal(paymentRecord, {
+    paymentStageText: '当前订单最近一次已支付节点进度款',
+  })
+}
+
 const openRefundDetailModal = async (paymentRecord) => {
   const userId = getStoredUserId()
   const orderId = Number(currentOrder.value?.id || paymentRecord?.orderId || 0)
-  const paymentRecordId = Number(paymentRecord?.id || paymentRecord?.paymentRecordId || 0)
+  const paymentRecordId = resolvePaymentRecordId(paymentRecord)
   if (!userId || !orderId || !paymentRecordId || Number.isNaN(paymentRecordId)) {
     message.warning('未获取到退款详情所需的支付流水信息')
     return
@@ -2990,10 +3260,20 @@ const openRefundDetailModal = async (paymentRecord) => {
   }
 }
 
+const openLatestOptionalChangeRefundDetailModal = () => {
+  const paymentRecord = latestOptionalChangeRefundPaymentRecord.value
+  if (!paymentRecord) {
+    message.warning('未获取到当前订单最近一次已支付节点进度款，请先完成节点付款后再重试')
+    return
+  }
+
+  openRefundDetailModal(paymentRecord)
+}
+
 const submitRefundApply = async () => {
   const userId = getStoredUserId()
   const orderId = refundTarget.value.orderId
-  const paymentRecordId = Number(refundForm.paymentRecordId)
+  const paymentRecordId = Number(refundTarget.value.paymentRecordId || 0)
   const reason = refundForm.reason.trim()
 
   if (!userId) {
@@ -3005,7 +3285,7 @@ const submitRefundApply = async () => {
     return
   }
   if (!paymentRecordId || Number.isNaN(paymentRecordId)) {
-    message.error('请输入有效的支付流水ID')
+    message.error('未获取到系统关联的支付流水，请刷新后重试')
     return
   }
   if (!reason) {
@@ -3044,7 +3324,7 @@ const submitRefundApply = async () => {
 const handleCancelRefundApply = (paymentRecord) => {
   const userId = getStoredUserId()
   const orderId = Number(currentOrder.value?.id || paymentRecord?.orderId || 0)
-  const paymentRecordId = Number(paymentRecord?.id || paymentRecord?.paymentRecordId || 0)
+  const paymentRecordId = resolvePaymentRecordId(paymentRecord)
 
   if (!userId || !orderId || !paymentRecordId || Number.isNaN(paymentRecordId)) {
     message.warning('未获取到取消退款申请所需信息')
@@ -3088,6 +3368,16 @@ const handleCancelRefundApply = (paymentRecord) => {
       }
     },
   })
+}
+
+const cancelLatestOptionalChangeRefundApply = () => {
+  const paymentRecord = latestOptionalChangeRefundPaymentRecord.value
+  if (!paymentRecord) {
+    message.warning('未获取到当前订单最近一次已支付节点进度款，请先完成节点付款后再重试')
+    return
+  }
+
+  handleCancelRefundApply(paymentRecord)
 }
 
 const handleCancelOrder = (row) => {
@@ -4737,8 +5027,10 @@ const getNodeStepDescription = (
   currentIndex,
   flow = constructionInfo.value,
 ) => {
+  const node = flow?.nodeDetails?.[index] || null
+  if (node?.statusText) return node.statusText
   if (isConstructionFlowCompleted(flow)) return '已完成'
-  if (index === currentIndex) return '进行中'
+  if (index === currentIndex) return flow?.currentNodeStatusText || '进行中'
   if (index < currentIndex) return '已完成'
   return '待开始'
 }
@@ -4828,42 +5120,50 @@ const isPendingConstructionPaymentForCurrentNode = computed(() => {
   return Number(currentNodeDetail.value.nodeId || 0) === activeConstructionNodeId.value
 })
 
-const currentPendingOptionalChangeBill = computed(() => {
-  const latestRecord = visibleUserOptionalChangeRecords.value[0] || null
-  if (!latestRecord) return null
-  if (String(latestRecord.changeType || '') !== 'ADD_ONLY') return null
-  if (latestRecord?.linkedBillStatus !== 'PENDING') return null
+const findPendingPaymentBillById = (billId) => {
+  const normalizedBillId = Number(billId || 0)
+  if (!(normalizedBillId > 0)) return null
 
-  const billId = Number(latestRecord?.linkedBillId || 0)
-  if (!(billId > 0)) return null
-
-  const existingBill =
+  return (
     pendingPaymentBills.value.find(
-      (item) => Number(item?.id || 0) === billId,
+      (item) => Number(item?.id || 0) === normalizedBillId,
     ) || null
-  if (existingBill) return existingBill
+  )
+}
 
-  return {
-    id: billId,
-    billType: 'OPTION_CHANGE',
-    amount: Number(latestRecord?.linkedBillAmount || 0),
-    billTitle: latestRecord?.linkedBillTitle || '选配变更补价',
-    remark: `订单号：${currentOrder.value?.orderNumber || '--'} / 变更申请 #${latestRecord?.id || '--'}`,
-    createTime: latestRecord?.createTime || null,
+const shouldShowOptionalChangePendingBillTag = (record) => {
+  if (!record) return false
+  return Boolean(findPendingPaymentBillById(record?.linkedBillId))
+}
+
+const latestPendingOptionalChangeBill = computed(() => {
+  const latestRecord = latestUserOptionalChangeRecord.value
+  if (!latestRecord) return null
+  return findPendingPaymentBillById(latestRecord?.linkedBillId)
+})
+
+const currentNodeDetailStatusText = computed(() => {
+  if (!currentNodeDetail.value) return '--'
+  if (
+    Number(currentNodeDetail.value.nodeId || 0) ===
+    Number(activeConstructionNodeId.value || 0)
+  ) {
+    return (
+      constructionInfo.value?.currentNodeStatusText ||
+      currentNodeDetail.value.statusText ||
+      '--'
+    )
   }
+
+  return currentNodeDetail.value.statusText || '--'
 })
 
 const pendingPaymentBillRows = computed(() => {
-  const rows = [...pendingPaymentBills.value]
-  if (
-    currentPendingOptionalChangeBill.value &&
-    !rows.some(
-      (item) =>
-        Number(item?.id || 0) === Number(currentPendingOptionalChangeBill.value?.id || 0),
-    )
-  ) {
-    rows.unshift(currentPendingOptionalChangeBill.value)
-  }
+  const rows = pendingPaymentBills.value.filter((item) => {
+    if (item?.billType !== 'OPTION_CHANGE') return true
+    const latestBillId = Number(latestPendingOptionalChangeBill.value?.id || 0)
+    return latestBillId > 0 && Number(item?.id || 0) === latestBillId
+  })
   if (
     currentConstructionPayableBill.value &&
     !currentConstructionPayableBill.value.id
@@ -4896,7 +5196,6 @@ const openCurrentConstructionPayment = async () => {
   }
 
   detailTab.value = 'bills'
-  openPendingBillPaymentModal(payableBill)
 }
 
 // 用户审核通过
@@ -5266,6 +5565,28 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--color-text-muted);
 }
+.construction-progress-step__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.construction-progress-step__sub-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.construction-progress-step__sub-step {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.construction-progress-step__sub-step--done {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
 .construction-progress-desc {
   margin-bottom: 16px;
 }
@@ -5546,6 +5867,12 @@ onBeforeUnmount(() => {
 .user-option-adjust-panel {
   margin-top: 16px;
   padding: 16px;
+}
+
+.user-option-adjust-panel--disabled {
+  opacity: 0.72;
+  background:
+    linear-gradient(180deg, rgba(245, 247, 246, 0.96) 0%, rgba(237, 241, 238, 0.96) 100%);
 }
 
 .user-option-adjust-panel__hint {

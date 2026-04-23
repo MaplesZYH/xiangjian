@@ -4,7 +4,7 @@
       {{
         workflowStarted
           ? '订单已进入施工阶段。后端仅支持同步未支付节点金额，已支付节点与已开工后的定金不可修改。'
-          : '这一环节用于确认开工前的整单金额方案。前端按后端当前规则执行：首笔定金可单独调整，施工节点按 20% / 50% / 28% / 2% 自动落值。'
+          : '这一环节用于确认开工前的整单金额同步结果。前端按后端当前规则执行：首笔定金可单独调整，施工节点按 20% / 50% / 28% / 2% 自动落值。'
       }}
     </n-alert>
 
@@ -73,14 +73,49 @@
     <n-card size="small" class="plan-card" :bordered="false">
       <div class="plan-card__header">
         <div>
-          <div class="plan-card__title">确认开工金额方案</div>
+          <div class="plan-card__title">确认开工节点金额</div>
           <div class="plan-card__desc">
-            {{ pricePlanHint || '请按后端规则确认当前节点金额方案。' }}
+            {{ pricePlanHint || '请按后端规则确认当前节点金额同步结果。' }}
           </div>
         </div>
         <n-tag size="small" :bordered="false" type="info">
           {{ pricePlanStatusText || '--' }}
         </n-tag>
+      </div>
+
+      <div class="allocation-panel">
+        <div class="allocation-panel__header">
+          <div class="allocation-panel__title">节点金额同步</div>
+          <div class="allocation-panel__desc">
+            {{ allocationHintText }}
+          </div>
+        </div>
+        <div class="allocation-summary-grid">
+          <div class="allocation-summary-card">
+            <div class="allocation-summary-card__label">已锁定节点</div>
+            <div class="allocation-summary-card__value">
+              {{ lockedStageCount }}
+            </div>
+          </div>
+          <div class="allocation-summary-card">
+            <div class="allocation-summary-card__label">待同步节点</div>
+            <div class="allocation-summary-card__value">
+              {{ adjustableStageCount }}
+            </div>
+          </div>
+          <div class="allocation-summary-card">
+            <div class="allocation-summary-card__label">已锁定阶段款</div>
+            <div class="allocation-summary-card__value">
+              ¥{{ formatAmount(lockedStageAmountTotal) }}
+            </div>
+          </div>
+          <div class="allocation-summary-card">
+            <div class="allocation-summary-card__label">剩余待支付阶段款</div>
+            <div class="allocation-summary-card__value">
+              ¥{{ formatAmount(remainingStageAmountTotal) }}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="stage-table">
@@ -111,6 +146,18 @@
           <div class="stage-table__cell">
             <span class="stage-table__label">当前金额</span>
             <span>¥{{ formatAmount(row.amount) }}</span>
+            <span
+              class="stage-table__note"
+              :class="row.isPaid ? 'stage-table__note--locked' : 'stage-table__note--editable'"
+            >
+              {{
+                row.isPaid
+                  ? '已支付锁定'
+                  : workflowStarted
+                    ? '未支付，可按后端规则同步'
+                    : '开启施工后按比例生成'
+              }}
+            </span>
             <span
               v-if="Number(row.targetAmount) !== Number(row.amount)"
               class="stage-table__hint"
@@ -144,7 +191,7 @@
           :loading="planSubmitting"
           @click="$emit('confirm-plan')"
         >
-          确认金额方案并开启施工
+          确认并开启施工
         </n-button>
       </div>
     </n-card>
@@ -226,6 +273,56 @@ const localDepositAmount = ref(0)
 
 const normalizedDepositAmount = computed(() => Number(props.depositAmount || 0))
 
+const pricingStageRows = computed(() =>
+  Array.isArray(props.stageRows) ? props.stageRows : [],
+)
+
+const stagePaymentRows = computed(() =>
+  pricingStageRows.value.filter((row) => Number(row?.sortOrder || 0) > 1),
+)
+
+const lockedStageRows = computed(() =>
+  stagePaymentRows.value.filter((row) => Boolean(row?.isPaid)),
+)
+
+const adjustableStageRows = computed(() =>
+  stagePaymentRows.value.filter((row) => !row?.isPaid),
+)
+
+const lockedStageCount = computed(() => lockedStageRows.value.length)
+
+const adjustableStageCount = computed(() => adjustableStageRows.value.length)
+
+const lockedStageAmountTotal = computed(() =>
+  lockedStageRows.value.reduce(
+    (sum, row) => sum + Number(row?.amount || 0),
+    0,
+  ),
+)
+
+const remainingStageAmountTotal = computed(() =>
+  adjustableStageRows.value.reduce(
+    (sum, row) => sum + Number(row?.amount || 0),
+    0,
+  ),
+)
+
+const allocationHintText = computed(() => {
+  if (!pricingStageRows.value.length) {
+    return '开启施工后，节点金额会按后端固定比例自动初始化。'
+  }
+
+  if (!props.workflowStarted) {
+    return '当前预览的是默认同步结果：首节点为定金，第 2-5 节点按 20% / 50% / 28% / 2% 自动分配。'
+  }
+
+  if (lockedStageCount.value > 0) {
+    return '已支付节点金额会被后端锁定；剩余未支付节点仍按当前总价与既有定金，继续按固定比例同步。'
+  }
+
+  return '当前尚未产生已支付阶段款，可继续按后端固定比例同步未支付节点金额。'
+})
+
 watch(
   normalizedDepositAmount,
   (value) => {
@@ -301,6 +398,58 @@ const handleSaveDeposit = () => {
 .deposit-card,
 .plan-card {
   background: #f8fbf8;
+}
+
+.allocation-panel {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e5ebe6;
+}
+
+.allocation-panel__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.allocation-panel__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f3a28;
+}
+
+.allocation-panel__desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #5f6b62;
+}
+
+.allocation-summary-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.allocation-summary-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fbf8 0%, #eef5ef 100%);
+  border: 1px solid #e3ebe4;
+}
+
+.allocation-summary-card__label {
+  font-size: 12px;
+  color: #68766d;
+}
+
+.allocation-summary-card__value {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f3a28;
 }
 
 .deposit-card__header,
@@ -379,6 +528,20 @@ const handleSaveDeposit = () => {
   color: #c26b1d;
 }
 
+.stage-table__note {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.stage-table__note--locked {
+  color: #15803d;
+}
+
+.stage-table__note--editable {
+  color: #35523f;
+}
+
 .plan-card__footer {
   margin-top: 16px;
   display: flex;
@@ -387,6 +550,10 @@ const handleSaveDeposit = () => {
 
 @media (max-width: 960px) {
   .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .allocation-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -412,6 +579,10 @@ const handleSaveDeposit = () => {
 
 @media (max-width: 640px) {
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .allocation-summary-grid {
     grid-template-columns: 1fr;
   }
 

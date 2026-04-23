@@ -146,6 +146,8 @@
       :can-view-payment-record-list="canViewPaymentRecordList"
       :payment-record-options="optionalChangePaymentRecordOptions"
       :payment-record-loading="optionalChangePaymentRecordLoading"
+      :resolved-payment-record-text="resolvedOptionalChangePaymentRecordText"
+      :resolved-payment-record-missing="resolvedOptionalChangePaymentRecordMissing"
       :submitting="optionalChangeSubmitting"
       :format-currency-amount="formatCurrencyAmount"
       @update:show="setOptionalChangeAuditModalVisible"
@@ -474,7 +476,7 @@ const showDetailModal = ref(false)
 const isReadOnly = ref(false)
 const handleOpenUnifiedDetail = (item) => {
   showDetailModal.value = true
-  isReadOnly.value = ![0, 1, 2, 3].includes(Number(item.orderStatus))
+  isReadOnly.value = ![0, 1, 2].includes(Number(item.orderStatus))
   orderManageStore.fetchOrderDetailInternal(item.id).catch((error) => {
     console.error(error)
     message.error('获取详情失败')
@@ -597,6 +599,8 @@ const {
   visibleOptionalChangeRecords,
   currentOptionalChangeAuditModeOptions,
   currentOptionalChangeAuditModeHint,
+  resolvedOptionalChangePaymentRecordText,
+  resolvedOptionalChangePaymentRecordMissing,
   getOptionalChangeStatusTagType,
   formatAdminOptionalChangeSnapshot,
   loadAdminOptionalChangeList,
@@ -727,7 +731,7 @@ const startConstructionProcess = async (nextTab = 'dispatch') => {
       currentDispatchOrder.value.id,
     )
     if (res.code === 200) {
-      message.success('施工节点已初始化，正在同步节点金额')
+      message.success('施工节点已初始化，正在同步剩余未支付节点金额')
       await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
       orderManageStore.syncDispatchListItem()
       await orderManageStore.initDispatchState()
