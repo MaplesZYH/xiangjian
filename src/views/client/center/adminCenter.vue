@@ -15,11 +15,11 @@
   </div>
 
   <div class="main-content">
-    <UserAdmin
+    <UserCenterView
       v-if="userRole === 'user'"
       @updateName="handleUserInfoUpdate"
     />
-    <ServiceAdmin
+    <ProviderCenterView
       v-else-if="userRole === 'provider'"
       @updateName="handleUserInfoUpdate"
     />
@@ -41,8 +41,8 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { PersonCircleOutline } from '@/icons/ionicons'
 import Navigation from '@/components/client/Navigation.vue'
-import UserAdmin from '@/components/client/UserAdmin.vue'
-import ServiceAdmin from '@/components/client/ServiceAdmin.vue'
+import ProviderCenterView from '@/views/client/center/provider/ProviderCenterView.vue'
+import UserCenterView from '@/views/client/center/user/UserCenterView.vue'
 import Footer from '@/components/client/Footer.vue'
 import { useAuthStore } from '@/stores/auth/useAuthStore'
 
