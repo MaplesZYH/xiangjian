@@ -194,6 +194,12 @@
           确认并开启施工
         </n-button>
       </div>
+      <div
+        v-if="!workflowStarted && !canConfirmPlan && confirmPlanDisabledReason"
+        class="plan-card__disabled-reason"
+      >
+        {{ confirmPlanDisabledReason }}
+      </div>
     </n-card>
   </div>
 </template>
@@ -246,6 +252,10 @@ const props = defineProps({
   canConfirmPlan: {
     type: Boolean,
     default: false,
+  },
+  confirmPlanDisabledReason: {
+    type: String,
+    default: '',
   },
   canSyncPlan: {
     type: Boolean,
@@ -406,6 +416,17 @@ const handleSaveDeposit = () => {
   border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e5ebe6;
+}
+
+.plan-card__disabled-reason {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff6eb;
+  border: 1px solid #f0d7b1;
+  color: #8a5a12;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .allocation-panel__header {

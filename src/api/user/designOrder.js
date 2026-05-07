@@ -52,6 +52,17 @@ export default {
     })
   },
 
+  cancelOrder(designOrderId, userId, reason) {
+    return request({
+      url: `/user/design-order/cancel/${designOrderId}`,
+      method: 'post',
+      params: {
+        userId,
+        reason,
+      },
+    })
+  },
+
   continueBuild(designOrderId, userId) {
     return request({
       url: '/user/design-order/continue-build',

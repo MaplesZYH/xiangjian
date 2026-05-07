@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --ext .js,.vue --fix"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
     "@vicons/ionicons5": "^0.13.0",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-vue": "^5.1.12",
@@ -23,6 +24,7 @@
     "pinia-plugin-persistedstate": "^4.7.1",
     "postcss-pxtorem": "^6.1.0",
     "sass": "^1.89.2",
+    "sockjs-client": "^1.6.1",
     "three": "^0.178.0",
     "unplugin-auto-import": "^19.3.0",
     "unplugin-vue-components": "^28.8.0",

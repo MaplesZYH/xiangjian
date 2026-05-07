@@ -106,7 +106,7 @@
                 <DocumentTextOutline />
               </n-icon>
               <div class="cert-name">资质文件 {{ index + 1 }}</div>
-              <a :href="cert.fileUrl" target="_blank" class="cert-link">
+              <a :href="resolveAssetUrl(cert.fileUrl)" target="_blank" class="cert-link">
                 查看/下载
               </a>
             </div>
@@ -127,6 +127,7 @@ import {
   DocumentTextOutline,
   Time,
 } from '@/icons/ionicons'
+import { resolveAssetUrl } from '@/utils/asset'
 
 defineProps({
   isCompactViewport: {

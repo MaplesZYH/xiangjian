@@ -55,7 +55,14 @@
           @pending-delete="handlePlanPendingDelete" @pending-upload="handlePlanPendingUpload"
           @cancel-operations="handlePlanCancelOperations" />
 
-        <ThreeUpload :productId="formData.id" :initialUrl="formData.three" />
+        <ThreeUpload
+          :productId="formData.id"
+          :initialUrl="formData.three"
+          :initialStatus="formData.model3dStatus"
+          @update:modelUrl="handleModel3dUrlUpdate"
+          @update:modelStatus="handleModel3dStatusUpdate"
+          @delete="handleModel3dDelete"
+        />
       </n-form>
     </div>
 
@@ -69,12 +76,17 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import API from '@/api/house/house'
 import { useMessage } from 'naive-ui'
 import ImgUpload from '@/components/admin/imgUpload.vue'
 import { resolveAssetUrl } from '@/utils/asset'
 import { resolveModelAssetUrl } from '@/utils/modelAsset'
+import {
+  isModel3dOptimizing,
+  normalizeModel3dStatus,
+} from '@/utils/model3dOptimization'
+import { onModel3dOptimized } from '@/utils/model3dOptimizationSocket'
 // ThreeUpload 似乎是您文件中的一个组件，如果它不存在，请移除
 // import ThreeUpload from '@/components/admin/ThreeUpload.vue' // 假设的路径
 
@@ -164,14 +176,102 @@ const formData = ref({
   effects: [],
   plans: [],
   three: '',
+  model3dStatus: '',
   coverImage: [], // 适配 ImgUpload，改为数组
 })
 
 const imagesInitialized = ref(false)
+const model3dPollTimer = ref(null)
+const unsubscribeModel3dOptimized = ref(null)
+const currentProductId = computed(() => Number(formData.value.id || props.itemId || 0))
+
+const stopModel3dPolling = () => {
+  if (!model3dPollTimer.value) return
+  window.clearInterval(model3dPollTimer.value)
+  model3dPollTimer.value = null
+}
+
+const refreshModel3dStatus = async () => {
+  const productId = currentProductId.value
+  if (!productId) return
+
+  try {
+    const res = await API.getHouseDetails(productId)
+    const data = res?.data
+    if (!data) return
+
+    formData.value.three = resolveModelAssetUrl(data.model3d || formData.value.three)
+    formData.value.model3dStatus = normalizeModel3dStatus(data.model3dStatus)
+
+    if (!isModel3dOptimizing(formData.value.model3dStatus)) {
+      stopModel3dPolling()
+    }
+  } catch (error) {
+    console.warn('刷新3D模型优化状态失败:', error)
+  }
+}
+
+const ensureModel3dPolling = () => {
+  if (!isModel3dOptimizing(formData.value.model3dStatus)) {
+    stopModel3dPolling()
+    return
+  }
+  ensureModel3dSocketSubscription()
+  if (model3dPollTimer.value) return
+
+  model3dPollTimer.value = window.setInterval(refreshModel3dStatus, 10000)
+}
+
+const applyModel3dOptimizationMessage = (messagePayload = {}) => {
+  const data = messagePayload.data || {}
+  const productId = Number(data.productId)
+  if (!productId || productId !== currentProductId.value) return
+
+  const nextStatus = normalizeModel3dStatus(data.model3dStatus)
+  if (data.model3dUrl) {
+    formData.value.three = resolveModelAssetUrl(data.model3dUrl)
+  }
+  formData.value.model3dStatus = nextStatus
+
+  if (!isModel3dOptimizing(nextStatus)) {
+    stopModel3dPolling()
+  }
+}
+
+const ensureModel3dSocketSubscription = () => {
+  if (unsubscribeModel3dOptimized.value) return
+  unsubscribeModel3dOptimized.value = onModel3dOptimized(
+    applyModel3dOptimizationMessage,
+  )
+}
+
+const stopModel3dSocketSubscription = () => {
+  if (!unsubscribeModel3dOptimized.value) return
+  unsubscribeModel3dOptimized.value()
+  unsubscribeModel3dOptimized.value = null
+}
+
+const handleModel3dUrlUpdate = (url) => {
+  formData.value.three = resolveModelAssetUrl(url || '')
+}
+
+const handleModel3dStatusUpdate = (status) => {
+  formData.value.model3dStatus = normalizeModel3dStatus(status)
+  ensureModel3dPolling()
+}
+
+const handleModel3dDelete = () => {
+  formData.value.three = ''
+  formData.value.model3dStatus = ''
+  stopModel3dPolling()
+  stopModel3dSocketSubscription()
+}
 
 watch(showModal, async (newVal) => {
   if (!newVal) {
     imagesInitialized.value = false
+    stopModel3dPolling()
+    stopModel3dSocketSubscription()
     return
   }
 
@@ -249,6 +349,8 @@ watch(showModal, async (newVal) => {
       formData.value.style = data.style || ''
       formData.value.constructionMethod = data.constructionMethod || ''
       formData.value.three = resolveModelAssetUrl(data.model3d || '')
+      formData.value.model3dStatus = normalizeModel3dStatus(data.model3dStatus)
+      ensureModel3dPolling()
 
       // 效果图
       const backendEffects = formatImages(data.renderings)
@@ -301,6 +403,7 @@ watch(showModal, async (newVal) => {
       effects: [],
       plans: [],
       three: '',
+      model3dStatus: '',
       coverImage: [], // 适配 ImgUpload
     }
     imagesInitialized.value = true
@@ -611,7 +714,6 @@ const handleSave = async () => {
       price: priceNum,
       style: formData.value.style,
       constructionMethod: formData.value.constructionMethod,
-      model3d: formData.value.three || '',
     }
 
     // 1. 创建或更新产品
@@ -691,6 +793,11 @@ const handleSave = async () => {
     saving.value = false
   }
 }
+
+onBeforeUnmount(() => {
+  stopModel3dPolling()
+  stopModel3dSocketSubscription()
+})
 
 </script>
 

@@ -81,8 +81,11 @@
       :construction-price-plan-hint="constructionPricePlanHint"
       :construction-workflow-started="constructionWorkflowStarted"
       :can-configure-construction-price="canConfigureConstructionPrice"
+      :can-view-construction="canViewConstruction"
+      :can-audit-construction="canAuditConstruction"
       :can-edit-construction-deposit="canEditConstructionDeposit"
       :can-start-construction-entry="canStartConstructionEntry"
+      :start-construction-blocked-reason="startConstructionBlockedReason"
       :can-sync-construction-price-plan="canSyncConstructionPricePlan"
       :deposit-submitting="depositSubmitting"
       :plan-submitting="planSubmitting"
@@ -307,6 +310,12 @@ const canStartConstruction = computed(() =>
 const canConfigureConstructionPrice = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:price'),
 )
+const canViewConstruction = computed(() =>
+  hasPermission(employeePermissions, 'construction:view'),
+)
+const canAuditConstruction = computed(() =>
+  hasPermission(employeePermissions, 'construction:admin:audit'),
+)
 const canAuditOptionalChange = computed(() =>
   hasPermission(employeePermissions, 'order:update'),
 )
@@ -349,6 +358,8 @@ const {
   dialog,
   getErrorMessage,
   constructionNodeStatus: CONSTRUCTION_NODE_STATUS,
+  canViewConstruction,
+  canAuditConstruction,
 })
 
 const {
@@ -640,6 +651,7 @@ const {
   canOpenConstructionPricingEntry,
   canManageMaterialDispatch,
   canStartConstructionEntry,
+  startConstructionBlockedReason,
   canSyncConstructionPricePlan,
   shouldShowConstructionProgressButton,
   handleOpenDispatch,

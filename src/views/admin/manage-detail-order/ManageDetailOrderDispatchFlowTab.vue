@@ -1,6 +1,10 @@
 <template>
   <div class="dispatch-panel">
     <n-spin :show="loadingConstruction">
+      <n-alert v-if="!canViewConstruction" type="warning" class="inline-alert-md">
+        当前账号缺少施工流程查看权限 `construction:view`，无法查看施工节点和进度详情。
+      </n-alert>
+
       <div v-if="constructionInfo">
         <n-alert type="info" class="inline-alert-md">
           当前流程顺序：服务商上传施工照片 -> 平台审核 -> 用户审核 -> 进入待支付 -> 用户在第 5 步“支付账单”中完成支付 -> 自动进入下一节点。
@@ -164,7 +168,7 @@
                     />
                   </n-scrollbar>
 
-                  <div v-if="isPendingAudit" class="node-audit-actions">
+                  <div v-if="isPendingAudit && canAuditConstruction" class="node-audit-actions">
                     <n-space justify="end">
                       <n-button type="error" @click="handleAuditReject">
                         <template #icon>
@@ -180,6 +184,13 @@
                       </n-button>
                     </n-space>
                   </div>
+                  <n-alert
+                    v-else-if="isPendingAudit && !canAuditConstruction"
+                    type="warning"
+                    class="node-audit-permission-alert"
+                  >
+                    当前节点正在等待平台审核，但当前账号缺少施工审核权限 `construction:admin:audit`。
+                  </n-alert>
                 </n-card>
               </div>
               <div v-else class="flow-detail-empty">
@@ -241,6 +252,14 @@ defineProps({
     default: '',
   },
   isPendingAudit: {
+    type: Boolean,
+    default: false,
+  },
+  canViewConstruction: {
+    type: Boolean,
+    default: false,
+  },
+  canAuditConstruction: {
     type: Boolean,
     default: false,
   },
@@ -318,6 +337,10 @@ const getConstructionStepSummary = (node, index, flow) => {
 
 .inline-alert-md {
   margin-bottom: 16px;
+}
+
+.node-audit-permission-alert {
+  margin-top: 16px;
 }
 
 .empty-flow {

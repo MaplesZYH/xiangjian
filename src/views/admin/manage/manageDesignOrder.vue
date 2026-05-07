@@ -22,6 +22,7 @@
       :get-payment-type="getPaymentType"
       :get-payment-text="getPaymentText"
       @open-detail="openDetail"
+      @cancel-order="handleCancelOrder"
       @page-change="handlePageChange"
     />
 
@@ -52,7 +53,7 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useMessage } from 'naive-ui'
+import { useDialog, useMessage } from 'naive-ui'
 import designOrderAPI from '@/api/admin/designOrder'
 import fileAPI from '@/api/file'
 import houseAPI from '@/api/house/house'
@@ -64,8 +65,10 @@ import {
   extractDesignOrderProductBinding,
   stripDesignOrderProductBinding,
 } from '@/utils/designOrderBinding'
+import { resolveAssetUrl } from '@/utils/asset'
 
 const message = useMessage()
+const dialog = useDialog()
 
 const loadingList = ref(false)
 const loadingDetail = ref(false)
@@ -273,7 +276,7 @@ const buildDraftFileFromRemote = (file, index, prefix) => {
     fileUrl,
     displayName: getFileLabel(file, index, prefix),
     isLocal: false,
-    previewUrl: fileUrl,
+    previewUrl: resolveAssetUrl(fileUrl),
     file: null,
   }
 }
@@ -315,7 +318,8 @@ const hydrateUploadForms = (order) => {
   )
 }
 
-const getDraftFileHref = (file) => file?.previewUrl || file?.fileUrl || '#'
+const getDraftFileHref = (file) =>
+  file?.previewUrl || resolveAssetUrl(file?.fileUrl || '') || '#'
 
 const handleDraftFilesSelected = (target, fileList) => {
   if (!fileList.length) return
@@ -533,6 +537,59 @@ const submitAllUploadForms = async () => {
 const handlePageChange = (page) => {
   pageInfo.page = page
   fetchData()
+}
+
+const handleCancelOrder = (row) => {
+  const designOrderId = Number(row?.id || 0)
+  const orderLabel = row?.designOrderNo || `ID ${row?.id || '--'}`
+
+  if (!designOrderId) {
+    message.warning('未获取到有效的设计订单')
+    return
+  }
+
+  if (Number(row?.designStatus) === 5) {
+    message.warning('该设计订单已取消')
+    return
+  }
+
+  dialog.warning({
+    title: '取消设计订单',
+    content:
+      Number(row?.paymentStatus) > 0
+        ? `确定取消设计订单 ${orderLabel} 吗？已支付订单取消后会同步发起退款审核。`
+        : `确定取消设计订单 ${orderLabel} 吗？该操作会直接取消当前设计订单。`,
+    positiveText: '确认取消',
+    negativeText: '暂不取消',
+    onPositiveClick: async () => {
+      try {
+        const res = await designOrderAPI.cancelOrder(
+          designOrderId,
+          '管理员取消设计订单',
+        )
+        message.success(res?.data || res?.msg || '设计订单已取消')
+        if (
+          currentOrder.value?.id &&
+          Number(currentOrder.value.id) === designOrderId
+        ) {
+          currentOrder.value = {
+            ...currentOrder.value,
+            designStatus: 5,
+          }
+        }
+        await fetchData()
+        return true
+      } catch (error) {
+        const msg =
+          error?.response?.data?.msg ||
+          error?.msg ||
+          error?.message ||
+          '取消设计订单失败'
+        message.error(String(msg))
+        return false
+      }
+    },
+  })
 }
 
 const handleFilterFieldChange = (key, value) => {

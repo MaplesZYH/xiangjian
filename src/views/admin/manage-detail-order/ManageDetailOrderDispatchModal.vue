@@ -60,8 +60,11 @@
             :construction-price-plan-hint="constructionPricePlanHint"
             :construction-workflow-started="constructionWorkflowStarted"
             :can-configure-construction-price="canConfigureConstructionPrice"
+            :can-view-construction="canViewConstruction"
+            :can-audit-construction="canAuditConstruction"
             :can-edit-construction-deposit="canEditConstructionDeposit"
             :can-start-construction-entry="canStartConstructionEntry"
+            :start-construction-blocked-reason="startConstructionBlockedReason"
             :can-sync-construction-price-plan="canSyncConstructionPricePlan"
             :deposit-submitting="depositSubmitting"
             :plan-submitting="planSubmitting"
@@ -83,6 +86,8 @@
             :current-node-detail="currentNodeDetail"
             :current-node-detail-status-text="currentNodeDetailStatusText"
             :is-pending-audit="isPendingAudit"
+            :can-view-construction="canViewConstruction"
+            :can-audit-construction="canAuditConstruction"
             :handle-node-click="handleNodeClick"
             :handle-audit-reject="handleAuditReject"
             :handle-audit-pass="handleAuditPass"
@@ -241,6 +246,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  canViewConstruction: {
+    type: Boolean,
+    default: false,
+  },
+  canAuditConstruction: {
+    type: Boolean,
+    default: false,
+  },
   canEditConstructionDeposit: {
     type: Boolean,
     default: false,
@@ -248,6 +261,10 @@ const props = defineProps({
   canStartConstructionEntry: {
     type: Boolean,
     default: false,
+  },
+  startConstructionBlockedReason: {
+    type: String,
+    default: '',
   },
   canSyncConstructionPricePlan: {
     type: Boolean,

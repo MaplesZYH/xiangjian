@@ -11,20 +11,32 @@ export const useManageDetailOrderConstructionFlow = ({
   dialog,
   getErrorMessage,
   constructionNodeStatus,
+  canViewConstruction,
+  canAuditConstruction,
 }) => {
   const loadConstructionStatus = async () => {
+    if (!canViewConstruction.value) {
+      message.warning('当前账号缺少施工流程查看权限')
+      return
+    }
     try {
       await orderManageStore.loadConstructionStatus()
     } catch (e) {
       console.error('加载施工状态失败', e)
+      message.error(getErrorMessage(e, '加载施工状态失败'))
     }
   }
 
   const handleNodeClick = async (node) => {
+    if (!canViewConstruction.value) {
+      message.warning('当前账号缺少施工流程查看权限')
+      return
+    }
     try {
       await orderManageStore.handleNodeClick(node)
     } catch (e) {
-      message.error('加载节点详情失败')
+      console.error('加载节点详情失败', e)
+      message.error(getErrorMessage(e, '加载节点详情失败'))
     }
   }
 
@@ -46,6 +58,10 @@ export const useManageDetailOrderConstructionFlow = ({
   })
 
   const submitAudit = async (pass, reason = '') => {
+    if (!canAuditConstruction.value) {
+      message.warning('当前账号缺少施工审核权限')
+      return
+    }
     try {
       const res = await orderManageStore.submitAudit(pass, reason)
       if (res.code === 200) {

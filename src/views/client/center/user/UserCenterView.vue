@@ -74,8 +74,10 @@
             getDesignOrderPaymentStatusType
           "
           :format-design-order-payment-status="formatDesignOrderPaymentStatus"
+          :can-cancel-design-order="canCancelDesignOrder"
           @refresh="fetchDesignOrders"
           @open-detail="openDesignOrderDetail"
+          @cancel-order="handleCancelDesignOrder"
           @page-change="handleDesignPageChange"
         />
 
@@ -454,6 +456,7 @@ const showDesignRepayModal = ref(false)
 const designRepaySubmitting = ref(false)
 const designMainProductNameMap = reactive({})
 const designOrderListMainProductTextMap = reactive({})
+const designOrderCancelLockMap = reactive({})
 const designRepayForm = reactive({
   channel: 'ALIPAY',
 })
@@ -2781,6 +2784,24 @@ const getDesignFileLabel = (file, index, fallbackPrefix = '文件') => {
 
 const canContinueBuildDesignOrder = (order) => Boolean(order?.canConvertToBuild)
 
+const canCancelDesignOrder = (order) => {
+  const orderId = Number(order?.id || 0)
+  const designStatus = Number(order?.designStatus)
+  const hasDeliveryFiles = Array.isArray(order?.deliveryFiles)
+    ? order.deliveryFiles.length > 0
+    : Boolean(order?.hasDeliveryFiles)
+
+  if (orderId > 0 && designOrderCancelLockMap[orderId]) {
+    return false
+  }
+
+  if (hasDeliveryFiles) {
+    return false
+  }
+
+  return designStatus === 0 || designStatus === 1
+}
+
 const resolveDesignOrderMainProductId = (order) => {
   const deliveredMpId = Number(order?.deliveredMpId)
   if (Number.isInteger(deliveredMpId) && deliveredMpId > 0) {
@@ -3146,6 +3167,87 @@ const handleMarkDesignOrderNoBuild = async () => {
   } finally {
     designDecisionSubmitting.value = false
   }
+}
+
+const handleCancelDesignOrder = (row = null) => {
+  const userId = getStoredUserId()
+  const targetOrder = row || currentDesignOrder.value
+  const designOrderId = Number(targetOrder?.id || 0)
+
+  if (!userId || !designOrderId) {
+    message.warning('未找到可取消的设计订单')
+    return
+  }
+
+  if (!canCancelDesignOrder(targetOrder)) {
+    message.warning(
+      designOrderCancelLockMap[designOrderId]
+        ? '该设计订单的退款申请已提交，请等待后台审核'
+        : '当前设计订单状态不允许取消',
+    )
+    return
+  }
+
+  const hasPaidAmount = Number(targetOrder?.paymentStatus) > 0
+
+  dialog.warning({
+    title: '取消设计订单',
+    content: hasPaidAmount
+      ? '确定要取消该设计订单吗？提交后将自动发起退款申请，等待后台审核。'
+      : '确定要取消该设计订单吗？取消后当前待支付设计定金将失效。',
+    positiveText: '确认取消',
+    negativeText: '暂不取消',
+    onPositiveClick: async () => {
+      designDecisionSubmitting.value = true
+      try {
+        const res = await designOrderAPI.cancelOrder(
+          designOrderId,
+          userId,
+          '用户取消设计订单',
+        )
+        const successText = String(res?.data || res?.msg || '').trim()
+        if (hasPaidAmount || successText.includes('退款')) {
+          designOrderCancelLockMap[designOrderId] = true
+        }
+
+        await fetchDesignOrders()
+        const latestDetail = await syncDesignOrderDetailFromServer(designOrderId)
+        if (latestDetail) {
+          if (Number(currentDesignOrder.value?.id) === designOrderId) {
+            currentDesignOrder.value = {
+              ...currentDesignOrder.value,
+              ...latestDetail,
+            }
+          }
+        } else if (!hasPaidAmount) {
+          if (Number(currentDesignOrder.value?.id) === designOrderId) {
+            currentDesignOrder.value = {
+              ...currentDesignOrder.value,
+              designStatus: 5,
+              pendingBillId: null,
+            }
+          }
+        }
+        message.success(
+          successText || (hasPaidAmount ? '已提交退款审核申请' : '设计订单已取消'),
+        )
+        return true
+      } catch (error) {
+        const msg =
+          error?.response?.data?.msg ||
+          error?.msg ||
+          error?.message ||
+          '取消设计订单失败'
+        if (String(msg).includes('退款申请处理中')) {
+          designOrderCancelLockMap[designOrderId] = true
+        }
+        message.error(String(msg))
+        return false
+      } finally {
+        designDecisionSubmitting.value = false
+      }
+    },
+  })
 }
 
 const viewOrderDetail = async (row, initialTab = 'info') => {

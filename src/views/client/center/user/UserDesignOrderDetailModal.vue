@@ -65,7 +65,7 @@
             v-for="(file, index) in currentDesignOrder.deliveryFiles"
             :key="`delivery-${file.fileUrl || index}`"
             class="design-file-link"
-            :href="file.fileUrl"
+            :href="resolveAssetUrl(file.fileUrl)"
             target="_blank"
             rel="noreferrer"
           >
@@ -83,7 +83,7 @@
             v-for="(file, index) in currentDesignOrder.finalFeedbackFiles"
             :key="`feedback-${file.fileUrl || index}`"
             class="design-file-link"
-            :href="file.fileUrl"
+            :href="resolveAssetUrl(file.fileUrl)"
             target="_blank"
             rel="noreferrer"
           >
@@ -125,6 +125,8 @@
 </template>
 
 <script setup>
+import { resolveAssetUrl } from '@/utils/asset'
+
 defineProps({
   show: { type: Boolean, default: false },
   loadingDesignDetail: { type: Boolean, default: false },

@@ -12,6 +12,7 @@
       :workflow-started="constructionWorkflowStarted"
       :can-edit-deposit="canConfigureConstructionPrice && canEditConstructionDeposit"
       :can-confirm-plan="canStartConstructionEntry"
+      :confirm-plan-disabled-reason="startConstructionBlockedReason"
       :can-sync-plan="canSyncConstructionPricePlan"
       :deposit-saving="depositSubmitting"
       :plan-submitting="planSubmitting"
@@ -70,6 +71,10 @@ defineProps({
   canStartConstructionEntry: {
     type: Boolean,
     default: false,
+  },
+  startConstructionBlockedReason: {
+    type: String,
+    default: '',
   },
   canSyncConstructionPricePlan: {
     type: Boolean,

@@ -104,6 +104,71 @@ export const useManageDetailOrderDispatch = ({
       canStartConstruction.value,
   )
 
+  const pendingMaterialDispatchRows = computed(() =>
+    materialDispatchList.value.filter(
+      (item) => !item?.statusData || Number(item.statusData.orderStatus) !== 1,
+    ),
+  )
+
+  const startConstructionBlockedReason = computed(() => {
+    if (!canDispatch.value) {
+      return '请先上传合同后，再确认并开启施工。'
+    }
+
+    if (Number(detailOrder.value?.orderStatus) === 5) {
+      return '当前订单已取消，无法开启施工。'
+    }
+
+    if (!canConfigureConstructionPrice.value) {
+      return '当前账号缺少“确认开工节点金额”权限。'
+    }
+
+    if (!canStartConstruction.value) {
+      return '当前账号缺少“开启施工”权限。'
+    }
+
+    if (!activeConstructionOrder.value) {
+      return '请先派发施工服务商并等待接单后，再开启施工。'
+    }
+
+    if (Number(activeConstructionOrder.value.orderStatus) !== 1) {
+      const vendorStatusText =
+        getVendorStatusInfo(activeConstructionOrder.value.orderStatus).text ||
+        '未完成接单'
+      return `当前施工服务商状态为“${vendorStatusText}”，需施工服务商接单后才能开启施工。`
+    }
+
+    if (pendingMaterialDispatchRows.value.length > 0) {
+      const pendingNames = pendingMaterialDispatchRows.value
+        .map((item) => item?.name || item?.category || '')
+        .filter(Boolean)
+        .slice(0, 3)
+        .join('、')
+      const pendingSummary = pendingNames
+        ? `未完成接单的材料包含：${pendingNames}。`
+        : '仍有材料服务商未完成接单。'
+      return `${pendingSummary} 需全部材料服务商接单后才能开启施工。`
+    }
+
+    const orderStatus = Number(detailOrder.value?.orderStatus)
+    if (orderStatus !== 2) {
+      if (allServicesAccepted.value) {
+        return '当前可见派单已全部接单，但主订单状态仍未刷新为“已派单”。这通常是后端主订单状态同步未完成，请检查历史已取消或已拒接的子单是否仍被计入派单状态。'
+      }
+      const orderStatusTextMap = {
+        0: '未派单',
+        1: '派单中',
+        3: '施工中',
+        4: '已完成',
+        5: '已取消',
+      }
+      const statusText = orderStatusTextMap[orderStatus] || `状态值 ${orderStatus}`
+      return `当前主订单状态为“${statusText}”，需主订单进入“已派单”后才能开启施工。`
+    }
+
+    return ''
+  })
+
   const canSyncConstructionPricePlan = computed(
     () =>
       Number(detailOrder.value?.orderStatus) === 3 &&
@@ -170,6 +235,12 @@ export const useManageDetailOrderDispatch = ({
       message.warning('请先完成合同上传后，再确认开工节点金额')
       return
     }
+
+    if (currentDispatchOrder.value?.id) {
+      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+      orderManageStore.syncDispatchListItem()
+      await orderManageStore.initDispatchState()
+    }
     dispatchTab.value = 'pricing'
     if (constructionWorkflowStarted.value) {
       await loadConstructionStatus()
@@ -204,7 +275,10 @@ export const useManageDetailOrderDispatch = ({
 
   const handleConfirmConstructionPricing = () => {
     if (!canStartConstructionEntry.value) {
-      message.warning('请先完成派单并等待全部服务商接单后，再确认开工节点金额')
+      message.warning(
+        startConstructionBlockedReason.value ||
+          '请先完成派单并等待全部服务商接单后，再确认开工节点金额',
+      )
       return
     }
 
@@ -575,6 +649,7 @@ export const useManageDetailOrderDispatch = ({
     canOpenConstructionPricingEntry,
     canManageMaterialDispatch,
     canStartConstructionEntry,
+    startConstructionBlockedReason,
     canSyncConstructionPricePlan,
     shouldShowConstructionProgressButton,
     handleOpenDispatch,

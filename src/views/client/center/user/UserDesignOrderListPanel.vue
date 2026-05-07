@@ -55,6 +55,15 @@
               <span class="order-list-table__label">操作</span>
               <div class="order-list-table__actions">
                 <n-button
+                  v-if="canCancelDesignOrder(row)"
+                  size="small"
+                  type="error"
+                  secondary
+                  @click="$emit('cancel-order', row)"
+                >
+                  取消订单
+                </n-button>
+                <n-button
                   size="small"
                   type="info"
                   @click="$emit('open-detail', row)"
@@ -121,7 +130,11 @@ defineProps({
     type: Function,
     required: true,
   },
+  canCancelDesignOrder: {
+    type: Function,
+    required: true,
+  },
 })
 
-defineEmits(['refresh', 'open-detail', 'page-change'])
+defineEmits(['refresh', 'open-detail', 'cancel-order', 'page-change'])
 </script>

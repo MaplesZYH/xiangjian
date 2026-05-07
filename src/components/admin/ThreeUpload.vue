@@ -5,8 +5,23 @@
         {{ localPreviewUrl ? '预览当前选择' : '预览' }}
       </n-button>
 
+      <n-tag
+        v-if="modelStatusText"
+        :type="isOptimizing ? 'warning' : 'success'"
+        size="small"
+        round
+      >
+        <template v-if="isOptimizing" #icon>
+          <n-spin size="small" />
+        </template>
+        {{ modelStatusText }}
+      </n-tag>
+
       <n-text v-if="localPreviewUrl" depth="3">
         已生成本地预览，可先检查效果再上传。
+      </n-text>
+      <n-text v-else-if="isOptimizing" depth="3">
+        当前展示原始模型，后台优化完成后会自动切换。
       </n-text>
       <n-text v-else-if="warmingRemoteModel" depth="3">
         正在后台预热 3D 模型，打开预览会更快。
@@ -51,7 +66,7 @@
 
       <div v-if="uploading && uploadPhase === 'processing'" class="processing-tip">
         <n-spin size="small" />
-        <span>文件已上传，服务器正在优化3D模型，请稍候...</span>
+        <span>文件上传已完成，正在等待服务器返回模型地址...</span>
       </div>
 
       <n-button
@@ -89,6 +104,11 @@ import {
   resolveModelAssetUrl,
   warmModelAsset,
 } from '@/utils/modelAsset'
+import {
+  getModel3dStatusText,
+  isModel3dOptimizing,
+  normalizeModel3dStatus,
+} from '@/utils/model3dOptimization'
 
 const message = useMessage()
 const props = defineProps({
@@ -100,9 +120,13 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  initialStatus: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['update:modelUrl', 'delete'])
+const emit = defineEmits(['update:modelUrl', 'update:modelStatus', 'delete'])
 
 // 状态管理
 const showPreviewModal = ref(false)
@@ -114,6 +138,7 @@ const fileInput = ref(null)
 const uploadPhase = ref('idle') // idle | uploading | processing
 const localPreviewUrl = ref('')
 const warmingRemoteModel = ref(false)
+const model3dStatus = ref(normalizeModel3dStatus(props.initialStatus))
 
 const MAX_FILE_SIZE_MB = 100
 const canUpload = computed(() => Number(props.productId) > 0)
@@ -123,6 +148,16 @@ const uploadButtonText = computed(() =>
 const previewModelUrl = computed(
   () => localPreviewUrl.value || current3DUrl.value || '',
 )
+const isOptimizing = computed(() => isModel3dOptimizing(model3dStatus.value))
+const modelStatusText = computed(() =>
+  getModel3dStatusText(model3dStatus.value),
+)
+
+const setModel3dStatus = (status) => {
+  const normalizedStatus = normalizeModel3dStatus(status)
+  model3dStatus.value = normalizedStatus
+  emit('update:modelStatus', normalizedStatus)
+}
 
 const clearLocalPreview = () => {
   if (localPreviewUrl.value) {
@@ -152,6 +187,14 @@ watch(
   () => props.initialUrl,
   (newUrl) => {
     current3DUrl.value = resolveModelAssetUrl(newUrl)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.initialStatus,
+  (newStatus) => {
+    model3dStatus.value = normalizeModel3dStatus(newStatus)
   },
   { immediate: true },
 )
@@ -246,10 +289,16 @@ const handleUpload = async () => {
     // *** --- 修复结束 --- ***
 
     if (modelUrl) {
+      const responseStatus = normalizeModel3dStatus(res.data?.model3dStatus)
       current3DUrl.value = resolveModelAssetUrl(modelUrl)
       emit('update:modelUrl', current3DUrl.value)
+      setModel3dStatus(responseStatus)
       clearLocalPreview()
-      message.success('3D模型上传成功')
+      if (isModel3dOptimizing(responseStatus)) {
+        message.success('3D模型上传成功，后台正在优化')
+      } else {
+        message.success('3D模型上传成功')
+      }
 
       // 重置状态
       selectedFile.value = null
@@ -289,6 +338,7 @@ const handleDelete = async () => {
     await API.delete3dHouse(props.productId)
     forgetWarmedModelAsset(current3DUrl.value)
     current3DUrl.value = ''
+    setModel3dStatus('')
     emit('update:modelUrl', '')
     emit('delete')
     message.success('3D模型删除成功')

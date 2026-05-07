@@ -16,6 +16,16 @@ export default {
     })
   },
 
+  cancelOrder(designOrderId, reason) {
+    return request({
+      url: `/order/design/admin/${designOrderId}/cancel`,
+      method: 'put',
+      params: {
+        reason,
+      },
+    })
+  },
+
   uploadDeliveryFiles(data) {
     return request({
       url: '/order/design/admin/delivery-files',

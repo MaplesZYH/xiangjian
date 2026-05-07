@@ -96,13 +96,13 @@ export default {
       data: ids
     })
   },
-  // 添加3d图 - 修改后支持FormData和进度回调
-  add3dHouse (productId, formData, onUploadProgress, timeout = 900000) {
+  // 添加3d图 - 后端立即返回原始模型地址，优化在后台异步执行
+  add3dHouse (productId, formData, onUploadProgress, timeout = 300000) {
     return request({
       url: `/admin/products/${productId}/upload-model3d`,
       method: 'post',
       data: formData,
-      timeout, // 默认 15 分钟，覆盖“上传 + 后端优化”总耗时
+      timeout,
       headers: {
         'Content-Type': 'multipart/form-data',
       },

@@ -33,9 +33,19 @@
               </n-tag>
             </div>
             <div class="list-item actions">
-              <n-button type="info" size="small" @click="emit('open-detail', item)">
-                详情/上传
-              </n-button>
+              <n-space justify="center" size="small">
+                <n-button type="info" size="small" @click="emit('open-detail', item)">
+                  详情/上传
+                </n-button>
+                <n-button
+                  type="error"
+                  size="small"
+                  secondary
+                  @click="emit('cancel-order', item)"
+                >
+                  取消订单
+                </n-button>
+              </n-space>
             </div>
           </div>
         </div>
@@ -94,7 +104,7 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['open-detail', 'page-change'])
+const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
 </script>
 
 <style lang="scss" scoped>

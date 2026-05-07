@@ -143,7 +143,7 @@
                   {{ getFileExt(file.url) }}
                 </div>
                 <a
-                  :href="file.url"
+                  :href="resolveAssetUrl(file.url)"
                   target="_blank"
                   class="edit-certificate-card__name"
                   :title="getFileName(file.url)"
@@ -153,7 +153,7 @@
               </div>
               <div class="edit-certificate-card__actions">
                 <a
-                  :href="file.url"
+                  :href="resolveAssetUrl(file.url)"
                   target="_blank"
                   class="edit-certificate-card__action"
                 >
@@ -189,6 +189,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { DocumentTextOutline } from '@/icons/ionicons'
+import { resolveAssetUrl } from '@/utils/asset'
 
 const props = defineProps({
   show: {

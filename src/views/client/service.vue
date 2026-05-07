@@ -312,6 +312,26 @@ const strongPasswordPattern =
 const mainlandMobilePattern = /^1[3-9]\d{9}$/
 const CERTIFICATE_MAX_SIZE_MB = 100
 
+const getErrorMessage = (error, fallback = '操作失败，请稍后重试') => {
+  const responseData = error?.response?.data
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData
+  }
+  if (responseData?.msg) {
+    return String(responseData.msg)
+  }
+  if (responseData?.message) {
+    return String(responseData.message)
+  }
+  if (error?.msg) {
+    return String(error.msg)
+  }
+  if (error?.message) {
+    return String(error.message)
+  }
+  return fallback
+}
+
 // 获取导航栏高度
 const navHeight = ref(0)
 let navResizeObserver = null
@@ -770,7 +790,7 @@ const handleSubmit = async (e) => {
         const result = await API.registerService(submitData)
 
         if (result.code === 200) {
-          message.success('申请提交成功，请等待审核！')
+          message.success(result.msg || '申请提交成功，请等待审核！')
           // 重置表单
           formRef.value?.restoreValidation()
           Object.keys(formData.value).forEach((key) => {
@@ -792,7 +812,7 @@ const handleSubmit = async (e) => {
         }
       } catch (error) {
         console.error('提交错误:', error)
-        message.error('网络请求失败，请稍后重试')
+        message.error(getErrorMessage(error, '提交失败，请稍后重试'))
       } finally {
         submitting.value = false
       }
@@ -933,6 +953,21 @@ onBeforeUnmount(() => {
   :deep(.certificate-upload-item .n-form-item-blank),
   :deep(.certificate-upload-item .n-form-item-blank__content) {
     width: 100%;
+  }
+
+  :deep(.certificate-upload-item .n-form-item-blank) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  :deep(.certificate-upload-item .n-form-item-blank__content) {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
   }
 
   :deep(.n-input),
@@ -1106,7 +1141,7 @@ onBeforeUnmount(() => {
 .upload-zone {
   width: 100%;
   box-sizing: border-box;
-  padding: 40px 20px;
+  padding: 26px 20px;
   border: 2px dashed var(--border-color);
   border-radius: var(--radius-lg);
   background: #fcfcfc;
@@ -1125,15 +1160,15 @@ onBeforeUnmount(() => {
 }
 
 .upload-icon {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 12px;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 10px;
   color: var(--brand-color);
 }
 
 .upload-text {
-  margin-bottom: 8px;
-  font-size: 16px;
+  margin-bottom: 6px;
+  font-size: 15px;
   font-weight: 500;
 }
 
@@ -1143,18 +1178,20 @@ onBeforeUnmount(() => {
 }
 
 .file-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  width: 100%;
+  margin-top: 0;
 }
 
 .file-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 12px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   background: var(--bg-page);
@@ -1163,7 +1200,7 @@ onBeforeUnmount(() => {
 .file-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   flex: 1;
 }
@@ -1173,9 +1210,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  height: 30px;
-  padding: 0 8px;
+  min-width: 38px;
+  height: 26px;
+  padding: 0 7px;
   border-radius: 999px;
   background: #e5e7eb;
   color: var(--text-muted);
@@ -1186,7 +1223,7 @@ onBeforeUnmount(() => {
 .file-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -1194,7 +1231,9 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-main);
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-size {
@@ -1206,6 +1245,7 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   font-size: 12px;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .file-status.success {
@@ -1220,7 +1260,7 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   border: none;
   background: none;
-  padding: 4px;
+  padding: 3px 4px;
   color: #ef4444;
   font-size: 14px;
   cursor: pointer;
@@ -1329,18 +1369,17 @@ onBeforeUnmount(() => {
   }
 
   .file-item {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
   }
 
   .file-info {
     width: 100%;
-    align-items: flex-start;
-    flex-wrap: wrap;
+    align-items: center;
   }
 
   .file-status {
-    margin-left: 56px;
+    margin-left: 48px;
   }
 
   .submit-btn {

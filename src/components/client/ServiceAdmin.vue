@@ -172,7 +172,7 @@
                         /></n-icon>
                         <div class="cert-name">资质文件 {{ index + 1 }}</div>
                         <a
-                          :href="cert.fileUrl"
+                          :href="resolveAssetUrl(cert.fileUrl)"
                           target="_blank"
                           class="cert-link"
                           >查看/下载</a
@@ -497,7 +497,7 @@
                     {{ getFileExt(file.url) }}
                   </div>
                   <a
-                    :href="file.url"
+                    :href="resolveAssetUrl(file.url)"
                     target="_blank"
                     class="edit-certificate-card__name"
                     :title="getFileName(file.url)"
@@ -507,7 +507,7 @@
                 </div>
                 <div class="edit-certificate-card__actions">
                   <a
-                    :href="file.url"
+                    :href="resolveAssetUrl(file.url)"
                     target="_blank"
                     class="edit-certificate-card__action"
                   >
