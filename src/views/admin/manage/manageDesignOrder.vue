@@ -67,6 +67,8 @@ import {
 } from '@/utils/designOrderBinding'
 import { resolveAssetUrl } from '@/utils/asset'
 
+const DESIGN_ORDER_FILE_UPLOAD_TIMEOUT = 300000
+
 const message = useMessage()
 const dialog = useDialog()
 
@@ -431,7 +433,7 @@ const openDetail = async (row) => {
 }
 
 const persistUploadedFile = async (file) => {
-  const uploadRes = await fileAPI.upload(file)
+  const uploadRes = await fileAPI.upload(file, DESIGN_ORDER_FILE_UPLOAD_TIMEOUT)
   if (uploadRes.code !== 200 || !uploadRes.data) {
     throw new Error(uploadRes?.msg || '文件上传失败')
   }
