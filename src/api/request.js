@@ -19,11 +19,26 @@ import {
 const API_BASE_URL = import.meta.env.DEV
   ? '/api'
   : 'http://116.198.38.236:8080'
+const UPLOAD_REQUEST_TIMEOUT = 300000
 
 const service = axios.create({
   baseURL: API_BASE_URL,
   timeout: 5000,
 })
+
+const isFormData = (value) =>
+  typeof FormData !== 'undefined' && value instanceof FormData
+
+const isUploadRequest = (config = {}) => {
+  if (isFormData(config.data)) return true
+
+  const contentType =
+    config.headers?.['Content-Type'] ||
+    config.headers?.['content-type'] ||
+    ''
+
+  return String(contentType).includes('multipart/form-data')
+}
 
 const getCurrentHashPath = () => {
   if (typeof window === 'undefined') return ''
@@ -46,6 +61,10 @@ const resolveRequestScope = (config = {}) => {
 
 service.interceptors.request.use(
   (config) => {
+    if (!config.timeout && isUploadRequest(config)) {
+      config.timeout = UPLOAD_REQUEST_TIMEOUT
+    }
+
     const authScope = resolveRequestScope(config)
     const token = getToken(authScope)
     if (token) {

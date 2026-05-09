@@ -543,6 +543,28 @@ const statementModalStyle = computed(() => ({
   width: isCompactViewport.value ? 'calc(100vw - 20px)' : 'min(92vw, 920px)',
 }))
 
+const resolveConstructionNodeAmount = (...nodes) => {
+  const candidates = nodes.flatMap((node) => [
+    node?.amount,
+    node?.price,
+    node?.nodeAmount,
+    node?.nodePrice,
+  ])
+
+  for (const candidate of candidates) {
+    if (candidate === '' || candidate === null || candidate === undefined) {
+      continue
+    }
+
+    const amount = Number(candidate)
+    if (Number.isFinite(amount) && amount > 0) {
+      return Number(amount.toFixed(2))
+    }
+  }
+
+  return 0
+}
+
 const constructionInfo = ref(null)
 const currentNodeDetail = ref(null)
 const pendingPaymentBillsLoading = ref(false)
@@ -3429,9 +3451,10 @@ const currentConstructionPayableBill = computed(() => {
   )
   if (existingStageBill) return existingStageBill
 
-  const resolvedAmount = [currentNodeDetail.value?.amount, activeNode?.amount]
-    .map((value) => Number(value))
-    .find((value) => Number.isFinite(value) && value > 0)
+  const resolvedAmount = resolveConstructionNodeAmount(
+    currentNodeDetail.value,
+    activeNode,
+  )
 
   if (!(resolvedAmount > 0)) return null
 
