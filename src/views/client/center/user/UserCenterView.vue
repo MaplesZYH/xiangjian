@@ -1301,6 +1301,12 @@ const loadUserOptionalChangeRecords = async (orderId = currentOrder.value?.id) =
   userOptionalChangeLoading.value = true
   try {
     const res = await orderAPI.getOptionalChangeList(orderId, userId)
+    console.log('[user-optional-change-records] response', {
+      orderId,
+      userId,
+      code: res?.code,
+      data: res?.data,
+    })
     if (res?.code === 200 && Array.isArray(res.data)) {
       userOptionalChangeRecords.value = res.data
       return userOptionalChangeRecords.value
@@ -1474,9 +1480,24 @@ const submitUserOptionSelectionChanges = async () => {
 
   userOptionSubmitting.value = true
   try {
+    console.log('[user-option-update] request', {
+      orderId,
+      userId,
+      changeType,
+      optionalProductIds,
+    })
     const res = await orderAPI.updateOrderProducts(userId, {
       id: orderId,
       optionalProductIds,
+    })
+    console.log('[user-option-update] response', {
+      orderId,
+      userId,
+      changeType,
+      optionalProductIds,
+      code: res?.code,
+      msg: res?.msg,
+      data: res?.data,
     })
 
     if (res?.code !== 200) {
@@ -2004,6 +2025,12 @@ const loadPendingPaymentBills = async (orderId = currentOrder.value?.id) => {
   pendingPaymentBillsLoading.value = true
   try {
     const res = await orderAPI.getUserPaymentBills(orderId, userId)
+    console.log('[user-pending-payment-bills] response', {
+      orderId,
+      userId,
+      code: res?.code,
+      data: res?.data,
+    })
     if (res.code === 200) {
       return syncPendingPaymentBillsState(extractPaymentBillRows(res.data))
     }

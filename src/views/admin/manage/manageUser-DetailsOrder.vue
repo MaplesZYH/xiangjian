@@ -496,7 +496,7 @@ const showDetailModal = ref(false)
 const isReadOnly = ref(false)
 const handleOpenUnifiedDetail = (item) => {
   showDetailModal.value = true
-  isReadOnly.value = ![0, 1, 2].includes(Number(item.orderStatus))
+  isReadOnly.value = ![0, 1, 2, 3].includes(Number(item.orderStatus))
   orderManageStore.fetchOrderDetailInternal(item.id).catch((error) => {
     console.error(error)
     message.error('获取详情失败')

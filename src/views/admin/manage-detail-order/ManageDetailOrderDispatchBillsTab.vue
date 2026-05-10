@@ -12,8 +12,6 @@
           <div>支付状态</div>
           <div>关联节点</div>
           <div>应付金额</div>
-          <div>账单说明</div>
-          <div>创建时间</div>
         </div>
         <div
           v-for="bill in adminPaymentBillRows"
@@ -57,16 +55,6 @@
                   : `¥${formatCurrencyAmount(bill.amount)}`
               }}
             </span>
-          </div>
-          <div class="admin-payment-bills-cell">
-            <span class="admin-payment-bills-label">账单说明</span>
-            <span class="admin-payment-bills-text">
-              {{ bill.remark || '--' }}
-            </span>
-          </div>
-          <div class="admin-payment-bills-cell">
-            <span class="admin-payment-bills-label">创建时间</span>
-            <span>{{ formatDateTime(bill.createTime) }}</span>
           </div>
         </div>
       </div>
@@ -113,10 +101,6 @@ defineProps({
     required: true,
   },
   formatCurrencyAmount: {
-    type: Function,
-    required: true,
-  },
-  formatDateTime: {
     type: Function,
     required: true,
   },
@@ -170,7 +154,7 @@ defineProps({
 .admin-payment-bills-head,
 .admin-payment-bills-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.9fr 1fr 0.8fr 1.2fr 1fr 0.8fr;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr 1.1fr;
   gap: 12px;
   align-items: center;
   padding: 14px 16px;
@@ -197,18 +181,10 @@ defineProps({
   display: none;
 }
 
-.admin-payment-bills-text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-all;
-}
-
 @media (max-width: 992px) {
   .admin-payment-bills-head,
   .admin-payment-bills-row {
-    grid-template-columns: 1.2fr 0.9fr 0.9fr 0.8fr 1fr 0.9fr 0.8fr;
+    grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 1fr;
   }
 }
 

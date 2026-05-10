@@ -58,6 +58,52 @@ export const useManageDetailOrderPaymentBills = ({
       return Number(right?.id || 0) - Number(left?.id || 0)
     })
 
+  const getConstructionNodeList = () =>
+    Array.isArray(constructionInfo.value?.nodeDetails)
+      ? constructionInfo.value.nodeDetails
+      : []
+
+  const isBuildDepositNode = (node, index = 0) => {
+    const normalizedName = String(node?.name || '').trim()
+    if (normalizedName.includes('定金')) return true
+
+    const subSteps = Array.isArray(node?.subSteps) ? node.subSteps : []
+    if (subSteps.some((step) => step?.key === 'deposit')) return true
+
+    return Number(node?.sortOrder || index + 1) === 1
+  }
+
+  const getConstructionNodeBillCreateTime = (node, isDeposit) => {
+    if (isDeposit) {
+      return (
+        detailOrder.value?.paymentTime ||
+        detailOrder.value?.payTime ||
+        detailOrder.value?.createTime ||
+        null
+      )
+    }
+
+    return null
+  }
+
+  const constructionNodePaymentBillRows = computed(() =>
+    getConstructionNodeList().map((node, index) => {
+      const isDeposit = isBuildDepositNode(node, index)
+      return {
+        id: `construction-node-${node?.nodeId || node?.id || index + 1}`,
+        billType: isDeposit ? 'BUILD_DEPOSIT' : 'STAGE_PAYMENT',
+        status: Number(node?.isPaid) === 1 ? 'PAID' : 'PENDING',
+        amount: Number.isFinite(Number(node?.amount)) ? Number(node.amount) : null,
+        remark: node?.description || '--',
+        relatedNodeId: Number(node?.nodeId || node?.id || 0) || null,
+        billTitle: isDeposit ? '建房定金' : node?.name || '--',
+        createTime: getConstructionNodeBillCreateTime(node, isDeposit),
+        sortOrder: Number(node?.sortOrder || index + 1),
+        source: 'construction-status',
+      }
+    }),
+  )
+
   const getBuildDepositPendingBill = () => {
     const pendingRows = Array.isArray(detailOrder.value?.pendingPaymentBills)
       ? detailOrder.value.pendingPaymentBills
@@ -117,6 +163,12 @@ export const useManageDetailOrderPaymentBills = ({
     )
   })
 
+  const adminSupplementPaymentBillRows = computed(() =>
+    adminPendingPaymentBillRows.value.filter(
+      (bill) => !['BUILD_DEPOSIT', 'STAGE_PAYMENT'].includes(bill?.billType),
+    ),
+  )
+
   const buildDepositAdminStatus = computed(() => {
     if (getBuildDepositPendingBill()) return 'PENDING'
     const paymentStatus = Number(detailOrder.value?.paymentStatus)
@@ -126,6 +178,13 @@ export const useManageDetailOrderPaymentBills = ({
   })
 
   const adminPaymentBillRows = computed(() => {
+    if (constructionNodePaymentBillRows.value.length > 0) {
+      return [
+        ...constructionNodePaymentBillRows.value,
+        ...adminSupplementPaymentBillRows.value,
+      ]
+    }
+
     const rows = [...adminPendingPaymentBillRows.value]
     const hasBuildDepositBill = rows.some((bill) => bill?.billType === 'BUILD_DEPOSIT')
 
@@ -145,12 +204,24 @@ export const useManageDetailOrderPaymentBills = ({
     return sortAdminPaymentBills(rows)
   })
 
-  const hasAdminPaymentBillRows = computed(() => adminPaymentBillRows.value.length > 0)
+  const adminPaymentBillRowsWithDebug = computed(() => {
+    const rows = adminPaymentBillRows.value
+    console.log('[admin-payment-bills] rows', {
+      orderId: detailOrder.value?.id || null,
+      pendingPaymentBills: detailOrder.value?.pendingPaymentBills || [],
+      adminPaymentBillRows: rows,
+    })
+    return rows
+  })
+
+  const hasAdminPaymentBillRows = computed(
+    () => adminPaymentBillRowsWithDebug.value.length > 0,
+  )
 
   const getAdminBillStatusText = (bill) => {
     const status = resolveAdminBillStatus(bill)
     const statusMap = {
-      PENDING: '待支付',
+      PENDING: '未支付',
       PAID: '已支付',
       REFUNDED: '已退款',
       CANCELLED: '已取消',
@@ -194,7 +265,60 @@ export const useManageDetailOrderPaymentBills = ({
     return bill?.billTitle || '--'
   }
 
+  const resolveOptionalChangeProductName = (bill) => {
+    const directCandidates = [
+      bill?.productName,
+      bill?.optionalProductName,
+      bill?.targetProductName,
+      bill?.newProductName,
+      bill?.optionName,
+      bill?.name,
+    ]
+
+    for (const candidate of directCandidates) {
+      const text = String(candidate || '').trim()
+      if (text) return text
+    }
+
+    const titleCandidates = [bill?.billTitle, bill?.remark]
+    for (const candidate of titleCandidates) {
+      const text = String(candidate || '').trim()
+      if (!text) continue
+
+      const segments = text
+        .split(/[:：,，;；]/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+
+      const matchedSegment = segments.find(
+        (item) =>
+          item.includes('门') ||
+          item.includes('窗') ||
+          item.includes('砖') ||
+          item.includes('板') ||
+          item.includes('柜') ||
+          item.includes('灯') ||
+          item.includes('卫浴') ||
+          item.includes('地板') ||
+          item.includes('吊顶'),
+      )
+
+      if (matchedSegment) return matchedSegment
+      if (segments.length > 1) return segments[segments.length - 1]
+    }
+
+    return '--'
+  }
+
   const getBillRelatedNodeName = (bill) => {
+    if (bill?.billType === 'OPTION_CHANGE') {
+      return resolveOptionalChangeProductName(bill)
+    }
+
+    if (bill?.billType === 'ADJUSTMENT') {
+      return '选配变更'
+    }
+
     const relatedNodeId = Number(bill?.relatedNodeId || 0)
     if (!relatedNodeId) return '--'
 
@@ -213,7 +337,7 @@ export const useManageDetailOrderPaymentBills = ({
     formatDateTime,
     getPaymentBillTypeText,
     getPaymentBillTypeTagType,
-    adminPaymentBillRows,
+    adminPaymentBillRows: adminPaymentBillRowsWithDebug,
     hasAdminPaymentBillRows,
     getAdminBillStatusText,
     getAdminBillStatusTagType,

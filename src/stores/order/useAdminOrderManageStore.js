@@ -853,6 +853,12 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
 
     try {
       const res = await OrderAPI.getUserOrderDetail(id)
+      console.log('[admin-order-detail] response', {
+        orderId: id,
+        code: res?.code,
+        data: res?.data,
+        pendingPaymentBills: res?.data?.pendingPaymentBills,
+      })
       if (res.code === 200) {
         const data = res.data
         orderContractCache.value = {

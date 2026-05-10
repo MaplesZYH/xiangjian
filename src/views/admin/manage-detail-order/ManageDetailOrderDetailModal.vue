@@ -21,14 +21,14 @@
       </div>
 
       <n-alert v-if="isReadOnly" type="warning" class="inline-alert-sm">
-        当前订单状态为“{{ getStatusText(detailOrder.orderStatus) }}”，当前仅支持查看，不可再修改基础信息和选配。
+        当前订单状态为“{{ getStatusText(detailOrder.orderStatus) }}”，当前订单已完结或已取消，仅支持查看，不可再修改基础信息和选配。
       </n-alert>
       <n-alert
         v-else-if="isAddressLocked"
         type="warning"
         class="inline-alert-sm"
       >
-        合同已上传后，订单地址无法再修改；如需调整选配，请按当前业务阶段走选配变更流程处理。
+        合同已上传后，订单地址无法再修改；选配仍可按当前业务阶段继续调整并走对应变更流程。
       </n-alert>
 
       <n-divider dashed />
