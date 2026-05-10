@@ -1506,39 +1506,43 @@ const openPaymentResultWindow = (
   if (!content) return false
 
   const nextWindow = targetWindow || window.open('', '_blank')
+  if (isHtml) {
+    const container = document.createElement('div')
+    container.style.display = 'none'
+    container.innerHTML = content
+    document.body.appendChild(container)
+
+    const form = container.querySelector('form')
+    if (!form) {
+      container.remove()
+      return false
+    }
+
+    if (nextWindow && !nextWindow.closed) {
+      if (!nextWindow.name) {
+        nextWindow.name = `payment_window_${Date.now()}`
+      }
+      form.setAttribute('target', nextWindow.name)
+    } else if (allowSameWindowFallback) {
+      form.setAttribute('target', '_self')
+    } else {
+      container.remove()
+      return false
+    }
+
+    form.submit()
+    setTimeout(() => {
+      container.remove()
+    }, 1000)
+    return true
+  }
+
   if (!nextWindow) {
     if (!allowSameWindowFallback) {
       return false
     }
 
-    if (isHtml) {
-      const container = document.createElement('div')
-      container.style.display = 'none'
-      container.innerHTML = content
-      document.body.appendChild(container)
-
-      const form = container.querySelector('form')
-      if (form) {
-        form.setAttribute('target', '_self')
-        form.submit()
-        setTimeout(() => {
-          container.remove()
-        }, 1000)
-        return true
-      }
-
-      container.remove()
-      return false
-    }
-
     window.location.href = content
-    return true
-  }
-
-  if (isHtml) {
-    nextWindow.document.open()
-    nextWindow.document.write(content)
-    nextWindow.document.close()
     return true
   }
 

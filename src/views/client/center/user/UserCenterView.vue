@@ -154,7 +154,6 @@
       :detail-payment-records-loading="detailPaymentRecordsLoading"
       :has-detail-payment-records="hasDetailPaymentRecords"
       :detail-payment-records="detailPaymentRecords"
-      :can-open-bill-payment-center="canOpenBillPaymentCenter"
       :get-current-business-flow-step="getCurrentBusinessFlowStep"
       :get-order-business-flow-steps="getOrderBusinessFlowSteps"
       :get-status-type="getStatusType"
@@ -216,7 +215,6 @@
       @open-refund-modal="openRefundModal"
       @cancel-refund-apply="handleCancelRefundApply"
       @open-refund-detail-modal="openRefundDetailModal"
-      @open-bill-payment-tab="openBillPaymentTab"
     />
 
     <UserDesignOrderDetailModal
@@ -1987,39 +1985,12 @@ const sortPendingPaymentBills = (rows = []) =>
     return Number(b?.id || 0) - Number(a?.id || 0)
   })
 
-const logConstructionBillDebug = (label, extra = {}) => {
-  console.info('[user-center-construction-bill]', {
-    label,
-    orderId: currentOrder.value?.id || null,
-    detailTab: detailTab.value,
-    currentNodeStatus: constructionInfo.value?.currentNodeStatus ?? null,
-    currentNodeStatusText: constructionInfo.value?.currentNodeStatusText || '',
-    currentNodeName: constructionInfo.value?.currentNodeName || '',
-    currentNodeIndex: constructionInfo.value?.currentNodeIndex ?? null,
-    currentNodeDetailId: currentNodeDetail.value?.nodeId || null,
-    currentNodeDetailName: currentNodeDetail.value?.nodeName || '',
-    currentNodeDetailAmount: currentNodeDetail.value?.amount ?? null,
-    pendingBills: (pendingPaymentBills.value || []).map((item) => ({
-      id: item?.id || null,
-      billType: item?.billType || '',
-      relatedNodeId: item?.relatedNodeId || null,
-      amount: item?.amount ?? null,
-      billTitle: item?.billTitle || '',
-      isVirtualConstructionBill: !!item?.isVirtualConstructionBill,
-    })),
-    ...extra,
-  })
-}
-
 const syncPendingPaymentBillsState = (rows = []) => {
   const nextRows = sortPendingPaymentBills(rows)
   pendingPaymentBills.value = nextRows
   if (currentOrder.value) {
     currentOrder.value.pendingPaymentBills = nextRows
   }
-  logConstructionBillDebug('syncPendingPaymentBillsState', {
-    nextBillCount: nextRows.length,
-  })
   return nextRows
 }
 
@@ -2033,11 +2004,6 @@ const loadPendingPaymentBills = async (orderId = currentOrder.value?.id) => {
   pendingPaymentBillsLoading.value = true
   try {
     const res = await orderAPI.getUserPaymentBills(orderId, userId)
-    console.info('[user-center-construction-bill] payment-bills response', {
-      orderId,
-      code: res?.code,
-      data: res?.data,
-    })
     if (res.code === 200) {
       return syncPendingPaymentBillsState(extractPaymentBillRows(res.data))
     }
@@ -2076,14 +2042,6 @@ const refreshOrderAfterPayment = async () => {
   await loadDetailPaymentRecords(currentOrder.value.id)
   await fetchOrders()
 }
-
-const isConstructionNodeWaitingPayment = computed(() => {
-  if (!constructionInfo.value?.nodeDetails?.length) return false
-  return (
-    Number(constructionInfo.value.currentNodeStatus) ===
-    CONSTRUCTION_NODE_STATUS.WAIT_PAYMENT
-  )
-})
 
 const showConstructionPaymentResult = () => {
   if (!showDetailModal.value || !currentOrder.value?.id) return
@@ -2583,13 +2541,6 @@ const syncPendingConstructionPaymentOnFocus = async () => {
   }
 }
 
-const openBillPaymentTab = async () => {
-  if (!currentOrder.value?.id) return
-  detailTab.value = 'bills'
-  await loadConstructionFlow(currentOrder.value.id)
-  await loadPendingPaymentBills(currentOrder.value.id)
-}
-
 const openPendingBillPaymentModal = (bill) => {
   if (!currentOrder.value?.id || !bill) return
   if (!bill.id && !bill.isVirtualConstructionBill) {
@@ -2707,7 +2658,12 @@ const submitPayment = async () => {
       return
     }
 
-    const opened = tryOpenPaymentPayload(res.data, new Set(), paymentWindow)
+    const opened = tryOpenPaymentPayload(res.data, new Set(), paymentWindow, {
+      allowSameWindowFallback: paymentForm.channel === 'ALIPAY',
+    })
+    if (!opened && paymentWindow && !paymentWindow.closed) {
+      paymentWindow.close()
+    }
 
     message.success(
       opened
@@ -3314,10 +3270,6 @@ const viewOrderDetail = async (row, initialTab = 'info') => {
 const applyConstructionStatus = async (statusData) => {
   const flow = normalizeConstructionFlow(statusData)
   constructionInfo.value = flow
-  console.info('[user-center-construction-bill] construction status', {
-    orderId: currentOrder.value?.id || null,
-    flow,
-  })
 
   if (!flow?.nodeDetails?.length) {
     currentNodeDetail.value = null
@@ -3356,11 +3308,6 @@ const handleNodeClick = async (node) => {
     const res = await ConstructionAPI.getConstructionDetail(orderId, nodeId)
     if (res.code === 200) {
       currentNodeDetail.value = res.data
-      console.info('[user-center-construction-bill] construction detail', {
-        orderId,
-        nodeId,
-        data: res?.data,
-      })
     }
   } catch (e) {
     message.error('加载节点详情失败')
@@ -3474,16 +3421,6 @@ const currentConstructionPayableBill = computed(() => {
   }
 })
 
-watch(
-  () => currentConstructionPayableBill.value,
-  (value) => {
-    logConstructionBillDebug('currentConstructionPayableBill', {
-      currentConstructionPayableBill: value,
-    })
-  },
-  { immediate: true },
-)
-
 const isPendingConstructionPaymentForCurrentNode = computed(() => {
   if (!currentConstructionPayableBill.value) return false
   if (!currentNodeDetail.value) return false
@@ -3541,15 +3478,6 @@ const pendingPaymentBillRows = computed(() => {
 })
 
 const hasPendingPaymentBills = computed(() => pendingPaymentBillRows.value.length > 0)
-
-const canOpenBillPaymentCenter = computed(() => {
-  if (!currentOrder.value) return false
-  return (
-    Number(currentOrderPaymentStatus.value) === 0 ||
-    hasPendingPaymentBills.value ||
-    isConstructionNodeWaitingPayment.value
-  )
-})
 
 const openCurrentConstructionPayment = async () => {
   if (!currentOrder.value?.id) return

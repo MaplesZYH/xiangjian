@@ -2,45 +2,52 @@ export const openPaymentResultWindow = (
   content,
   isHtml = false,
   targetWindow = null,
+  { allowSameWindowFallback = true } = {},
 ) => {
   if (!content) return false
 
   const popup = targetWindow || window.open('', '_blank')
-  if (!popup) {
-    if (isHtml) {
-      const container = document.createElement('div')
-      container.style.display = 'none'
-      container.innerHTML = content
-      document.body.appendChild(container)
+  if (isHtml) {
+    const container = document.createElement('div')
+    container.style.display = 'none'
+    container.innerHTML = content
+    document.body.appendChild(container)
 
-      const form = container.querySelector('form')
-      if (form) {
-        form.setAttribute('target', '_self')
-        form.submit()
-        setTimeout(() => {
-          container.remove()
-        }, 1000)
-        return true
-      }
-
+    const form = container.querySelector('form')
+    if (!form) {
       container.remove()
       return false
     }
 
-    if (!isHtml) {
-      window.location.href = content
-      return true
+    if (popup && !popup.closed) {
+      if (!popup.name) {
+        popup.name = `payment_window_${Date.now()}`
+      }
+      form.setAttribute('target', popup.name)
+    } else if (allowSameWindowFallback) {
+      form.setAttribute('target', '_self')
+    } else {
+      container.remove()
+      return false
     }
+
+    form.submit()
+    setTimeout(() => {
+      container.remove()
+    }, 1000)
+    return true
   }
 
-  if (isHtml) {
-    popup.document.open()
-    popup.document.write(content)
-    popup.document.close()
-  } else {
-    popup.location.href = content
+  if (!popup) {
+    if (!allowSameWindowFallback) {
+      return false
+    }
+
+    window.location.href = content
+    return true
   }
 
+  popup.location.href = content
   return true
 }
 
@@ -123,7 +130,8 @@ export const resolvePaymentPayloadMeta = (payload, visited = new Set()) => {
     payload.html ||
     payload.body ||
     payload.payHtml ||
-    payload.paymentHtml
+    payload.paymentHtml ||
+    payload.paymentPayload
   if (typeof htmlContent === 'string' && htmlContent.trim()) {
     return {
       kind: 'html',
@@ -133,6 +141,11 @@ export const resolvePaymentPayloadMeta = (payload, visited = new Set()) => {
 
   const redirectUrl =
     payload.payUrl ||
+    payload.alipayUrl ||
+    payload.payLink ||
+    payload.paymentLink ||
+    payload.cashierUrl ||
+    payload.h5Url ||
     payload.paymentUrl ||
     payload.redirectUrl ||
     payload.url ||
@@ -155,6 +168,7 @@ export const tryOpenPaymentPayload = (
   payload,
   visited = new Set(),
   targetWindow = null,
+  options = {},
 ) => {
   if (!payload) return false
 
@@ -167,11 +181,11 @@ export const tryOpenPaymentPayload = (
       content.startsWith('https://') ||
       content.startsWith('//')
     ) {
-      return openPaymentResultWindow(content, false, targetWindow)
+      return openPaymentResultWindow(content, false, targetWindow, options)
     }
 
     if (content.includes('<form') || content.includes('<html')) {
-      return openPaymentResultWindow(content, true, targetWindow)
+      return openPaymentResultWindow(content, true, targetWindow, options)
     }
 
     return false
@@ -185,13 +199,19 @@ export const tryOpenPaymentPayload = (
     payload.html ||
     payload.body ||
     payload.payHtml ||
-    payload.paymentHtml
+    payload.paymentHtml ||
+    payload.paymentPayload
   if (typeof htmlContent === 'string' && htmlContent.trim()) {
-    return openPaymentResultWindow(htmlContent, true, targetWindow)
+    return openPaymentResultWindow(htmlContent, true, targetWindow, options)
   }
 
   const redirectUrl =
     payload.payUrl ||
+    payload.alipayUrl ||
+    payload.payLink ||
+    payload.paymentLink ||
+    payload.cashierUrl ||
+    payload.h5Url ||
     payload.paymentUrl ||
     payload.redirectUrl ||
     payload.url ||
@@ -199,11 +219,11 @@ export const tryOpenPaymentPayload = (
     payload.qrCodeUrl ||
     payload.qrCode
   if (typeof redirectUrl === 'string' && redirectUrl.trim()) {
-    return openPaymentResultWindow(redirectUrl, false, targetWindow)
+    return openPaymentResultWindow(redirectUrl, false, targetWindow, options)
   }
 
   return ['data', 'result', 'payload'].some((key) =>
-    tryOpenPaymentPayload(payload[key], visited, targetWindow),
+    tryOpenPaymentPayload(payload[key], visited, targetWindow, options),
   )
 }
 

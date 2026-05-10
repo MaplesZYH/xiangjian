@@ -798,21 +798,9 @@
           </span>
 
           <div
-            v-if="
-              canOpenBillPaymentCenter ||
-              [1, 2].includes(currentOrderPaymentStatus)
-            "
+            v-if="[1, 2].includes(currentOrderPaymentStatus)"
             class="order-footer-actions"
           >
-            <n-button
-              v-if="canOpenBillPaymentCenter"
-              type="primary"
-              class="order-footer-actions__button"
-              @click="$emit('open-bill-payment-tab')"
-            >
-              账单支付
-            </n-button>
-
             <div
               v-if="[1, 2].includes(currentOrderPaymentStatus)"
               class="order-footer-actions__status"
@@ -888,7 +876,6 @@ defineProps({
   detailPaymentRecordsLoading: { type: Boolean, default: false },
   hasDetailPaymentRecords: { type: Boolean, default: false },
   detailPaymentRecords: { type: Array, default: () => [] },
-  canOpenBillPaymentCenter: { type: Boolean, default: false },
   getCurrentBusinessFlowStep: { type: Function, required: true },
   getOrderBusinessFlowSteps: { type: Function, required: true },
   getStatusType: { type: Function, required: true },
@@ -937,6 +924,139 @@ defineEmits([
   'open-refund-modal',
   'cancel-refund-apply',
   'open-refund-detail-modal',
-  'open-bill-payment-tab',
 ])
 </script>
+
+<style scoped>
+.detail-payment-records,
+.pending-payment-bills {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.detail-payment-records-table {
+  min-width: 1260px;
+  overflow: hidden;
+}
+
+.pending-payment-bills-table {
+  min-width: 1080px;
+  overflow: hidden;
+}
+
+.detail-payment-records-head,
+.detail-payment-records-row {
+  display: grid;
+  grid-template-columns:
+    120px
+    120px
+    110px
+    120px
+    180px
+    120px
+    minmax(220px, 1fr)
+    minmax(220px, 1.2fr);
+  align-items: start;
+}
+
+.pending-payment-bills-head,
+.pending-payment-bills-row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.1fr)
+    140px
+    140px
+    minmax(240px, 1.4fr)
+    180px
+    minmax(140px, 0.8fr);
+  align-items: start;
+}
+
+.detail-payment-records-head,
+.pending-payment-bills-head {
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f7faf8 0%, #eef4ef 100%);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.detail-payment-records-row,
+.pending-payment-bills-row {
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.detail-payment-records-cell,
+.pending-payment-bills-cell {
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+.detail-payment-records-cell--actions,
+.pending-payment-bills-cell--actions {
+  justify-self: stretch;
+}
+
+.detail-payment-records-label,
+.pending-payment-bills-label {
+  display: none;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.detail-payment-records-text,
+.pending-payment-bills-text {
+  display: inline-block;
+  min-width: 0;
+  word-break: break-all;
+}
+
+.detail-payment-records-actions,
+.pending-payment-bills-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-payment-records-empty-action {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .detail-payment-records-table,
+  .pending-payment-bills-table {
+    min-width: 0;
+  }
+
+  .detail-payment-records-head,
+  .pending-payment-bills-head {
+    display: none;
+  }
+
+  .detail-payment-records-row,
+  .pending-payment-bills-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .detail-payment-records-label,
+  .pending-payment-bills-label {
+    display: block;
+  }
+
+  .detail-payment-records-actions,
+  .pending-payment-bills-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detail-payment-records-actions :deep(.n-button),
+  .pending-payment-bills-actions :deep(.n-button) {
+    width: 100%;
+  }
+}
+</style>
