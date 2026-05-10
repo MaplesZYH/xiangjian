@@ -21,6 +21,7 @@
       :plan-submitting="planSubmitting"
       @update-deposit-draft="handleUpdateConstructionDepositDraft"
       @update-node-draft="handleUpdateConstructionNodeDraft"
+      @reset-node-draft="handleResetConstructionNodeDraft"
       @save-node-prices="handleSaveConstructionNodePrices"
       @save-deposit="handleSaveConstructionDeposit"
       @confirm-plan="handleConfirmConstructionPricing"
@@ -114,6 +115,10 @@ defineProps({
     required: true,
   },
   handleUpdateConstructionNodeDraft: {
+    type: Function,
+    required: true,
+  },
+  handleResetConstructionNodeDraft: {
     type: Function,
     required: true,
   },

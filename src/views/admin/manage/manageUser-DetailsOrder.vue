@@ -120,6 +120,7 @@
       :handle-go-to-construction-pricing="handleGoToConstructionPricing"
       :handle-update-construction-deposit-draft="handleUpdateConstructionDepositDraft"
       :handle-update-construction-node-draft="handleUpdateConstructionNodeDraft"
+      :handle-reset-construction-node-draft="handleResetConstructionNodeDraft"
       :handle-save-construction-node-prices="handleSaveConstructionNodePrices"
       :handle-save-construction-deposit="handleSaveConstructionDeposit"
       :handle-confirm-construction-pricing="handleConfirmConstructionPricing"
@@ -666,6 +667,7 @@ const {
   handleGoToConstructionPricing,
   handleUpdateConstructionDepositDraft,
   handleUpdateConstructionNodeDraft,
+  handleResetConstructionNodeDraft,
   handleSaveConstructionNodePrices,
   handleSaveConstructionDeposit,
   handleConfirmConstructionPricing,

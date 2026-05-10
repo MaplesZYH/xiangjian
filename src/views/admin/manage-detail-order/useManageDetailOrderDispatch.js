@@ -176,6 +176,61 @@ export const useManageDetailOrderDispatch = ({
       canConfigureConstructionPrice.value,
   )
 
+  const saveConstructionPricingChanges = async ({
+    autoSaveDeposit = false,
+    autoSaveNodePrices = false,
+    silent = false,
+  } = {}) => {
+    const hasDepositDraft = Boolean(orderManageStore.constructionDepositDirty)
+    const hasNodeDraft = Boolean(orderManageStore.constructionPriceDraftDirty)
+    const nodeDraftSnapshot = hasNodeDraft
+      ? (orderManageStore.editableConstructionNodes || [])
+          .filter((row) => row?.dirty)
+          .map((row) => ({
+            nodeId: row?.nodeId,
+            sortOrder: row?.sortOrder,
+            amount: row?.draftAmount,
+          }))
+      : []
+
+    if (autoSaveDeposit && hasDepositDraft) {
+      const depositAmount = Number(orderManageStore.depositDraftAmount || 0)
+      const res = await orderManageStore.submitConstructionDepositAmount(depositAmount)
+      if (res.code !== 200) {
+        throw new Error(res.msg || '保存建房定金失败')
+      }
+      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+      orderManageStore.syncDispatchListItem()
+      await loadConstructionStatus()
+      nodeDraftSnapshot.forEach((item) => {
+        orderManageStore.setConstructionNodeDraftAmount(item)
+      })
+      if (!silent) {
+        message.success('建房定金已保存')
+      }
+    }
+
+    if (autoSaveNodePrices && hasNodeDraft) {
+      const res = await orderManageStore.submitConstructionPricePlan({
+        onlyDirty: true,
+      })
+      if (res.code !== 200) {
+        throw new Error(res.msg || '保存节点金额失败')
+      }
+      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+      orderManageStore.syncDispatchListItem()
+      await loadConstructionStatus()
+      if (!silent) {
+        message.success('节点金额已保存')
+      }
+    }
+
+    return {
+      hasDepositDraft,
+      hasNodeDraft,
+    }
+  }
+
   const shouldShowConstructionProgressButton = computed(
     () => Number(detailOrder.value?.orderStatus) >= 3 && !!constructionInfo.value,
   )
@@ -255,6 +310,21 @@ export const useManageDetailOrderDispatch = ({
     orderManageStore.setConstructionNodeDraftAmount(payload)
   }
 
+  const handleResetConstructionNodeDraft = () => {
+    if (!canConfigureConstructionPrice.value) {
+      message.warning('当前账号无权修改节点金额')
+      return
+    }
+
+    const res = orderManageStore.applyBalancedNodePricePlan()
+    if (res.code !== 200) {
+      message.warning(res.msg || '重新分配失败')
+      return
+    }
+
+    message.success(res.msg || '已清空可编辑节点金额，请重新填写')
+  }
+
   const handleSaveConstructionNodePrices = async () => {
     if (!canConfigureConstructionPrice.value) {
       message.warning('当前账号无权修改节点金额')
@@ -263,20 +333,12 @@ export const useManageDetailOrderDispatch = ({
 
     planSubmitting.value = true
     try {
-      const res = await orderManageStore.submitConstructionPricePlan({
-        onlyDirty: true,
+      await saveConstructionPricingChanges({
+        autoSaveNodePrices: true,
       })
-      if (res.code !== 200) {
-        message.error(res.msg || '保存节点金额失败')
-        return
-      }
-
-      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
-      orderManageStore.syncDispatchListItem()
-      await loadConstructionStatus()
       message.success('节点金额已保存')
     } catch (error) {
-      message.error(getErrorMessage(error, '保存节点金额失败'))
+      console.error(error)
     } finally {
       planSubmitting.value = false
     }
@@ -316,27 +378,32 @@ export const useManageDetailOrderDispatch = ({
     dialog.warning({
       title: '确认节点金额并开启施工',
       content:
-        '确认后将调用后端开启施工流程，并按后端规则同步当前节点金额。',
+        '确认后会先检查并保存当前未保存的定金/节点金额，再调用后端开启施工。',
       positiveText: '确认开启',
       negativeText: '再检查一下',
       onPositiveClick: async () => {
         planSubmitting.value = true
         try {
-          const started = await startConstructionProcess('pricing')
-          if (!started) return false
-
-          const res = await orderManageStore.submitConstructionPricePlan()
-          if (res.code !== 200) {
-            message.error(res.msg || '同步节点金额失败')
+          try {
+            await saveConstructionPricingChanges({
+              autoSaveDeposit: true,
+              autoSaveNodePrices: true,
+              silent: true,
+            })
+          } catch (error) {
+            message.error(getErrorMessage(error, '存在未保存的金额改动，已阻止开启施工'))
             dispatchTab.value = 'pricing'
             return false
           }
+
+          const started = await startConstructionProcess('pricing')
+          if (!started) return false
 
           await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
           orderManageStore.syncDispatchListItem()
           await loadConstructionStatus()
           dispatchTab.value = 'bills'
-          message.success('节点金额已确认，用户可按当前节点账单继续支付')
+          message.success('节点金额已确认并开启施工，用户可按当前节点账单继续支付')
           return true
         } finally {
           planSubmitting.value = false
@@ -355,16 +422,16 @@ export const useManageDetailOrderDispatch = ({
     try {
       const res = await orderManageStore.submitConstructionPricePlan()
       if (res.code !== 200) {
-        message.error(res.msg || '同步节点金额失败')
+        message.error(res.msg || '保存节点金额失败')
         return
       }
 
       await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
       orderManageStore.syncDispatchListItem()
       await loadConstructionStatus()
-      message.success('已按后端规则同步未支付节点金额')
+      message.success('节点金额已更新')
     } catch (error) {
-      message.error(getErrorMessage(error, '同步节点金额失败'))
+      message.error(getErrorMessage(error, '保存节点金额失败'))
     } finally {
       planSubmitting.value = false
     }
@@ -687,6 +754,7 @@ export const useManageDetailOrderDispatch = ({
     handleGoToConstructionPricing,
     handleUpdateConstructionDepositDraft,
     handleUpdateConstructionNodeDraft,
+    handleResetConstructionNodeDraft,
     handleSaveConstructionNodePrices,
     handleSaveConstructionDeposit,
     handleConfirmConstructionPricing,

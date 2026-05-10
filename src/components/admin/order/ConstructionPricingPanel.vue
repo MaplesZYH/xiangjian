@@ -3,8 +3,8 @@
     <n-alert :type="workflowStarted ? 'warning' : 'info'" class="panel-alert">
       {{
         workflowStarted
-          ? '订单已进入施工阶段。后端仅支持同步未支付节点金额，已支付节点与已开工后的定金不可修改。'
-          : '这一环节用于在派单完成后、开工前预设各阶段金额。当前录入的是开工前草稿，点击“确认并开启施工”后会写入后端节点金额。'
+          ? '订单已进入施工阶段。已支付节点金额已锁定，剩余未支付节点可继续编辑，但合计必须与剩余待支付总额一致。'
+          : '这一环节用于在派单完成后、开工前预设各阶段金额。当前修改会直接保存到后端预设表，开启施工时自动生成正式节点金额。'
       }}
     </n-alert>
 
@@ -53,6 +53,7 @@
           v-model:value="localDepositAmount"
           :min="0"
           :precision="2"
+          :show-button="false"
           class="deposit-card__input"
           :disabled="!canEditDeposit || depositSaving"
           @update:value="handleDepositDraftChange"
@@ -74,9 +75,7 @@
       <div class="plan-card__header">
         <div>
           <div class="plan-card__title">确认开工节点金额</div>
-          <div class="plan-card__desc">
-            {{ pricePlanHint || '请按后端规则确认当前节点金额同步结果。' }}
-          </div>
+          <div class="plan-card__desc">请按后端规则确认当前节点金额同步结果。</div>
         </div>
         <n-tag size="small" :bordered="false" type="info">
           {{ pricePlanStatusText || '--' }}
@@ -85,9 +84,21 @@
 
       <div class="allocation-panel">
         <div class="allocation-panel__header">
-          <div class="allocation-panel__title">节点金额同步</div>
-          <div class="allocation-panel__desc">
-            {{ allocationHintText }}
+          <div>
+            <div class="allocation-panel__title">节点金额同步</div>
+            <div class="allocation-panel__desc">
+              {{ allocationHintText }}
+            </div>
+          </div>
+          <div class="allocation-panel__actions">
+            <n-button
+              size="small"
+              secondary
+              :disabled="planSubmitting || !hasEditableRows"
+              @click="$emit('reset-node-draft')"
+            >
+              重新分配
+            </n-button>
           </div>
         </div>
       <div class="allocation-summary-grid">
@@ -110,10 +121,10 @@
             </div>
           </div>
         <div class="allocation-summary-card">
-          <div class="allocation-summary-card__label">剩余待支付阶段款</div>
-          <div class="allocation-summary-card__value">
-            ¥{{ formatAmount(editableStageAmountTotal || remainingStageAmountTotal) }}
-          </div>
+            <div class="allocation-summary-card__label">剩余待支付阶段款</div>
+            <div class="allocation-summary-card__value">
+              ¥{{ formatAmount(workflowStarted ? editableStageAmountTotal : remainingStageAmountTotal) }}
+            </div>
         </div>
       </div>
       </div>
@@ -121,7 +132,6 @@
       <div class="stage-table">
         <div class="stage-table__head">
           <div>阶段</div>
-          <div>节点名称</div>
           <div>比例规则</div>
           <div>金额设置</div>
           <div>状态</div>
@@ -134,10 +144,7 @@
           <div class="stage-table__cell">
             <span class="stage-table__label">阶段</span>
             <span>{{ row.stageLabel }}</span>
-          </div>
-          <div class="stage-table__cell">
-            <span class="stage-table__label">节点名称</span>
-            <span>{{ row.nodeName }}</span>
+            <span class="stage-table__subtext">{{ row.nodeName }}</span>
           </div>
           <div class="stage-table__cell">
             <span class="stage-table__label">比例规则</span>
@@ -156,22 +163,13 @@
                 :value="row.draftAmount"
                 :min="0"
                 :precision="2"
+                :show-button="false"
                 size="small"
                 :disabled="planSubmitting || savingNodePriceId === '__all__'"
                 @update:value="handleNodeDraftChange(row, $event)"
               >
                 <template #prefix>¥</template>
               </n-input-number>
-              <n-button
-                size="small"
-                type="primary"
-                secondary
-                :disabled="!row.dirty || planSubmitting"
-                :loading="savingNodePriceId === '__all__'"
-                @click="$emit('save-node-prices')"
-              >
-                保存
-              </n-button>
             </div>
             <span v-else>¥{{ formatAmount(row.amount) }}</span>
             <span
@@ -182,9 +180,9 @@
                 row.isPaid
                   ? '已支付锁定'
                   : row.editable
-                    ? '未支付，可直接修改并保存'
+                    ? '未支付，可编辑，需在下方统一保存'
                     : workflowStarted
-                      ? '未支付，可按后端规则同步'
+                      ? '剩余未支付节点可继续编辑'
                       : '开启施工后按比例生成'
               }}
             </span>
@@ -206,16 +204,16 @@
 
       <div class="plan-card__footer">
         <n-button
-          v-if="workflowStarted"
           type="primary"
-          :disabled="!canSyncPlan"
-          :loading="planSubmitting"
-          @click="$emit('sync-plan')"
+          secondary
+          :disabled="planSubmitting || !hasDirtyRows"
+          :loading="savingNodePriceId === '__all__'"
+          @click="$emit('save-node-prices')"
         >
-          同步未支付节点金额
+          确认保存金额
         </n-button>
         <n-button
-          v-else
+          v-if="!workflowStarted"
           type="success"
           :disabled="!canConfirmPlan"
           :loading="planSubmitting"
@@ -223,6 +221,13 @@
         >
           确认并开启施工
         </n-button>
+      </div>
+      <div
+        v-if="pricePlanHint"
+        class="plan-card__save-hint"
+        :class="pricePlanStatusText === '已超额' ? 'plan-card__save-hint--error' : ''"
+      >
+        {{ pricePlanHint }}
       </div>
       <div
         v-if="!workflowStarted && !canConfirmPlan && confirmPlanDisabledReason"
@@ -316,6 +321,7 @@ const props = defineProps({
 const emit = defineEmits([
   'update-deposit-draft',
   'update-node-draft',
+  'reset-node-draft',
   'save-node-prices',
   'save-deposit',
   'confirm-plan',
@@ -335,6 +341,14 @@ const displayStageRows = computed(() =>
   Array.isArray(props.editableNodes) && props.editableNodes.length
     ? props.editableNodes
     : pricingStageRows.value,
+)
+
+const hasEditableRows = computed(() =>
+  displayStageRows.value.some((row) => Boolean(row?.editable)),
+)
+
+const hasDirtyRows = computed(() =>
+  displayStageRows.value.some((row) => Boolean(row?.dirty)),
 )
 
 const stagePaymentRows = computed(() =>
@@ -369,11 +383,11 @@ const remainingStageAmountTotal = computed(() =>
 
 const allocationHintText = computed(() => {
   if (!pricingStageRows.value.length) {
-    return '当前尚未初始化施工节点，先展示开工前草稿。确认开启施工后，草稿会映射到后端创建的施工节点。'
+    return '正在加载后端节点金额计划。'
   }
 
   if (!props.workflowStarted) {
-    return '当前可先逐阶段调整草稿金额；开启施工后，系统会按当前草稿写入各节点。'
+    return '当前可先逐阶段调整并保存后端预设金额；开启施工后，系统会按这份预设生成各节点正式金额。'
   }
 
   if (lockedStageCount.value > 0) {
@@ -412,6 +426,7 @@ const handleNodeDraftChange = (row, value) => {
   const amount = Number(value)
   emit('update-node-draft', {
     nodeId: row?.nodeId,
+    sortOrder: row?.sortOrder,
     amount: Number.isFinite(amount) && amount >= 0 ? amount : 0,
   })
 }
@@ -489,8 +504,16 @@ const handleSaveDeposit = () => {
 
 .allocation-panel__header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.allocation-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .allocation-panel__title {
@@ -561,7 +584,7 @@ const handleSaveDeposit = () => {
 }
 
 .deposit-card__input {
-  width: min(280px, 100%);
+  width: min(360px, 100%);
 }
 
 .stage-table {
@@ -575,7 +598,7 @@ const handleSaveDeposit = () => {
 .stage-table__head,
 .stage-table__row {
   display: grid;
-  grid-template-columns: 120px 1.6fr 120px 140px 120px;
+  grid-template-columns: 180px 140px minmax(260px, 1.2fr) 120px;
   gap: 0;
 }
 
@@ -600,6 +623,14 @@ const handleSaveDeposit = () => {
   color: #7b8a7f;
 }
 
+.stage-table__subtext {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7b8a7f;
+}
+
 .stage-table__hint {
   display: block;
   margin-top: 4px;
@@ -616,6 +647,10 @@ const handleSaveDeposit = () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.stage-table__editor :deep(.n-input-number) {
+  width: min(320px, 100%);
 }
 
 .stage-table__note {
@@ -636,6 +671,24 @@ const handleSaveDeposit = () => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+}
+
+.plan-card__save-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f5faf4;
+  border: 1px solid #d7e6da;
+  color: #35523f;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.plan-card__save-hint--error {
+  background: #fff5f5;
+  border-color: #f1c7c7;
+  color: #b42318;
 }
 
 @media (max-width: 960px) {
@@ -649,6 +702,15 @@ const handleSaveDeposit = () => {
 
   .stage-table__head {
     display: none;
+  }
+
+  .allocation-panel__header {
+    flex-direction: column;
+  }
+
+  .allocation-panel__actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .stage-table__row {

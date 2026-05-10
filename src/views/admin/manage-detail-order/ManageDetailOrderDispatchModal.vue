@@ -73,6 +73,7 @@
             :plan-submitting="planSubmitting"
             :handle-update-construction-deposit-draft="handleUpdateConstructionDepositDraft"
             :handle-update-construction-node-draft="handleUpdateConstructionNodeDraft"
+            :handle-reset-construction-node-draft="handleResetConstructionNodeDraft"
             :handle-save-construction-node-prices="handleSaveConstructionNodePrices"
             :handle-save-construction-deposit="handleSaveConstructionDeposit"
             :handle-confirm-construction-pricing="handleConfirmConstructionPricing"
@@ -408,6 +409,10 @@ const props = defineProps({
     required: true,
   },
   handleUpdateConstructionNodeDraft: {
+    type: Function,
+    required: true,
+  },
+  handleResetConstructionNodeDraft: {
     type: Function,
     required: true,
   },
