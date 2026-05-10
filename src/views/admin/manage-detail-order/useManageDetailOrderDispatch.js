@@ -251,6 +251,37 @@ export const useManageDetailOrderDispatch = ({
     orderManageStore.setConstructionDepositDraft(amount)
   }
 
+  const handleUpdateConstructionNodeDraft = (payload) => {
+    orderManageStore.setConstructionNodeDraftAmount(payload)
+  }
+
+  const handleSaveConstructionNodePrices = async () => {
+    if (!canConfigureConstructionPrice.value) {
+      message.warning('当前账号无权修改节点金额')
+      return
+    }
+
+    planSubmitting.value = true
+    try {
+      const res = await orderManageStore.submitConstructionPricePlan({
+        onlyDirty: true,
+      })
+      if (res.code !== 200) {
+        message.error(res.msg || '保存节点金额失败')
+        return
+      }
+
+      await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
+      orderManageStore.syncDispatchListItem()
+      await loadConstructionStatus()
+      message.success('节点金额已保存')
+    } catch (error) {
+      message.error(getErrorMessage(error, '保存节点金额失败'))
+    } finally {
+      planSubmitting.value = false
+    }
+  }
+
   const handleSaveConstructionDeposit = async (amount) => {
     if (!canConfigureConstructionPrice.value) {
       message.warning('当前账号无权修改建房定金')
@@ -655,6 +686,8 @@ export const useManageDetailOrderDispatch = ({
     handleOpenDispatch,
     handleGoToConstructionPricing,
     handleUpdateConstructionDepositDraft,
+    handleUpdateConstructionNodeDraft,
+    handleSaveConstructionNodePrices,
     handleSaveConstructionDeposit,
     handleConfirmConstructionPricing,
     handleSyncConstructionPricePlan,

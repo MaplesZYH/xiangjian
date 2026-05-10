@@ -15,8 +15,6 @@ import {
 import { normalizeOrderPaymentState } from '@/utils/orderPayment'
 import { useStructuredAddressForm } from '@/composables/useStructuredAddressForm'
 
-const CONSTRUCTION_PRICE_LOCK_STORAGE_KEY =
-  'admin_construction_price_locked_order_ids'
 const CONSTRUCTION_PRICE_PLAN_CACHE_STORAGE_KEY =
   'admin_construction_price_plan_cache'
 const CONSTRUCTION_DEPOSIT_DRAFT_STORAGE_KEY =
@@ -129,21 +127,6 @@ const resolveConstructionMilestoneAmount = (
   if (!ratio) return 0
 
   return roundCurrencyAmount(constructionBaseAmount * ratio)
-}
-
-const loadConstructionPriceLockedOrderIds = () => {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(CONSTRUCTION_PRICE_LOCK_STORAGE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed)
-      ? parsed
-          .map((item) => Number(item))
-          .filter((item) => Number.isInteger(item) && item > 0)
-      : []
-  } catch {
-    return []
-  }
 }
 
 const loadConstructionPricePlanCache = () => {
@@ -348,9 +331,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   const showCancelModal = ref(false)
   const cancelReason = ref('')
   const currentCancelId = ref(null)
-  const constructionPriceLockedOrderIds = ref(
-    loadConstructionPriceLockedOrderIds(),
-  )
   const constructionPricePlanCache = ref(loadConstructionPricePlanCache())
   const constructionDepositDraftCache = ref(loadConstructionDepositDraftCache())
   const editableNodePriceMap = reactive({})
@@ -446,13 +426,43 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     }),
   )
 
-  const editableConstructionNodes = computed(() => [])
+  const editableConstructionNodes = computed(() => {
+    const rows = constructionPricingStageRows.value
+    if (!Array.isArray(rows) || rows.length === 0) return []
+
+    return rows.map((row) => {
+      const nodeId = Number(row?.nodeId || 0)
+      const hasDraftValue = Object.prototype.hasOwnProperty.call(
+        editableNodePriceMap,
+        nodeId,
+      )
+      const rawDraftAmount = hasDraftValue
+        ? Number(editableNodePriceMap[nodeId])
+        : Number(row?.amount)
+      const draftAmount = Number.isFinite(rawDraftAmount)
+        ? roundCurrencyAmount(rawDraftAmount)
+        : roundCurrencyAmount(row?.amount)
+      const currentAmount = roundCurrencyAmount(row?.amount)
+      const editable =
+        Number(currentDispatchStageOrderStatus.value) < 3 && !row?.isPaid
+
+      return {
+        ...row,
+        draftAmount,
+        currentAmount,
+        editable,
+        dirty: editable && draftAmount !== currentAmount,
+      }
+    })
+  })
 
   const depositDraftAmount = computed(() => {
-    if (!constructionInfo.value?.nodeDetails?.length) {
-      return buildDepositSeedAmount.value
-    }
-    const nodeId = depositNode.value?.nodeId
+    const nodeId = Number(
+      depositNode.value?.nodeId ||
+        editableConstructionNodes.value.find((row) => Number(row?.sortOrder) === 1)
+          ?.nodeId ||
+        1,
+    )
     if (!nodeId) return buildDepositSeedAmount.value
     const amount = Number(editableNodePriceMap[nodeId])
     return Number.isFinite(amount)
@@ -487,6 +497,13 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     return depositDraftAmount.value
   })
 
+  const editableStageAmountTotal = computed(() =>
+    editableConstructionNodes.value.reduce(
+      (sum, row) => sum + Number(row?.draftAmount || 0),
+      0,
+    ),
+  )
+
   const constructionPricePlanDirty = computed(() => {
     const nodes = constructionInfo.value?.nodeDetails || []
     if (!nodes.length) return false
@@ -509,7 +526,12 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   })
 
   const constructionPricePlanStatusText = computed(() => {
-    if (!constructionInfo.value?.nodeDetails?.length) return '待开启施工'
+    if (!constructionInfo.value?.nodeDetails?.length) {
+      return editableConstructionNodes.value.some((row) => row?.dirty)
+        ? '待确认'
+        : '待开启施工'
+    }
+    if (editableConstructionNodes.value.some((row) => row?.dirty)) return '待保存'
     if (constructionPricePlanReady.value) return '同步方案已就绪'
     if (constructionPricePlanDirty.value) return '待同步'
     return '等待同步'
@@ -517,7 +539,13 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
 
   const constructionPricePlanHint = computed(() => {
     if (!constructionInfo.value?.nodeDetails?.length) {
-      return '请先在第 3 步点击“开启施工”，由后端初始化施工节点后再同步节点金额。'
+      if (editableConstructionNodes.value.some((row) => row?.dirty)) {
+        return '当前已先保存派单前的节点金额草稿。点击“确认并开启施工”后，会按这份草稿写入后端节点金额。'
+      }
+      return '当前可先调整各阶段金额草稿；点击“确认并开启施工”后，会自动写入后端已创建的施工节点。'
+    }
+    if (editableConstructionNodes.value.some((row) => row?.dirty)) {
+      return '当前存在尚未保存的节点金额改动。已支付节点不可修改，未支付节点保存后会同步对应待支付账单金额。'
     }
     if (buildDepositSeedAmount.value <= 0) {
       return '暂未识别到首笔建房定金金额，请先确认订单已完成首笔支付。'
@@ -647,14 +675,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     }))
   })
 
-  const persistConstructionPriceLockedOrderIds = () => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(
-      CONSTRUCTION_PRICE_LOCK_STORAGE_KEY,
-      JSON.stringify(constructionPriceLockedOrderIds.value),
-    )
-  }
-
   const persistConstructionPricePlanCache = () => {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(
@@ -669,13 +689,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       CONSTRUCTION_DEPOSIT_DRAFT_STORAGE_KEY,
       JSON.stringify(constructionDepositDraftCache.value),
     )
-  }
-
-  const getConstructionPriceCacheForOrder = (orderId) => {
-    const numericOrderId = Number(orderId)
-    if (!Number.isInteger(numericOrderId) || numericOrderId <= 0) return {}
-    const cache = constructionPricePlanCache.value?.[numericOrderId]
-    return cache && typeof cache === 'object' ? cache : {}
   }
 
   const saveConstructionPricePlanCache = (orderId, nodePrices = []) => {
@@ -722,21 +735,22 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
 
     saveConstructionDepositDraftCache(orderId, normalizedAmount)
 
-    const nodeId = Number(depositNode.value?.nodeId || 0)
-    if (nodeId > 0) {
-      editableNodePriceMap[nodeId] = normalizedAmount
-    }
+    const nodeId = Number(
+      depositNode.value?.nodeId ||
+        editableConstructionNodes.value.find((row) => Number(row?.sortOrder) === 1)
+          ?.nodeId ||
+        1,
+    )
+    editableNodePriceMap[nodeId] = normalizedAmount
   }
 
-  const mergeConstructionNodeAmounts = (orderId, nodes = []) => {
-    return nodes.map((node) => {
-      const resolvedAmount = resolveConstructionNodeAmount(node)
+  const setConstructionNodeDraftAmount = ({ nodeId, amount }) => {
+    const normalizedNodeId = Number(nodeId)
+    if (!Number.isInteger(normalizedNodeId) || normalizedNodeId <= 0) return
 
-      return {
-        ...node,
-        amount: resolvedAmount,
-      }
-    })
+    const normalizedAmount = roundCurrencyAmount(amount)
+    editableNodePriceMap[normalizedNodeId] =
+      normalizedAmount >= 0 ? normalizedAmount : 0
   }
 
   const markConstructionPriceLocked = () => {}
@@ -1233,11 +1247,9 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   }
 
   const syncEditableNodePriceMap = (nodes = []) => {
-    Object.keys(editableNodePriceMap).forEach((key) => {
-      delete editableNodePriceMap[key]
-    })
-
+    const nextDraftMap = {}
     const depositAmount = buildDepositSeedAmount.value
+
     nodes.forEach((node) => {
       const nodeId = Number(node?.nodeId || node?.id)
       if (!Number.isInteger(nodeId) || nodeId <= 0) return
@@ -1245,9 +1257,11 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       const index = nodes.findIndex(
         (item) => Number(item?.nodeId || item?.id) === nodeId,
       )
+      const cachedAmount = Number(editableNodePriceMap[nodeId])
       const resolvedAmount = resolveConstructionNodeAmount(node)
-      editableNodePriceMap[nodeId] =
-        index === 0
+      nextDraftMap[nodeId] = Number.isFinite(cachedAmount)
+        ? roundCurrencyAmount(cachedAmount)
+        : index === 0
           ? depositAmount
           : resolvedAmount > 0
             ? resolvedAmount
@@ -1256,6 +1270,13 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
                 index + 1,
                 depositAmount,
               )
+    })
+
+    Object.keys(editableNodePriceMap).forEach((key) => {
+      delete editableNodePriceMap[key]
+    })
+    Object.entries(nextDraftMap).forEach(([key, value]) => {
+      editableNodePriceMap[key] = value
     })
   }
 
@@ -1338,26 +1359,25 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     return res
   }
 
-  const buildEditableNodePricePayload = () => {
-    const nodes = constructionInfo.value?.nodeDetails || []
-    const depositAmount = depositDraftAmount.value
+  const buildEditableNodePricePayload = ({ onlyDirty = false } = {}) => {
+    const nodes = editableConstructionNodes.value.filter((row) => row?.nodeId)
+    const payload = nodes
+      .filter((row) => !onlyDirty || row?.dirty)
+      .map((row) => ({
+        nodeId: row.nodeId,
+        amount: roundCurrencyAmount(row.draftAmount),
+      }))
 
-    return nodes.map((node, index) => ({
-      nodeId: node.nodeId,
-      // 后端 /construction/admin/price 当前语义是：
-      // 仅以首节点传入的定金为同步种子，后续节点金额由后端按 20/50/28/2 自动落值。
-      amount: index === 0 ? depositAmount : 0,
-    }))
+    return payload
   }
 
-  const submitConstructionPricePlan = async () => {
+  const submitConstructionPricePlan = async ({ onlyDirty = false } = {}) => {
     if (!currentDispatchOrder.value?.id) {
       throw new Error('订单信息缺失，无法同步节点金额')
     }
-    const rawAmount =
-      constructionInfo.value?.nodeDetails?.length && depositNode.value?.nodeId
-        ? editableNodePriceMap[depositNode.value.nodeId]
-        : buildDepositSeedAmount.value
+    const rawAmount = depositNode.value?.nodeId
+      ? editableNodePriceMap[depositNode.value.nodeId]
+      : buildDepositSeedAmount.value
 
     const amount = Number(rawAmount)
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -1368,7 +1388,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       throw new Error('请先开启施工，由后端初始化施工节点后再同步节点金额')
     }
 
-    const nodePrices = buildEditableNodePricePayload()
+    const nodePrices = buildEditableNodePricePayload({ onlyDirty })
+    if (!nodePrices.length) {
+      throw new Error('当前没有可保存的节点金额改动')
+    }
 
     savingNodePriceId.value = '__all__'
     try {
@@ -1376,6 +1399,9 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
         orderId: currentDispatchOrder.value.id,
         nodePrices,
       })
+      if (res.code === 200) {
+        saveConstructionPricePlanCache(currentDispatchOrder.value.id, nodePrices)
+      }
       return res
     } finally {
       savingNodePriceId.value = null
@@ -1496,6 +1522,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     priceLimitTotal,
     depositNode,
     editableConstructionNodes,
+    editableStageAmountTotal,
     depositDraftAmount,
     stagePaymentAutoTotal,
     constructionBillPlanTotal,
@@ -1544,6 +1571,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     submitConstructionPricePlan,
     submitConstructionDepositAmount,
     setConstructionDepositDraft,
+    setConstructionNodeDraftAmount,
     submitAudit,
     clearState,
     CONSTRUCTION_NODE_STATUS,

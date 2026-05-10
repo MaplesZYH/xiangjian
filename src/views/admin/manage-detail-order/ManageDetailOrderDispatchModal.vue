@@ -56,6 +56,8 @@
             :construction-base-amount="constructionBaseAmount"
             :deposit-draft-amount="depositDraftAmount"
             :construction-pricing-stage-rows="constructionPricingStageRows"
+            :editable-construction-nodes="editableConstructionNodes"
+            :editable-stage-amount-total="editableStageAmountTotal"
             :construction-price-plan-status-text="constructionPricePlanStatusText"
             :construction-price-plan-hint="constructionPricePlanHint"
             :construction-workflow-started="constructionWorkflowStarted"
@@ -63,12 +65,15 @@
             :can-view-construction="canViewConstruction"
             :can-audit-construction="canAuditConstruction"
             :can-edit-construction-deposit="canEditConstructionDeposit"
+            :saving-node-price-id="savingNodePriceId"
             :can-start-construction-entry="canStartConstructionEntry"
             :start-construction-blocked-reason="startConstructionBlockedReason"
             :can-sync-construction-price-plan="canSyncConstructionPricePlan"
             :deposit-submitting="depositSubmitting"
             :plan-submitting="planSubmitting"
             :handle-update-construction-deposit-draft="handleUpdateConstructionDepositDraft"
+            :handle-update-construction-node-draft="handleUpdateConstructionNodeDraft"
+            :handle-save-construction-node-prices="handleSaveConstructionNodePrices"
             :handle-save-construction-deposit="handleSaveConstructionDeposit"
             :handle-confirm-construction-pricing="handleConfirmConstructionPricing"
             :handle-sync-construction-price-plan="handleSyncConstructionPricePlan"
@@ -230,6 +235,14 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  editableConstructionNodes: {
+    type: Array,
+    default: () => [],
+  },
+  editableStageAmountTotal: {
+    type: Number,
+    default: 0,
+  },
   constructionPricePlanStatusText: {
     type: String,
     default: '',
@@ -257,6 +270,10 @@ const props = defineProps({
   canEditConstructionDeposit: {
     type: Boolean,
     default: false,
+  },
+  savingNodePriceId: {
+    type: [String, Number, null],
+    default: null,
   },
   canStartConstructionEntry: {
     type: Boolean,
@@ -387,6 +404,14 @@ const props = defineProps({
     required: true,
   },
   handleSaveConstructionDeposit: {
+    type: Function,
+    required: true,
+  },
+  handleUpdateConstructionNodeDraft: {
+    type: Function,
+    required: true,
+  },
+  handleSaveConstructionNodePrices: {
     type: Function,
     required: true,
   },

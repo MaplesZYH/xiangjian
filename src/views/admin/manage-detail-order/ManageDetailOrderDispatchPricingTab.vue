@@ -7,16 +7,21 @@
       :construction-base-amount="constructionBaseAmount"
       :deposit-amount="depositDraftAmount"
       :stage-rows="constructionPricingStageRows"
+      :editable-nodes="editableConstructionNodes"
+      :editable-stage-amount-total="editableStageAmountTotal"
       :price-plan-status-text="constructionPricePlanStatusText"
       :price-plan-hint="constructionPricePlanHint"
       :workflow-started="constructionWorkflowStarted"
       :can-edit-deposit="canConfigureConstructionPrice && canEditConstructionDeposit"
+      :saving-node-price-id="savingNodePriceId"
       :can-confirm-plan="canStartConstructionEntry"
       :confirm-plan-disabled-reason="startConstructionBlockedReason"
       :can-sync-plan="canSyncConstructionPricePlan"
       :deposit-saving="depositSubmitting"
       :plan-submitting="planSubmitting"
       @update-deposit-draft="handleUpdateConstructionDepositDraft"
+      @update-node-draft="handleUpdateConstructionNodeDraft"
+      @save-node-prices="handleSaveConstructionNodePrices"
       @save-deposit="handleSaveConstructionDeposit"
       @confirm-plan="handleConfirmConstructionPricing"
       @sync-plan="handleSyncConstructionPricePlan"
@@ -48,6 +53,14 @@ defineProps({
     type: Array,
     default: () => [],
   },
+  editableConstructionNodes: {
+    type: Array,
+    default: () => [],
+  },
+  editableStageAmountTotal: {
+    type: Number,
+    default: 0,
+  },
   constructionPricePlanStatusText: {
     type: String,
     default: '',
@@ -67,6 +80,10 @@ defineProps({
   canEditConstructionDeposit: {
     type: Boolean,
     default: false,
+  },
+  savingNodePriceId: {
+    type: [String, Number, null],
+    default: null,
   },
   canStartConstructionEntry: {
     type: Boolean,
@@ -93,6 +110,14 @@ defineProps({
     required: true,
   },
   handleSaveConstructionDeposit: {
+    type: Function,
+    required: true,
+  },
+  handleUpdateConstructionNodeDraft: {
+    type: Function,
+    required: true,
+  },
+  handleSaveConstructionNodePrices: {
     type: Function,
     required: true,
   },

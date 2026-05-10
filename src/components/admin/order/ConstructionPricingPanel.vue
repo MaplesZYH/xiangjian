@@ -4,7 +4,7 @@
       {{
         workflowStarted
           ? '订单已进入施工阶段。后端仅支持同步未支付节点金额，已支付节点与已开工后的定金不可修改。'
-          : '这一环节用于确认开工前的整单金额同步结果。前端按后端当前规则执行：首笔定金可单独调整，施工节点按 20% / 50% / 28% / 2% 自动落值。'
+          : '这一环节用于在派单完成后、开工前预设各阶段金额。当前录入的是开工前草稿，点击“确认并开启施工”后会写入后端节点金额。'
       }}
     </n-alert>
 
@@ -90,11 +90,11 @@
             {{ allocationHintText }}
           </div>
         </div>
-        <div class="allocation-summary-grid">
-          <div class="allocation-summary-card">
-            <div class="allocation-summary-card__label">已锁定节点</div>
-            <div class="allocation-summary-card__value">
-              {{ lockedStageCount }}
+      <div class="allocation-summary-grid">
+        <div class="allocation-summary-card">
+          <div class="allocation-summary-card__label">已锁定节点</div>
+          <div class="allocation-summary-card__value">
+            {{ lockedStageCount }}
             </div>
           </div>
           <div class="allocation-summary-card">
@@ -109,13 +109,13 @@
               ¥{{ formatAmount(lockedStageAmountTotal) }}
             </div>
           </div>
-          <div class="allocation-summary-card">
-            <div class="allocation-summary-card__label">剩余待支付阶段款</div>
-            <div class="allocation-summary-card__value">
-              ¥{{ formatAmount(remainingStageAmountTotal) }}
-            </div>
+        <div class="allocation-summary-card">
+          <div class="allocation-summary-card__label">剩余待支付阶段款</div>
+          <div class="allocation-summary-card__value">
+            ¥{{ formatAmount(editableStageAmountTotal || remainingStageAmountTotal) }}
           </div>
         </div>
+      </div>
       </div>
 
       <div class="stage-table">
@@ -123,11 +123,11 @@
           <div>阶段</div>
           <div>节点名称</div>
           <div>比例规则</div>
-          <div>当前金额</div>
+          <div>金额设置</div>
           <div>状态</div>
         </div>
         <div
-          v-for="row in stageRows"
+          v-for="row in displayStageRows"
           :key="row.key"
           class="stage-table__row"
         >
@@ -144,8 +144,36 @@
             <span>{{ row.ratioText }}</span>
           </div>
           <div class="stage-table__cell">
-            <span class="stage-table__label">当前金额</span>
-            <span>¥{{ formatAmount(row.amount) }}</span>
+            <span class="stage-table__label">金额设置</span>
+            <span class="stage-table__current-amount">
+              当前：¥{{ formatAmount(row.currentAmount ?? row.amount) }}
+            </span>
+            <div
+              v-if="row.editable"
+              class="stage-table__editor"
+            >
+              <n-input-number
+                :value="row.draftAmount"
+                :min="0"
+                :precision="2"
+                size="small"
+                :disabled="planSubmitting || savingNodePriceId === '__all__'"
+                @update:value="handleNodeDraftChange(row, $event)"
+              >
+                <template #prefix>¥</template>
+              </n-input-number>
+              <n-button
+                size="small"
+                type="primary"
+                secondary
+                :disabled="!row.dirty || planSubmitting"
+                :loading="savingNodePriceId === '__all__'"
+                @click="$emit('save-node-prices')"
+              >
+                保存
+              </n-button>
+            </div>
+            <span v-else>¥{{ formatAmount(row.amount) }}</span>
             <span
               class="stage-table__note"
               :class="row.isPaid ? 'stage-table__note--locked' : 'stage-table__note--editable'"
@@ -153,13 +181,15 @@
               {{
                 row.isPaid
                   ? '已支付锁定'
-                  : workflowStarted
-                    ? '未支付，可按后端规则同步'
-                    : '开启施工后按比例生成'
+                  : row.editable
+                    ? '未支付，可直接修改并保存'
+                    : workflowStarted
+                      ? '未支付，可按后端规则同步'
+                      : '开启施工后按比例生成'
               }}
             </span>
             <span
-              v-if="Number(row.targetAmount) !== Number(row.amount)"
+              v-if="!row.editable && Number(row.targetAmount) !== Number(row.amount)"
               class="stage-table__hint"
             >
               同步后：¥{{ formatAmount(row.targetAmount) }}
@@ -233,6 +263,14 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  editableNodes: {
+    type: Array,
+    default: () => [],
+  },
+  editableStageAmountTotal: {
+    type: Number,
+    default: 0,
+  },
   pricePlanStatusText: {
     type: String,
     default: '',
@@ -265,6 +303,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  savingNodePriceId: {
+    type: [String, Number, null],
+    default: null,
+  },
   planSubmitting: {
     type: Boolean,
     default: false,
@@ -273,6 +315,8 @@ const props = defineProps({
 
 const emit = defineEmits([
   'update-deposit-draft',
+  'update-node-draft',
+  'save-node-prices',
   'save-deposit',
   'confirm-plan',
   'sync-plan',
@@ -287,8 +331,14 @@ const pricingStageRows = computed(() =>
   Array.isArray(props.stageRows) ? props.stageRows : [],
 )
 
+const displayStageRows = computed(() =>
+  Array.isArray(props.editableNodes) && props.editableNodes.length
+    ? props.editableNodes
+    : pricingStageRows.value,
+)
+
 const stagePaymentRows = computed(() =>
-  pricingStageRows.value.filter((row) => Number(row?.sortOrder || 0) > 1),
+  displayStageRows.value.filter((row) => Number(row?.sortOrder || 0) > 1),
 )
 
 const lockedStageRows = computed(() =>
@@ -319,11 +369,11 @@ const remainingStageAmountTotal = computed(() =>
 
 const allocationHintText = computed(() => {
   if (!pricingStageRows.value.length) {
-    return '开启施工后，节点金额会按后端固定比例自动初始化。'
+    return '当前尚未初始化施工节点，先展示开工前草稿。确认开启施工后，草稿会映射到后端创建的施工节点。'
   }
 
   if (!props.workflowStarted) {
-    return '当前预览的是默认同步结果：首节点为定金，第 2-5 节点按 20% / 50% / 28% / 2% 自动分配。'
+    return '当前可先逐阶段调整草稿金额；开启施工后，系统会按当前草稿写入各节点。'
   }
 
   if (lockedStageCount.value > 0) {
@@ -356,6 +406,14 @@ const handleDepositDraftChange = (value) => {
     'update-deposit-draft',
     Number.isFinite(amount) && amount >= 0 ? amount : 0,
   )
+}
+
+const handleNodeDraftChange = (row, value) => {
+  const amount = Number(value)
+  emit('update-node-draft', {
+    nodeId: row?.nodeId,
+    amount: Number.isFinite(amount) && amount >= 0 ? amount : 0,
+  })
 }
 
 const handleSaveDeposit = () => {
@@ -547,6 +605,17 @@ const handleSaveDeposit = () => {
   margin-top: 4px;
   font-size: 12px;
   color: #c26b1d;
+}
+
+.stage-table__current-amount {
+  display: block;
+}
+
+.stage-table__editor {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .stage-table__note {

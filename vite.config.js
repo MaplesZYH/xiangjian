@@ -8,6 +8,9 @@ import postcssPxtorem from 'postcss-pxtorem'
 import path from 'path'
 
 export default defineConfig({
+  define: {
+    global: 'globalThis',
+  },
   plugins: [
     vue(),
     AutoImport({

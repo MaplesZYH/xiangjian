@@ -77,6 +77,8 @@
       :construction-base-amount="constructionBaseAmount"
       :deposit-draft-amount="depositDraftAmount"
       :construction-pricing-stage-rows="constructionPricingStageRows"
+      :editable-construction-nodes="editableConstructionNodes"
+      :editable-stage-amount-total="editableStageAmountTotal"
       :construction-price-plan-status-text="constructionPricePlanStatusText"
       :construction-price-plan-hint="constructionPricePlanHint"
       :construction-workflow-started="constructionWorkflowStarted"
@@ -84,6 +86,7 @@
       :can-view-construction="canViewConstruction"
       :can-audit-construction="canAuditConstruction"
       :can-edit-construction-deposit="canEditConstructionDeposit"
+      :saving-node-price-id="savingNodePriceId"
       :can-start-construction-entry="canStartConstructionEntry"
       :start-construction-blocked-reason="startConstructionBlockedReason"
       :can-sync-construction-price-plan="canSyncConstructionPricePlan"
@@ -116,6 +119,8 @@
       :handle-open-unified-detail="handleOpenUnifiedDetail"
       :handle-go-to-construction-pricing="handleGoToConstructionPricing"
       :handle-update-construction-deposit-draft="handleUpdateConstructionDepositDraft"
+      :handle-update-construction-node-draft="handleUpdateConstructionNodeDraft"
+      :handle-save-construction-node-prices="handleSaveConstructionNodePrices"
       :handle-save-construction-deposit="handleSaveConstructionDeposit"
       :handle-confirm-construction-pricing="handleConfirmConstructionPricing"
       :handle-sync-construction-price-plan="handleSyncConstructionPricePlan"
@@ -294,6 +299,9 @@ const {
   currentNodeDetailStatusText,
   depositDraftAmount,
   constructionBaseAmount,
+  savingNodePriceId,
+  editableConstructionNodes,
+  editableStageAmountTotal,
   constructionPricePlanStatusText,
   constructionPricePlanHint,
   canEditConstructionDeposit,
@@ -657,6 +665,8 @@ const {
   handleOpenDispatch,
   handleGoToConstructionPricing,
   handleUpdateConstructionDepositDraft,
+  handleUpdateConstructionNodeDraft,
+  handleSaveConstructionNodePrices,
   handleSaveConstructionDeposit,
   handleConfirmConstructionPricing,
   handleSyncConstructionPricePlan,
