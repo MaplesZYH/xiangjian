@@ -11,6 +11,8 @@ import {
   findPendingBillById,
   findPendingStageBillByNodeId,
   getPaymentBillDisplayTitle,
+  isPayingPaymentBillStatus,
+  isPendingPaymentBillStatus,
   paymentChannelOptions,
   sortPendingPaymentBills,
 } from '@/views/client/center/user/composables/order/orderHelpers'
@@ -56,6 +58,23 @@ export const useUserOrderPayments = ({
   })
 
   const paymentModalTitle = computed(() => '账单支付')
+
+  const isOptionChangeBill = (bill) =>
+    String(bill?.billType || '').trim().toUpperCase() === 'OPTION_CHANGE'
+
+  const canRepayBill = (bill) =>
+    bill && (isPendingPaymentBillStatus(bill.status) || isPayingPaymentBillStatus(bill.status))
+
+  const canCancelPendingOptionChangeBill = (bill) =>
+    Boolean(
+      bill &&
+        isOptionChangeBill(bill) &&
+        isPendingPaymentBillStatus(bill.status) &&
+        Number(bill?.id || 0) > 0,
+    )
+
+  const getPendingBillActionText = (bill) =>
+    isPayingPaymentBillStatus(bill?.status) ? '继续支付' : '去支付'
 
   const syncPendingPaymentBillsState = (rows = []) => {
     const nextRows = sortPendingPaymentBills(rows)
@@ -114,11 +133,57 @@ export const useUserOrderPayments = ({
     if (!currentOrder.value?.id) return
     stopPaymentStatusPolling()
     await syncCurrentOrderFromServer(currentOrder.value.id)
-    hydrateUserOptionSelection()
     await loadUserOptionalChangeRecords(currentOrder.value.id)
     await loadPendingPaymentBills(currentOrder.value.id)
     await loadDetailPaymentRecords(currentOrder.value.id)
+    hydrateUserOptionSelection()
     await fetchOrders()
+  }
+
+  const cancelPendingBill = async (bill) => {
+    const userId = getStoredUserId()
+    const orderId = Number(currentOrder.value?.id || 0)
+    const billId = Number(bill?.id || 0)
+
+    if (!userId || !orderId || !billId) {
+      message.error('账单信息缺失，请刷新后重试')
+      return false
+    }
+
+    if (!canCancelPendingOptionChangeBill(bill)) {
+      message.warning('当前账单状态不允许取消')
+      return false
+    }
+
+    pendingPaymentBillsLoading.value = true
+    try {
+      const res = await orderAPI.cancelBill(billId, userId)
+      if (res?.code !== 200) {
+        message.error(res?.msg || '取消账单失败')
+        return false
+      }
+
+      await syncCurrentOrderFromServer(orderId)
+      await Promise.all([
+        loadUserOptionalChangeRecords(orderId),
+        loadPendingPaymentBills(orderId),
+        loadDetailPaymentRecords(orderId),
+      ])
+      hydrateUserOptionSelection()
+      await fetchOrders()
+      message.success(res?.msg || '账单已取消')
+      return true
+    } catch (error) {
+      const msg =
+        error?.response?.data?.msg ||
+        error?.msg ||
+        error?.message ||
+        '取消账单失败'
+      message.error(String(msg))
+      return false
+    } finally {
+      pendingPaymentBillsLoading.value = false
+    }
   }
 
   const stopPaymentStatusPolling = () => {
@@ -464,8 +529,12 @@ export const useUserOrderPayments = ({
     showOrderPaymentStatementModal,
     paymentModalTitle,
     paymentChannelOptions,
+    canRepayBill,
+    canCancelPendingOptionChangeBill,
+    getPendingBillActionText,
     loadPendingPaymentBills,
     confirmUserBillPayment,
+    cancelPendingBill,
     stopPaymentStatusPolling,
     syncPendingOrderPaymentOnFocus,
     openPendingBillPaymentModal,

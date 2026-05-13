@@ -151,6 +151,17 @@ export default {
     })
   },
 
+  // 用户取消建房订单选配变更申请
+  cancelOptionalChange(requestId, userId) {
+    return request({
+      url: `/user/order/optional-change/cancel/${requestId}`,
+      method: 'post',
+      params: {
+        userId,
+      },
+    })
+  },
+
   // 用户查询当前订单的支付流水
   getUserPaymentRecords(orderId, userId) {
     return request({
@@ -190,6 +201,17 @@ export default {
     return request({
       url: `/payment/bill/${billId}/confirm`,
       method: 'get',
+      params: {
+        userId,
+      },
+    })
+  },
+
+  // 用户取消选配补价账单
+  cancelBill(billId, userId) {
+    return request({
+      url: `/payment/bill/${billId}/cancel`,
+      method: 'post',
       params: {
         userId,
       },

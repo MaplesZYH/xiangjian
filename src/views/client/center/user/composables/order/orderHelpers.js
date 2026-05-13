@@ -155,6 +155,50 @@ export const findPendingStageBillByNodeId = (bills = [], nodeId) =>
       Number(item?.relatedNodeId || 0) === Number(nodeId),
   ) || null
 
+export const normalizePaymentBillStatus = (status) => {
+  const normalizedStatus = String(status || '')
+    .trim()
+    .toUpperCase()
+
+  if (
+    ['PENDING', 'PAYING', 'PAID', 'CANCELLED', 'EXPIRED', 'REFUNDED'].includes(
+      normalizedStatus,
+    )
+  ) {
+    return normalizedStatus
+  }
+
+  return 'PENDING'
+}
+
+export const isPendingPaymentBillStatus = (status) =>
+  normalizePaymentBillStatus(status) === 'PENDING'
+
+export const isPayingPaymentBillStatus = (status) =>
+  normalizePaymentBillStatus(status) === 'PAYING'
+
+export const getPaymentBillStatusText = (status) => {
+  const normalizedStatus = normalizePaymentBillStatus(status)
+  const statusMap = {
+    PENDING: '待支付',
+    PAYING: '支付中',
+    PAID: '已支付',
+    CANCELLED: '已取消',
+    EXPIRED: '已失效',
+    REFUNDED: '已退款',
+  }
+  return statusMap[normalizedStatus] || '待支付'
+}
+
+export const getPaymentBillStatusTagType = (status) => {
+  const normalizedStatus = normalizePaymentBillStatus(status)
+  if (normalizedStatus === 'PAID') return 'success'
+  if (normalizedStatus === 'PAYING') return 'info'
+  if (normalizedStatus === 'REFUNDED') return 'error'
+  if (['CANCELLED', 'EXPIRED'].includes(normalizedStatus)) return 'default'
+  return 'warning'
+}
+
 export const resolveConstructionNodeAmount = (...nodes) => {
   const candidates = nodes.flatMap((node) => [
     node?.amount,

@@ -14,6 +14,8 @@ import {
   getDetailPaymentChannelType,
   getDetailPaymentStageText,
   getPaymentBillDisplayTitle,
+  getPaymentBillStatusTagType,
+  getPaymentBillStatusText,
   getPaymentBillTypeTagType,
   getPaymentBillTypeText,
   getPaymentStatusType,
@@ -60,6 +62,7 @@ export const useUserOrderPanel = ({
     hydrateUserOptionSelection: () => {},
     loadUserOptionalChangeRecords: async () => [],
     openPendingBillPaymentModal: () => {},
+    cancelPendingBill: async () => false,
   }
 
   const currentOrderPaymentStatus = computed(() =>
@@ -183,6 +186,7 @@ export const useUserOrderPanel = ({
   orderPanelBridge.openPendingBillPaymentModal =
     paymentsPanel.openPendingBillPaymentModal
   orderPanelBridge.confirmUserBillPayment = paymentsPanel.confirmUserBillPayment
+  orderPanelBridge.cancelPendingBill = paymentsPanel.cancelPendingBill
 
   const originalLoadPendingPaymentBills = paymentsPanel.loadPendingPaymentBills
   orderPanelBridge.loadPendingPaymentBills = async (
@@ -342,7 +346,7 @@ export const useUserOrderPanel = ({
       { key: 'dispatch', title: '派单接单', description: dispatchDescription },
       {
         key: 'pricing',
-        title: '确认开工金额方案',
+        title: '施工金额',
         description: pricingDescription,
       },
       { key: 'loop', title: '节点循环', description: loopDescription },
@@ -383,13 +387,13 @@ export const useUserOrderPanel = ({
 
       if (res?.code === 200 && currentOrder.value) {
         await optionsPanel.loadUserOptionConfigList()
-        optionsPanel.hydrateUserOptionSelection()
         pendingPaymentBills.value = currentOrder.value.pendingPaymentBills || []
         if ([3, 4].includes(currentOrder.value.orderStatus)) {
           await constructionPanel.loadConstructionFlow(currentOrder.value.id)
         }
         await orderPanelBridge.loadPendingPaymentBills(currentOrder.value.id)
         await optionsPanel.loadUserOptionalChangeRecords(currentOrder.value.id)
+        optionsPanel.hydrateUserOptionSelection()
       } else {
         message.error('获取详情失败')
         currentOrder.value = row
@@ -477,6 +481,10 @@ export const useUserOrderPanel = ({
     getPaymentBillDisplayTitle: (bill) =>
       getPaymentBillDisplayTitle(bill, constructionPanel.constructionInfo.value),
     getPaymentStatusType,
+    canRepayBill: paymentsPanel.canRepayBill,
+    canCancelPendingOptionChangeBill:
+      paymentsPanel.canCancelPendingOptionChangeBill,
+    getPendingBillActionText: paymentsPanel.getPendingBillActionText,
     handleRefundReasonPresetChange: refundsPanel.handleRefundReasonPresetChange,
     closeRefundModal: refundsPanel.closeRefundModal,
     formatAmount,
@@ -487,6 +495,10 @@ export const useUserOrderPanel = ({
     hasUserOptionSelectionChanges: optionsPanel.hasUserOptionSelectionChanges,
     userOptionChangeTypeLabel: optionsPanel.userOptionChangeTypeLabel,
     userOptionChangeSummaryText: optionsPanel.userOptionChangeSummaryText,
+    currentEffectiveOptionSnapshot: optionsPanel.currentEffectiveOptionSnapshot,
+    pendingTargetOptionSnapshot: optionsPanel.pendingTargetOptionSnapshot,
+    hasPendingUserOptionalChange: optionsPanel.hasPendingUserOptionalChange,
+    canCancelLatestOptionalChange: optionsPanel.canCancelLatestOptionalChange,
     getUserOptionalChangeStatusTagType:
       optionsPanel.getUserOptionalChangeStatusTagType,
     formatOptionalChangeSnapshot: optionsPanel.formatOptionalChangeSnapshot,
@@ -527,6 +539,7 @@ export const useUserOrderPanel = ({
       optionsPanel.handleUserOptionSelectionUpdate,
     resetUserOptionSelectionChanges:
       optionsPanel.resetUserOptionSelectionChanges,
+    cancelLatestOptionalChange: optionsPanel.cancelLatestOptionalChange,
     submitUserOptionSelectionChanges: () =>
       optionsPanel.submitUserOptionSelectionChanges(pendingPaymentBills),
     viewOrderDetail,
@@ -565,6 +578,7 @@ export const useUserOrderPanel = ({
     handleVisibilityChange,
     handleWindowFocus,
     openPendingBillPaymentModal: paymentsPanel.openPendingBillPaymentModal,
+    cancelPendingBill: paymentsPanel.cancelPendingBill,
     shouldShowOptionalChangePendingBillTag,
     cleanup,
   }

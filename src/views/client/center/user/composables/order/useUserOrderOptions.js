@@ -28,6 +28,13 @@ export const useUserOrderOptions = ({
   const userOptionSubmitting = ref(false)
   const userOptionalChangeLoading = ref(false)
   const userOptionalChangeRecords = ref([])
+  const optionalChangeCancellableStatusSet = new Set([
+    'PENDING',
+    'APPROVED',
+    'AUTO_APPROVED',
+    'REJECTED',
+    'PAYMENT_PENDING',
+  ])
 
   const getOptionalCategoryLabel = (categoryId) => {
     const normalizedCategoryId = Number(categoryId)
@@ -42,13 +49,67 @@ export const useUserOrderOptions = ({
     return storeConfig?.name || `分类${normalizedCategoryId || '--'}`
   }
 
+  const normalizeOptionSnapshotItem = (item = {}) => {
+    const categoryId = Number(
+      item?.categoryId ?? item?.optionalCategoryId ?? item?.category?.id ?? 0,
+    )
+    const optionId = normalizeOptionSelectionValue(
+      item?.optionalProductId ?? item?.id ?? item?.productId ?? item?.value,
+    )
+    const categoryName =
+      item?.categoryName || item?.categoryLabel || getOptionalCategoryLabel(categoryId)
+
+    return {
+      categoryId,
+      categoryName,
+      optionalProductId: optionId,
+      name: item?.name || item?.optionalProductName || item?.label || '',
+      price: item?.price,
+    }
+  }
+
+  const resolveLatestRecordSnapshot = (field) => {
+    const snapshot = latestUserOptionalChangeRecord.value?.[field]
+    if (!Array.isArray(snapshot)) return []
+    return snapshot.map((item) => normalizeOptionSnapshotItem(item))
+  }
+
+  const buildCurrentOrderOptionSnapshot = () => {
+    const rows = currentOrder.value?.house?.houseOptionalProducts || []
+    return rows.map((item) => normalizeOptionSnapshotItem(item))
+  }
+
+  const currentEffectiveOptionSnapshot = computed(() => {
+    const latestRows = resolveLatestRecordSnapshot('currentEffectiveOptions')
+    return latestRows.length > 0 ? latestRows : buildCurrentOrderOptionSnapshot()
+  })
+
+  const pendingTargetOptionSnapshot = computed(() => {
+    const latestRows = resolveLatestRecordSnapshot('pendingTargetOptions')
+    if (latestRows.length > 0) return latestRows
+
+    const latestRecord = latestUserOptionalChangeRecord.value
+    const status = String(latestRecord?.status || '').trim()
+    if (!isPendingOptionalChangeStatus(status)) return []
+    return resolveLatestRecordSnapshot('targetOptionsSnapshot')
+  })
+
+  const hasPendingUserOptionalChange = computed(() => {
+    const latestRecord = latestUserOptionalChangeRecord.value
+    if (!latestRecord) return false
+
+    if (latestRecord?.hasPendingOptionChange === true) return true
+    return isPendingOptionalChangeStatus(latestRecord?.status)
+  })
+
   const buildCurrentOptionalSelectionMap = () => {
     const result = new Map()
-    const existingProducts =
-      currentOrder.value?.house?.houseOptionalProducts || []
+    const existingProducts = currentEffectiveOptionSnapshot.value
     existingProducts.forEach((item) => {
       const categoryId = Number(item?.categoryId)
-      const optionId = normalizeOptionSelectionValue(item?.optionalProductId)
+      const optionId = normalizeOptionSelectionValue(
+        item?.optionalProductId ?? item?.id,
+      )
       if (categoryId > 0 && optionId) {
         result.set(categoryId, optionId)
       }
@@ -156,8 +217,9 @@ export const useUserOrderOptions = ({
 
   const hydrateUserOptionSelection = () => {
     resetUserOptionSelectionMap()
-    const existingProducts =
-      currentOrder.value?.house?.houseOptionalProducts || []
+    const existingProducts = hasPendingUserOptionalChange.value
+      ? pendingTargetOptionSnapshot.value
+      : currentEffectiveOptionSnapshot.value
     const baseConfigList =
       Array.isArray(optionCatalogStore.userCategoryConfigs) &&
       optionCatalogStore.userCategoryConfigs.length > 0
@@ -170,7 +232,7 @@ export const useUserOrderOptions = ({
       )
       const options = [...config.options]
       const optionValue = normalizeOptionSelectionValue(
-        found?.optionalProductId,
+        found?.optionalProductId ?? found?.id,
       )
 
       if (
@@ -217,7 +279,10 @@ export const useUserOrderOptions = ({
     }
     return snapshot
       .map((item) => {
-        const categoryLabel = getOptionalCategoryLabel(item?.categoryId)
+        const normalizedItem = normalizeOptionSnapshotItem(item)
+        const categoryLabel =
+          normalizedItem.categoryName ||
+          getOptionalCategoryLabel(normalizedItem.categoryId)
         const name = item?.name || `产品${item?.id || '--'}`
         return `${categoryLabel}：${name}`
       })
@@ -278,6 +343,12 @@ export const useUserOrderOptions = ({
     return latestRecord ? [latestRecord] : []
   })
 
+  function isPendingOptionalChangeStatus(status) {
+    return ['PENDING', 'AUTO_APPROVED', 'PAYMENT_PENDING', 'REFUND_PENDING'].includes(
+      String(status || '').trim(),
+    )
+  }
+
   const hasCurrentOrderConstructionStarted = computed(
     () =>
       Boolean(constructionInfo.value?.nodeDetails?.length) ||
@@ -298,7 +369,9 @@ export const useUserOrderOptions = ({
     if (!(orderId > 0)) return false
 
     const orderStatus = Number(currentOrder.value?.orderStatus ?? -1)
-    return orderStatus >= 0 && orderStatus < 4
+    if (!(orderStatus >= 0 && orderStatus < 4)) return false
+
+    return !hasPendingUserOptionalChange.value
   })
 
   const userOptionAdjustmentHintText = computed(() => {
@@ -311,15 +384,27 @@ export const useUserOrderOptions = ({
       return '当前订单已完结或已取消，选配内容仅支持查看，不可再提交变更。'
     }
 
+    const latestRecord = latestUserOptionalChangeRecord.value
+    const latestStatus = String(latestRecord?.status || '').trim()
+    if (['PENDING'].includes(latestStatus)) {
+      return '当前订单已有待审核的选配变更申请。审核完成或取消申请前，不能再次提交新的选配变更。'
+    }
+    if (['AUTO_APPROVED', 'PAYMENT_PENDING'].includes(latestStatus)) {
+      return '当前订单已有未完成的选配变更，请先完成补价或取消变更后再继续修改。'
+    }
+    if (latestStatus === 'REFUND_PENDING') {
+      return '当前订单已有退款中的选配变更，请等待退款完成后再继续修改。'
+    }
+
     if (!hasCurrentOrderConstructionStarted.value) {
-      return '当前订单尚未开启施工。提交后会按后端规则处理：纯追加会直接更新总价并生成补价账单；减少、替换或混合调整会提交后台审核，审核通过后在未支付节点进度款时仅调整总价，不走真实退款。'
+      return '当前订单尚未开启施工。纯追加会直接生效并重算总价与节点金额；减少、替换或混合调整会提交后台审核。'
     }
 
     if (!hasPaidConstructionStagePaymentRecord.value) {
-      return '当前订单已开启施工，但尚未支付任何节点进度款。提交后会按后端规则处理：纯追加会直接生成补价账单；减少、替换或混合调整会提交后台审核，审核通过后仅调整总价，不走真实退款。'
+      return '当前订单已开启施工，但尚未支付任何施工节点款。纯追加会直接生效并重算总价，不生成选配补价账单；减少、替换或混合调整会提交后台审核。'
     }
 
-    return '当前订单已存在已支付节点进度款。提交后会按后端规则处理：纯追加会直接生成补价账单；减少、替换或混合调整会提交后台审核，审核后按当前订单最近一次已支付节点进度款处理退款。'
+    return '当前订单已存在已支付施工节点款。纯追加会先生成选配补价账单，支付成功后目标选配才正式生效；减少、替换或混合调整会提交后台审核，审核后按净差价进入补价、退款或直接生效。'
   })
 
   const hasUserOptionSelectionChanges = computed(
@@ -446,6 +531,15 @@ export const useUserOrderOptions = ({
     return true
   })
 
+  const canCancelLatestOptionalChange = computed(() => {
+    const latestRecord = latestUserOptionalChangeRecord.value
+    if (!latestRecord?.id) return false
+
+    return optionalChangeCancellableStatusSet.has(
+      String(latestRecord?.status || '').trim(),
+    )
+  })
+
   const handleUserOptionSelectionUpdate = ({ key, value }) => {
     if (!key) return
     userOptionSelectionMap[key] = value
@@ -459,6 +553,43 @@ export const useUserOrderOptions = ({
     hydrateUserOptionSelection()
   }
 
+  const cancelLatestOptionalChange = async () => {
+    const userId = getStoredUserId()
+    const orderId = Number(currentOrder.value?.id || 0)
+    const requestId = Number(latestUserOptionalChangeRecord.value?.id || 0)
+
+    if (!userId || !orderId || !requestId) {
+      message.error('当前申请信息缺失，请刷新后重试')
+      return false
+    }
+
+    userOptionSubmitting.value = true
+    try {
+      const res = await orderAPI.cancelOptionalChange(requestId, userId)
+      if (res?.code !== 200) {
+        message.error(res?.msg || '取消选配变更失败')
+        return false
+      }
+
+      await syncCurrentOrderFromServer(orderId)
+      await Promise.all([
+        loadUserOptionalChangeRecords(orderId),
+        loadPendingPaymentBills(orderId),
+        loadDetailPaymentRecords(orderId),
+      ])
+      hydrateUserOptionSelection()
+      await fetchOrders()
+      message.success('选配变更申请已取消')
+      return true
+    } catch (error) {
+      void error
+      message.error('取消选配变更失败')
+      return false
+    } finally {
+      userOptionSubmitting.value = false
+    }
+  }
+
   const submitUserOptionSelectionChanges = async (pendingPaymentBills) => {
     if (!canAdjustUserOptions.value) {
       message.warning('订单信息缺失，请刷新后重试')
@@ -467,6 +598,11 @@ export const useUserOrderOptions = ({
 
     if (!hasUserOptionSelectionChanges.value) {
       message.info('当前没有新的选配调整')
+      return
+    }
+
+    if (hasPendingUserOptionalChange.value) {
+      message.warning('当前订单已有未完成的选配变更，请先完成当前流程后再提交')
       return
     }
 
@@ -493,12 +629,12 @@ export const useUserOrderOptions = ({
       }
 
       await syncCurrentOrderFromServer(orderId)
-      hydrateUserOptionSelection()
       await Promise.all([
         loadUserOptionalChangeRecords(orderId),
         loadPendingPaymentBills(orderId),
         loadDetailPaymentRecords(orderId),
       ])
+      hydrateUserOptionSelection()
       await fetchOrders()
 
       const latestRecord = latestUserOptionalChangeRecord.value
@@ -542,6 +678,10 @@ export const useUserOrderOptions = ({
     hasUserOptionSelectionChanges,
     userOptionChangeTypeLabel,
     userOptionChangeSummaryText,
+    currentEffectiveOptionSnapshot,
+    pendingTargetOptionSnapshot,
+    hasPendingUserOptionalChange,
+    canCancelLatestOptionalChange,
     latestOptionalChangeRefundPaymentRecord,
     latestOptionalChangeRefundPaymentRecordMissing,
     latestUserOptionalChangeRecord,
@@ -553,6 +693,7 @@ export const useUserOrderOptions = ({
     loadUserOptionConfigList,
     hydrateUserOptionSelection,
     loadUserOptionalChangeRecords,
+    cancelLatestOptionalChange,
     submitUserOptionSelectionChanges,
     shouldShowOptionalChangePendingBillTag,
   }

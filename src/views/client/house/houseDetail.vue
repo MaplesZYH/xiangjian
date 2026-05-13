@@ -557,7 +557,7 @@
             :loading="orderPaymentSubmitting"
             @click="submitCreatedOrderPayment"
           >
-            去支付
+            {{ createdOrderPaymentActionText }}
           </n-button>
         </n-space>
       </template>
@@ -750,6 +750,10 @@ import { useAuthStore } from '@/stores/auth/useAuthStore'
 import { useFavoriteStore } from '@/stores/favorite/useFavoriteStore'
 import { useMaxWidth } from '@/composables/useMaxWidth'
 import { useOptionCatalogStore } from '@/stores/option/useOptionCatalogStore'
+import {
+  isPayingPaymentBillStatus,
+  isPendingPaymentBillStatus,
+} from '@/views/client/center/user/composables/order/orderHelpers'
 import GlbHouse from '@/components/operation/GlbHouse.vue'
 import SmartImage from '@/components/common/SmartImage.vue'
 
@@ -1004,6 +1008,7 @@ const createdOrderPaymentTarget = reactive({
   orderId: null,
   billId: null,
   billType: '',
+  status: 'PENDING',
   amount: 0,
   amountText: '',
   title: '',
@@ -1259,6 +1264,7 @@ const resetCreatedOrderPaymentTarget = () => {
   createdOrderPaymentTarget.orderId = null
   createdOrderPaymentTarget.billId = null
   createdOrderPaymentTarget.billType = ''
+  createdOrderPaymentTarget.status = 'PENDING'
   createdOrderPaymentTarget.amount = 0
   createdOrderPaymentTarget.amountText = ''
   createdOrderPaymentTarget.title = ''
@@ -1645,7 +1651,12 @@ const extractPendingBuildBills = (payload) => {
         ? payload.records
         : []
 
-  return rows.filter((item) => item && item.status !== 'PAID')
+  return rows.filter(
+    (item) =>
+      item &&
+      (isPendingPaymentBillStatus(item.status) ||
+        isPayingPaymentBillStatus(item.status)),
+  )
 }
 
 const pickLatestPendingBillByType = (bills = [], billType = '') => {
@@ -1661,7 +1672,9 @@ const pickLatestPendingBillByType = (bills = [], billType = '') => {
 
 const pickPendingBuildDepositBill = (bills = []) =>
   pickLatestPendingBillByType(bills, 'BUILD_DEPOSIT') ||
-  extractPendingBuildBills(bills).find((item) => item?.status === 'PENDING') ||
+  extractPendingBuildBills(bills).find((item) =>
+    isPendingPaymentBillStatus(item?.status),
+  ) ||
   extractPendingBuildBills(bills)[0] ||
   null
 
@@ -1704,6 +1717,7 @@ const openCreatedOrderPaymentModal = (orderId, bill) => {
   createdOrderPaymentTarget.orderId = normalizedOrderId
   createdOrderPaymentTarget.billId = normalizedBillId
   createdOrderPaymentTarget.billType = String(bill?.billType || '')
+  createdOrderPaymentTarget.status = String(bill?.status || 'PENDING')
   createdOrderPaymentTarget.amount = amount
   createdOrderPaymentTarget.amountText = `¥${amount.toLocaleString()}`
   createdOrderPaymentTarget.title = copy.title
@@ -1711,6 +1725,12 @@ const openCreatedOrderPaymentModal = (orderId, bill) => {
   showOrderPaymentModal.value = true
   return true
 }
+
+const createdOrderPaymentActionText = computed(() =>
+  isPayingPaymentBillStatus(createdOrderPaymentTarget.status)
+    ? '继续支付'
+    : '去支付',
+)
 
 const persistPaymentTracker = (storageKey, tracker) => {
   if (typeof window === 'undefined') return

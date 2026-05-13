@@ -126,13 +126,13 @@
             </n-descriptions>
 
             <n-divider
-              v-if="currentOrder.house?.houseOptionalProducts"
+              v-if="currentEffectiveOptionSnapshot.length > 0"
               title-placement="left"
             >
               选配详情
             </n-divider>
             <div
-              v-if="currentOrder.house?.houseOptionalProducts?.length > 0"
+              v-if="currentEffectiveOptionSnapshot.length > 0"
               class="option-detail-table client-center-paper"
             >
               <div class="option-detail-table__head">
@@ -141,7 +141,7 @@
                 <div>价格</div>
               </div>
               <div
-                v-for="(opt, index) in currentOrder.house.houseOptionalProducts"
+                v-for="(opt, index) in currentEffectiveOptionSnapshot"
                 :key="index"
                 class="option-detail-table__row"
               >
@@ -159,6 +159,39 @@
                 </div>
               </div>
             </div>
+
+            <template v-if="hasPendingUserOptionalChange">
+              <n-divider title-placement="left">待生效选配</n-divider>
+              <div
+                v-if="pendingTargetOptionSnapshot.length > 0"
+                class="option-detail-table client-center-paper option-detail-table--pending"
+              >
+                <div class="option-detail-table__head">
+                  <div>选配类别</div>
+                  <div>目标选配</div>
+                  <div>价格</div>
+                </div>
+                <div
+                  v-for="(opt, index) in pendingTargetOptionSnapshot"
+                  :key="`pending-${index}`"
+                  class="option-detail-table__row"
+                >
+                  <div class="option-detail-table__cell">
+                    <span class="option-detail-table__label">选配类别</span>
+                    <span>{{ opt.categoryName || '--' }}</span>
+                  </div>
+                  <div class="option-detail-table__cell">
+                    <span class="option-detail-table__label">目标选配</span>
+                    <span>{{ opt.name || '--' }}</span>
+                  </div>
+                  <div class="option-detail-table__cell option-detail-table__cell--amount">
+                    <span class="option-detail-table__label">价格</span>
+                    <span>¥{{ formatCurrencyNumber(opt.price) }}</span>
+                  </div>
+                </div>
+              </div>
+              <n-empty v-else description="待生效选配为空" />
+            </template>
 
             <n-divider title-placement="left">修改选配</n-divider>
             <div
@@ -310,6 +343,7 @@
                   <div
                     v-if="
                       shouldShowOptionalChangePendingBillTag(record) ||
+                      canCancelLatestOptionalChange ||
                       canApplyRefundForLatestOptionalChange ||
                       canCancelRefundForLatestOptionalChange ||
                       canViewRefundDetailForLatestOptionalChange ||
@@ -334,6 +368,16 @@
                       >
                         未找到关联选配支付流水
                       </n-tag>
+                      <n-button
+                        v-if="canCancelLatestOptionalChange"
+                        size="small"
+                        type="default"
+                        secondary
+                        :disabled="userOptionSubmitting"
+                        @click="$emit('cancel-latest-optional-change')"
+                      >
+                        取消变更
+                      </n-button>
                       <n-button
                         v-if="canApplyRefundForLatestOptionalChange"
                         size="small"
@@ -580,6 +624,7 @@
                 <div class="pending-payment-bills-head">
                   <div>账单标题</div>
                   <div>账单类型</div>
+                  <div>账单状态</div>
                   <div>应付金额</div>
                   <div>账单说明</div>
                   <div>创建时间</div>
@@ -605,6 +650,16 @@
                     </n-tag>
                   </div>
                   <div class="pending-payment-bills-cell">
+                    <span class="pending-payment-bills-label">账单状态</span>
+                    <n-tag
+                      :type="getPaymentBillStatusTagType(row.status)"
+                      size="small"
+                      :bordered="false"
+                    >
+                      {{ getPaymentBillStatusText(row.status) }}
+                    </n-tag>
+                  </div>
+                  <div class="pending-payment-bills-cell">
                     <span class="pending-payment-bills-label">应付金额</span>
                     <span>¥{{ formatAmount(row.amount) }}</span>
                   </div>
@@ -624,11 +679,20 @@
                     <span class="pending-payment-bills-label">操作</span>
                     <div class="pending-payment-bills-actions">
                       <n-button
+                        v-if="canRepayBill(row)"
                         size="small"
                         type="primary"
                         @click="$emit('open-pending-bill-payment-modal', row)"
                       >
-                        去支付
+                        {{ getPendingBillActionText(row) }}
+                      </n-button>
+                      <n-button
+                        v-if="canCancelPendingOptionChangeBill(row)"
+                        size="small"
+                        secondary
+                        @click="$emit('cancel-pending-bill', row)"
+                      >
+                        取消账单
                       </n-button>
                     </div>
                   </div>
@@ -854,6 +918,10 @@ defineProps({
   userOptionChangeSummaryText: { type: String, default: '' },
   userOptionalChangeLoading: { type: Boolean, default: false },
   visibleUserOptionalChangeRecords: { type: Array, default: () => [] },
+  currentEffectiveOptionSnapshot: { type: Array, default: () => [] },
+  pendingTargetOptionSnapshot: { type: Array, default: () => [] },
+  hasPendingUserOptionalChange: { type: Boolean, default: false },
+  canCancelLatestOptionalChange: { type: Boolean, default: false },
   canApplyRefundForLatestOptionalChange: { type: Boolean, default: false },
   canCancelRefundForLatestOptionalChange: { type: Boolean, default: false },
   canViewRefundDetailForLatestOptionalChange: { type: Boolean, default: false },
@@ -895,6 +963,11 @@ defineProps({
   getPaymentBillDisplayTitle: { type: Function, required: true },
   getPaymentBillTypeTagType: { type: Function, required: true },
   getPaymentBillTypeText: { type: Function, required: true },
+  getPaymentBillStatusTagType: { type: Function, required: true },
+  getPaymentBillStatusText: { type: Function, required: true },
+  canRepayBill: { type: Function, required: true },
+  canCancelPendingOptionChangeBill: { type: Function, required: true },
+  getPendingBillActionText: { type: Function, required: true },
   getDetailPaymentStageText: { type: Function, required: true },
   getDetailPaymentChannelType: { type: Function, required: true },
   getDetailPaymentChannelText: { type: Function, required: true },
@@ -913,6 +986,7 @@ defineEmits([
   'update:user-option-selection',
   'reset-user-option-selection-changes',
   'submit-user-option-selection-changes',
+  'cancel-latest-optional-change',
   'open-latest-optional-change-refund-modal',
   'cancel-latest-optional-change-refund-apply',
   'open-latest-optional-change-refund-detail-modal',
@@ -921,6 +995,7 @@ defineEmits([
   'user-audit-pass',
   'open-audit-reject-modal',
   'open-pending-bill-payment-modal',
+  'cancel-pending-bill',
   'open-refund-modal',
   'cancel-refund-apply',
   'open-refund-detail-modal',
@@ -1024,6 +1099,11 @@ defineEmits([
 
 .detail-payment-records-empty-action {
   color: var(--color-text-muted);
+}
+
+.option-detail-table--pending {
+  border: 1px solid rgba(195, 142, 44, 0.18);
+  background: linear-gradient(180deg, #fffdf7 0%, #fff9ee 100%);
 }
 
 @media (max-width: 768px) {

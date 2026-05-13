@@ -98,6 +98,10 @@
       :user-option-change-summary-text="userOptionChangeSummaryText"
       :user-optional-change-loading="userOptionalChangeLoading"
       :visible-user-optional-change-records="visibleUserOptionalChangeRecords"
+      :current-effective-option-snapshot="currentEffectiveOptionSnapshot"
+      :pending-target-option-snapshot="pendingTargetOptionSnapshot"
+      :has-pending-user-optional-change="hasPendingUserOptionalChange"
+      :can-cancel-latest-optional-change="canCancelLatestOptionalChange"
       :can-apply-refund-for-latest-optional-change="
         canApplyRefundForLatestOptionalChange
       "
@@ -147,6 +151,13 @@
       :get-payment-bill-display-title="getPaymentBillDisplayTitle"
       :get-payment-bill-type-tag-type="getPaymentBillTypeTagType"
       :get-payment-bill-type-text="getPaymentBillTypeText"
+      :get-payment-bill-status-tag-type="getPaymentBillStatusTagType"
+      :get-payment-bill-status-text="getPaymentBillStatusText"
+      :can-repay-bill="canRepayBill"
+      :can-cancel-pending-option-change-bill="
+        canCancelPendingOptionChangeBill
+      "
+      :get-pending-bill-action-text="getPendingBillActionText"
       :get-detail-payment-stage-text="getDetailPaymentStageText"
       :get-detail-payment-channel-type="getDetailPaymentChannelType"
       :get-detail-payment-channel-text="getDetailPaymentChannelText"
@@ -218,6 +229,7 @@
       @update:user-option-selection="handleUserOptionSelectionUpdate"
       @reset-user-option-selection-changes="resetUserOptionSelectionChanges"
       @submit-user-option-selection-changes="submitUserOptionSelectionChanges"
+      @cancel-latest-optional-change="cancelLatestOptionalChange"
       @open-latest-optional-change-refund-modal="
         openLatestOptionalChangeRefundModal
       "
@@ -232,6 +244,7 @@
       @user-audit-pass="handleUserAuditPass"
       @open-audit-reject-modal="showAuditRejectModal = true"
       @open-pending-bill-payment-modal="openPendingBillPaymentModal"
+      @cancel-pending-bill="cancelPendingBill"
       @open-refund-modal="openRefundModal"
       @cancel-refund-apply="handleCancelRefundApply"
       @open-refund-detail-modal="openRefundDetailModal"
@@ -456,7 +469,12 @@ const {
   getPaymentBillTypeText,
   getPaymentBillTypeTagType,
   getPaymentBillDisplayTitle,
+  getPaymentBillStatusTagType,
+  getPaymentBillStatusText,
   getPaymentStatusType,
+  canRepayBill,
+  canCancelPendingOptionChangeBill,
+  getPendingBillActionText,
   handleRefundReasonPresetChange,
   closeRefundModal,
   formatAmount,
@@ -504,6 +522,7 @@ const {
   pendingPaymentBillRows,
   openCurrentConstructionPayment,
   openPendingBillPaymentModal,
+  cancelPendingBill,
   handleUserAuditPass,
   submitUserAudit,
   getStatusType,
