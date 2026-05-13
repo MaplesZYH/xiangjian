@@ -34,10 +34,11 @@
             </div>
             <div class="list-item actions">
               <n-space justify="center" size="small">
-                <n-button type="info" size="small" @click="emit('open-detail', item)">
-                  详情/上传
+                <n-button v-if="canViewOrder" type="info" size="small" @click="emit('open-detail', item)">
+                  {{ detailButtonText }}
                 </n-button>
                 <n-button
+                  v-if="canCancelOrder"
                   type="error"
                   size="small"
                   secondary
@@ -101,6 +102,18 @@ defineProps({
   getPaymentText: {
     type: Function,
     required: true,
+  },
+  canViewOrder: {
+    type: Boolean,
+    default: false,
+  },
+  canCancelOrder: {
+    type: Boolean,
+    default: false,
+  },
+  detailButtonText: {
+    type: String,
+    default: '详情/上传',
   },
 })
 

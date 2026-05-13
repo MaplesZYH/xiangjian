@@ -102,14 +102,16 @@
           </div>
           <div class="list-item actions">
             <n-button
+              v-if="canViewOrder"
               type="info"
               size="small"
               @click="emit('open-detail', item)"
             >
-              详情/编辑
+              {{ detailButtonText }}
             </n-button>
 
             <n-button
+              v-if="canManageDispatch"
               type="primary"
               size="small"
               :disabled="!canOpenDispatchEntry(item)"
@@ -119,6 +121,7 @@
             </n-button>
 
             <Delete
+              v-if="canDeleteOrder"
               :item-id="item.id"
               confirm-text="确定删除该订单吗？"
               @delete="emit('delete-order', $event)"
@@ -208,6 +211,22 @@ defineProps({
   getPaymentText: {
     type: Function,
     required: true,
+  },
+  canViewOrder: {
+    type: Boolean,
+    default: false,
+  },
+  canManageDispatch: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteOrder: {
+    type: Boolean,
+    default: false,
+  },
+  detailButtonText: {
+    type: String,
+    default: '详情/编辑',
   },
   canOpenDispatchEntry: {
     type: Function,

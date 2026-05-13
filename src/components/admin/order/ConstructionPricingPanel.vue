@@ -37,19 +37,26 @@
             {{
               canEditDeposit
                 ? '当前订单尚未开工，可直接修改定金并让后续账单基于新定金重算。'
+                : depositStatusText === '已支付' || depositStatusText === '已完成'
+                  ? '当前定金已完成支付，金额已锁定，不可再修改。'
                 : workflowStarted
                   ? '订单已开工，定金金额已锁定。'
                   : '当前定金账单不满足编辑条件，展示为后端当前识别金额。'
             }}
           </div>
         </div>
-        <n-tag size="small" :bordered="false" :type="canEditDeposit ? 'warning' : 'default'">
-          {{ canEditDeposit ? '可编辑' : '已锁定' }}
+        <n-tag
+          size="small"
+          :bordered="false"
+          :type="canEditDeposit ? 'warning' : depositTagType"
+        >
+          {{ canEditDeposit ? '可编辑' : depositStatusText }}
         </n-tag>
       </div>
 
       <div class="deposit-card__body">
         <n-input-number
+          v-if="canEditDeposit"
           v-model:value="localDepositAmount"
           :min="0"
           :precision="2"
@@ -60,6 +67,9 @@
         >
           <template #prefix>¥</template>
         </n-input-number>
+        <div v-else class="deposit-card__locked-amount">
+          ¥{{ formatAmount(localDepositAmount) }}
+        </div>
         <n-button
           v-if="canEditDeposit"
           type="primary"
@@ -342,6 +352,21 @@ const displayStageRows = computed(() =>
     ? props.editableNodes
     : pricingStageRows.value,
 )
+
+const depositStageRow = computed(() =>
+  displayStageRows.value.find((row) => Number(row?.sortOrder || 0) === 1) || null,
+)
+
+const depositStatusText = computed(() => {
+  const statusText = String(depositStageRow.value?.statusText || '').trim()
+  return statusText || (props.canEditDeposit ? '可编辑' : '已锁定')
+})
+
+const depositTagType = computed(() => {
+  if (props.canEditDeposit) return 'warning'
+  const statusType = String(depositStageRow.value?.statusType || '').trim()
+  return statusType || 'default'
+})
 
 const hasEditableRows = computed(() =>
   displayStageRows.value.some((row) => Boolean(row?.editable)),

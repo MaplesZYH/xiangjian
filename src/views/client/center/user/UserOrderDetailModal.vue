@@ -343,11 +343,12 @@
                   <div
                     v-if="
                       shouldShowOptionalChangePendingBillTag(record) ||
-                      canCancelLatestOptionalChange ||
-                      canApplyRefundForLatestOptionalChange ||
-                      canCancelRefundForLatestOptionalChange ||
-                      canViewRefundDetailForLatestOptionalChange ||
-                      latestOptionalChangeRefundPaymentRecordMissing
+                      (record.isLatestRecord &&
+                        (canCancelLatestOptionalChange ||
+                          canApplyRefundForLatestOptionalChange ||
+                          canCancelRefundForLatestOptionalChange ||
+                          canViewRefundDetailForLatestOptionalChange ||
+                          latestOptionalChangeRefundPaymentRecordMissing))
                     "
                     class="user-option-change-history__actions"
                   >
@@ -361,7 +362,10 @@
                         待支付补价已移至“账单支付”
                       </n-tag>
                       <n-tag
-                        v-if="latestOptionalChangeRefundPaymentRecordMissing"
+                        v-if="
+                          record.isLatestRecord &&
+                          latestOptionalChangeRefundPaymentRecordMissing
+                        "
                         size="small"
                         type="default"
                         :bordered="false"
@@ -369,7 +373,7 @@
                         未找到关联选配支付流水
                       </n-tag>
                       <n-button
-                        v-if="canCancelLatestOptionalChange"
+                        v-if="record.isLatestRecord && canCancelLatestOptionalChange"
                         size="small"
                         type="default"
                         secondary
@@ -379,7 +383,10 @@
                         取消变更
                       </n-button>
                       <n-button
-                        v-if="canApplyRefundForLatestOptionalChange"
+                        v-if="
+                          record.isLatestRecord &&
+                          canApplyRefundForLatestOptionalChange
+                        "
                         size="small"
                         type="error"
                         ghost
@@ -388,7 +395,10 @@
                         申请退款
                       </n-button>
                       <n-button
-                        v-if="canCancelRefundForLatestOptionalChange"
+                        v-if="
+                          record.isLatestRecord &&
+                          canCancelRefundForLatestOptionalChange
+                        "
                         size="small"
                         type="warning"
                         secondary
@@ -397,7 +407,10 @@
                         取消退款申请
                       </n-button>
                       <n-button
-                        v-if="canViewRefundDetailForLatestOptionalChange"
+                        v-if="
+                          record.isLatestRecord &&
+                          canViewRefundDetailForLatestOptionalChange
+                        "
                         size="small"
                         type="primary"
                         secondary

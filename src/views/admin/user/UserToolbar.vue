@@ -1,9 +1,10 @@
 <template>
   <div class="userManage">
     <div class="left-actions">
-      <EditUser title="添加用户" @add-user="handleAddUser" />
+      <EditUser v-if="canAddUser" title="添加用户" @add-user="handleAddUser" />
 
       <Delete
+        v-if="canBatchDeleteUser"
         :isBatch="true"
         :checkedIds="checkedIds"
         @delete="emit('batch-delete', $event)"
@@ -37,6 +38,14 @@ defineProps({
   searchPhone: {
     type: String,
     default: '',
+  },
+  canAddUser: {
+    type: Boolean,
+    default: false,
+  },
+  canBatchDeleteUser: {
+    type: Boolean,
+    default: false,
   },
 })
 

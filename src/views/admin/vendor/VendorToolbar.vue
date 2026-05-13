@@ -2,6 +2,7 @@
   <div class="userManage">
     <div class="left-actions">
       <Delete
+        v-if="canBatchDeleteVendor"
         :isBatch="true"
         :checkedIds="checkedIds"
         @delete="emit('batch-delete', $event)"
@@ -34,6 +35,10 @@ defineProps({
   searchName: {
     type: String,
     default: '',
+  },
+  canBatchDeleteVendor: {
+    type: Boolean,
+    default: false,
   },
 })
 

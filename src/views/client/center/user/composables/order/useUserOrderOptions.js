@@ -338,10 +338,12 @@ export const useUserOrderOptions = ({
   const latestUserOptionalChangeRecord = computed(
     () => sortedUserOptionalChangeRecords.value[0] || null,
   )
-  const visibleUserOptionalChangeRecords = computed(() => {
-    const latestRecord = latestUserOptionalChangeRecord.value
-    return latestRecord ? [latestRecord] : []
-  })
+  const visibleUserOptionalChangeRecords = computed(() =>
+    sortedUserOptionalChangeRecords.value.map((record, index) => ({
+      ...record,
+      isLatestRecord: index === 0,
+    })),
+  )
 
   function isPendingOptionalChangeStatus(status) {
     return ['PENDING', 'AUTO_APPROVED', 'PAYMENT_PENDING', 'REFUND_PENDING'].includes(

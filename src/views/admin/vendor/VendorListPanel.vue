@@ -4,6 +4,7 @@
       <div class="house-header">
         <div class="header-item center">
           <n-checkbox
+            v-if="canBatchDeleteVendor"
             :checked="isAllChecked"
             :indeterminate="isIndeterminate"
             @update:checked="emit('check-all', $event)"
@@ -19,13 +20,14 @@
 
       <n-spin :show="loading" class="house-spin">
         <div v-if="serviceList.length > 0" class="house-body">
-          <div v-for="item in serviceList" :key="item.id" class="house-item">
-            <div class="list-item center">
-              <n-checkbox
-                :checked="checkedIds.includes(item.id)"
-                @update:checked="emit('check-one', { checked: $event, id: item.id })"
-              />
-            </div>
+        <div v-for="item in serviceList" :key="item.id" class="house-item">
+          <div class="list-item center">
+            <n-checkbox
+              v-if="canBatchDeleteVendor"
+              :checked="checkedIds.includes(item.id)"
+              @update:checked="emit('check-one', { checked: $event, id: item.id })"
+            />
+          </div>
             <div class="list-item" :title="item.companyName">
               {{ item.companyName || 'N/A' }}
             </div>
@@ -51,13 +53,15 @@
 
             <div class="list-item actions">
               <n-button
+                v-if="canViewVendor"
                 size="small"
                 type="info"
                 @click="handlePrimaryAction(item)"
               >
-                {{ getPrimaryActionText(currentStatus) }}
+                {{ getPrimaryActionText(currentStatus, canAuditVendor) }}
               </n-button>
               <Delete
+                v-if="canDeleteVendor"
                 size="small"
                 :itemId="item.id"
                 @delete="emit('delete-service', $event)"
@@ -126,6 +130,22 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  canViewVendor: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteVendor: {
+    type: Boolean,
+    default: false,
+  },
+  canBatchDeleteVendor: {
+    type: Boolean,
+    default: false,
+  },
+  canAuditVendor: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits([
@@ -137,14 +157,14 @@ const emit = defineEmits([
   'page-change',
 ])
 
-const getPrimaryActionText = (status) => {
-  if (status === 2) return '审核'
+const getPrimaryActionText = (status, canAuditVendor) => {
+  if (status === 2) return canAuditVendor ? '审核' : '查看'
   if (status === 1) return '查看'
   return '详情'
 }
 
 const handlePrimaryAction = (item) => {
-  if (props.currentStatus === 2) {
+  if (props.currentStatus === 2 && props.canAuditVendor) {
     emit('open-audit', item)
     return
   }

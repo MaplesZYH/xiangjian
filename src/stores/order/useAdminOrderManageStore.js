@@ -228,6 +228,12 @@ const resolveBuildDepositSeedAmount = ({
   return 0
 }
 
+const hasPaidDepositSubStep = (node) =>
+  Array.isArray(node?.subSteps) &&
+  node.subSteps.some(
+    (item) => item?.key === 'deposit' && Boolean(item?.done),
+  )
+
 export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   const loadingList = ref(false)
   const loadingMetadata = ref(false)
@@ -599,8 +605,47 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     return rows.find((item) => item?.billType === 'BUILD_DEPOSIT') || null
   })
 
+  const hasPaidConstructionDeposit = computed(() => {
+    if (Number(depositNode.value?.isPaid) === 1) return true
+    if (hasPaidDepositSubStep(depositNode.value)) return true
+
+    const depositStatusText = String(depositNode.value?.statusText || '').trim()
+    if (
+      depositStatusText.includes('已支付') ||
+      depositStatusText.includes('已完成')
+    ) {
+      return true
+    }
+
+    const paidAmount = Number(detailOrder.value?.paidAmount)
+    const paymentStatus = Number(detailOrder.value?.paymentStatus)
+    if (
+      [1, 2].includes(paymentStatus) &&
+      Number.isFinite(paidAmount) &&
+      paidAmount > 0 &&
+      !buildDepositPendingBill.value?.id
+    ) {
+      return true
+    }
+
+    return false
+  })
+
+  const resolveDepositStageStatusText = (fallbackText = '') => {
+    const text = String(fallbackText || '').trim()
+    if (text) return text
+    return hasPaidConstructionDeposit.value ? '已支付' : '待支付'
+  }
+
+  const resolveDepositStageStatusType = (fallbackType = '') => {
+    if (hasPaidConstructionDeposit.value) return 'success'
+    const normalizedType = String(fallbackType || '').trim()
+    return normalizedType || 'warning'
+  }
+
   const canEditConstructionDeposit = computed(() => {
     if (Number(detailOrder.value?.orderStatus) >= 3) return false
+    if (hasPaidConstructionDeposit.value) return false
     return Boolean(buildDepositPendingBill.value?.id)
   })
 
@@ -624,6 +669,8 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       const currentIndex = Number(constructionInfo.value?.currentNodeIndex || 0)
       const currentStatus = Number(constructionInfo.value?.currentNodeStatus || 0)
       return (constructionInfo.value?.nodeDetails || []).map((node, index) => {
+        const sortOrder = Number(node?.sortOrder || index + 1)
+        const isDepositStage = sortOrder === 1
         const targetAmount = resolveConstructionMilestoneAmount(
           priceLimitTotal.value,
           index + 1,
@@ -639,49 +686,68 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
           currentNodeIndex: currentIndex,
           currentNodeStatus: currentStatus,
         })
+        const isPaid = isDepositStage
+          ? hasPaidConstructionDeposit.value
+          : Number(node?.isPaid) === 1
 
         return {
           key: Number(node?.nodeId || node?.id || index),
           nodeId: Number(node?.nodeId || node?.id || 0),
-          sortOrder: Number(node?.sortOrder || index + 1),
-          stageLabel: getConstructionStageLabel(index + 1),
+          sortOrder,
+          stageLabel: getConstructionStageLabel(sortOrder),
           nodeName: node?.name || node?.nodeName || `节点${index + 1}`,
-          ratioText: getConstructionStageRatioText(index + 1),
+          ratioText: getConstructionStageRatioText(sortOrder),
           amount: nodeAmount,
           targetAmount,
-          isPaid: Number(node?.isPaid) === 1,
-          statusText: node?.statusText || statusSummary.text,
-          statusType: statusSummary.type,
+          isPaid,
+          statusText: isDepositStage
+            ? resolveDepositStageStatusText(node?.statusText || statusSummary.text)
+            : node?.statusText || statusSummary.text,
+          statusType: isDepositStage
+            ? resolveDepositStageStatusType(statusSummary.type)
+            : statusSummary.type,
           subSteps: Array.isArray(node?.subSteps) ? node.subSteps : [],
         }
       })
     }
 
-    return (constructionInfo.value?.nodeDetails || []).map((node, index) => ({
-      key: Number(node?.sortOrder || index + 1),
-      nodeId: Number(node?.nodeId || node?.id || 0),
-      sortOrder: Number(node?.sortOrder || index + 1),
-      stageLabel: getConstructionStageLabel(node?.sortOrder || index + 1),
-      nodeName: node?.name || node?.nodeName || `节点${index + 1}`,
-      ratioText: getConstructionStageRatioText(node?.sortOrder || index + 1),
-      amount: resolveConstructionNodeAmount(
-        node,
-        resolveConstructionMilestoneAmount(
+    return (constructionInfo.value?.nodeDetails || []).map((node, index) => {
+      const sortOrder = Number(node?.sortOrder || index + 1)
+      const isDepositStage = sortOrder === 1
+      const isPaid = isDepositStage
+        ? hasPaidConstructionDeposit.value
+        : Number(node?.isPaid) === 1
+
+      return {
+        key: Number(node?.sortOrder || index + 1),
+        nodeId: Number(node?.nodeId || node?.id || 0),
+        sortOrder,
+        stageLabel: getConstructionStageLabel(sortOrder),
+        nodeName: node?.name || node?.nodeName || `节点${index + 1}`,
+        ratioText: getConstructionStageRatioText(sortOrder),
+        amount: resolveConstructionNodeAmount(
+          node,
+          resolveConstructionMilestoneAmount(
+            priceLimitTotal.value,
+            sortOrder,
+            depositDraftAmount.value,
+          ),
+        ),
+        targetAmount: resolveConstructionMilestoneAmount(
           priceLimitTotal.value,
-          node?.sortOrder || index + 1,
+          sortOrder,
           depositDraftAmount.value,
         ),
-      ),
-      targetAmount: resolveConstructionMilestoneAmount(
-        priceLimitTotal.value,
-        node?.sortOrder || index + 1,
-        depositDraftAmount.value,
-      ),
-      isPaid: Number(node?.isPaid) === 1,
-      statusText: node?.statusText || '施工未开启',
-      statusType: 'default',
-      subSteps: Array.isArray(node?.subSteps) ? node.subSteps : [],
-    }))
+        isPaid,
+        statusText: isDepositStage
+          ? resolveDepositStageStatusText(node?.statusText)
+          : node?.statusText || '施工未开启',
+        statusType: isDepositStage
+          ? resolveDepositStageStatusType(node?.statusType)
+          : 'default',
+        subSteps: Array.isArray(node?.subSteps) ? node.subSteps : [],
+      }
+    })
   })
 
   const setConstructionDepositDraft = (amount) => {

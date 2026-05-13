@@ -72,7 +72,7 @@
 
       <n-divider />
 
-      <div v-if="currentStatus === 2" class="modal-actions">
+      <div v-if="currentStatus === 2 && canAuditVendor" class="modal-actions">
         <n-button type="error" @click="emit('open-reject')">驳回申请</n-button>
         <n-button type="success" @click="emit('submit-pass')">通过审核</n-button>
       </div>
@@ -115,6 +115,10 @@ const props = defineProps({
   getCertResolvedUrl: {
     type: Function,
     required: true,
+  },
+  canAuditVendor: {
+    type: Boolean,
+    default: false,
   },
 })
 

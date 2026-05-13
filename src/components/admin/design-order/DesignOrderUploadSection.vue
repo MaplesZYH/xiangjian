@@ -23,7 +23,7 @@
             <n-tag size="small" :type="file.isLocal ? 'warning' : 'success'">
               {{ file.isLocal ? '待上传' : '已保存' }}
             </n-tag>
-            <n-button text type="error" @click="emit('remove-file', file.key)">
+            <n-button v-if="!readonly" text type="error" @click="emit('remove-file', file.key)">
               移除
             </n-button>
           </div>
@@ -39,9 +39,10 @@
         type="file"
         multiple
         :accept="accept"
+        :disabled="readonly"
         @change="handleFileChange"
       />
-      <n-space>
+      <n-space v-if="!readonly">
         <n-button :type="selectButtonType" secondary @click="openFileSelector">
           {{ selectButtonText }}
         </n-button>
@@ -92,6 +93,10 @@ defineProps({
   getDraftFileHref: {
     type: Function,
     required: true,
+  },
+  readonly: {
+    type: Boolean,
+    default: false,
   },
 })
 

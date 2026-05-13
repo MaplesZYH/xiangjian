@@ -143,6 +143,15 @@
                       </n-tag>
                     </template>
 
+                    <n-alert
+                      v-if="shouldShowRejectReason"
+                      type="error"
+                      title="驳回原因"
+                      class="service-node-reject-alert"
+                    >
+                      {{ resolvedRejectReason }}
+                    </n-alert>
+
                     <div class="service-upload-panel">
                       <n-input
                         :value="uploadNodeDescription"
@@ -295,11 +304,12 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { CloudUploadOutline, CloseCircle } from '@/icons/ionicons'
-import { getProcessText } from '@/utils/construction'
+import { CONSTRUCTION_NODE_STATUS, getProcessText } from '@/utils/construction'
 import { resolveAssetUrl } from '@/utils/asset'
 
-defineProps({
+const props = defineProps({
   show: {
     type: Boolean,
     default: false,
@@ -407,6 +417,23 @@ defineEmits([
   'remove-upload-file',
   'delete-photo',
 ])
+
+const resolvedRejectReason = computed(() => {
+  const nodeDescription = String(props.currentNodeDetail?.description || '').trim()
+  if (nodeDescription) return nodeDescription
+
+  const latestRecordDescription = String(
+    props.currentNodeDetail?.progressRecords?.[0]?.description || '',
+  ).trim()
+  return latestRecordDescription
+})
+
+const shouldShowRejectReason = computed(
+  () =>
+    Number(props.currentNodeDetail?.status) ===
+      CONSTRUCTION_NODE_STATUS.AUDIT_REJECTED &&
+    Boolean(resolvedRejectReason.value),
+)
 </script>
 
 <style lang="scss" scoped>
@@ -476,6 +503,10 @@ defineEmits([
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border-soft);
   border-radius: 4px;
+}
+
+.service-node-reject-alert {
+  margin-bottom: 16px;
 }
 
 .service-upload-panel__input {

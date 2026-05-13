@@ -46,6 +46,7 @@
           :tip-type="uploadForms.delivery.mainProductId ? 'info' : 'warning'"
           :tip-text="deliveryTipText"
           :files="uploadForms.delivery.files"
+          :readonly="readonly"
           empty-description="暂未选择设计交付文件"
           select-button-type="primary"
           select-button-text="选择设计交付文件"
@@ -62,6 +63,7 @@
           tip-type="info"
           tip-text="补充反馈文件也会先加入待提交列表，确认后统一保存。"
           :files="uploadForms.feedback.files"
+          :readonly="readonly"
           empty-description="暂未选择补充反馈文件"
           select-button-type="warning"
           select-button-text="选择补充反馈文件"
@@ -79,6 +81,7 @@
       <n-space justify="end">
         <n-button @click="emit('update:show', false)">关闭</n-button>
         <n-button
+          v-if="!readonly"
           type="primary"
           :loading="savingUploads"
           :disabled="loading"
@@ -113,6 +116,10 @@ const props = defineProps({
     required: true,
   },
   savingUploads: {
+    type: Boolean,
+    default: false,
+  },
+  readonly: {
     type: Boolean,
     default: false,
   },

@@ -2,6 +2,8 @@
   <UserToolbar
     :checked-ids="checkedIds"
     :search-phone="searchPhone"
+    :can-add-user="canAddUser"
+    :can-batch-delete-user="canDeleteUser"
     @add-user="handleAddUser"
     @batch-delete="handleBatchDelete"
     @update:search-phone="searchPhone = $event"
@@ -15,6 +17,9 @@
     :is-all-checked="isAllChecked"
     :is-indeterminate="isIndeterminate"
     :pageinfo="pageinfo"
+    :can-update-user="canUpdateUser"
+    :can-delete-user="canDeleteUser"
+    :can-batch-delete-user="canDeleteUser"
     @check-all="handleCheckAll"
     @check-one="handleCheckOne($event.checked, $event.id)"
     @update-user="handleUpdateUser"
@@ -30,9 +35,14 @@ import { useMessage } from 'naive-ui'
 import UserListPanel from '@/views/admin/user/UserListPanel.vue'
 import UserToolbar from '@/views/admin/user/UserToolbar.vue'
 import { useAdminUserStore } from '@/stores/user/useAdminUserStore'
+import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 
 const message = useMessage()
 const userStore = useAdminUserStore()
+const employeePermissions = getEmployeePermissions()
+const canAddUser = hasPermission(employeePermissions, 'user:add')
+const canUpdateUser = hasPermission(employeePermissions, 'user:update')
+const canDeleteUser = hasPermission(employeePermissions, 'user:delete')
 const {
   userList,
   searchPhone,
@@ -68,6 +78,10 @@ const handleCheckAll = (checked) => userStore.handleCheckAll(checked)
 const handleCheckOne = (checked, id) => userStore.handleCheckOne(checked, id)
 
 const handleBatchDelete = async (ids) => {
+  if (!canDeleteUser) {
+    message.warning('当前账号无删除用户权限')
+    return
+  }
   try {
     const result = await userStore.deleteUsers(ids)
     message.success(result.msg || result.message || '批量删除成功')
@@ -111,6 +125,11 @@ const handlePageChange = (page) => {
 }
 
 const handleAddUser = async (userData, done) => {
+  if (!canAddUser) {
+    message.warning('当前账号无添加用户权限')
+    if (done) done(false)
+    return
+  }
   try {
     const result = await userStore.addUser(userData)
     if (result.code === 200) {
@@ -130,6 +149,11 @@ const handleAddUser = async (userData, done) => {
 }
 
 const handleUpdateUser = async (id, data, done) => {
+  if (!canUpdateUser) {
+    message.warning('当前账号无编辑用户权限')
+    if (done) done(false)
+    return
+  }
   try {
     const fullData = { ...data, id: id }
     const result = await userStore.updateUser(fullData)
@@ -148,6 +172,10 @@ const handleUpdateUser = async (id, data, done) => {
 }
 
 const handleUserDelete = async (id) => {
+  if (!canDeleteUser) {
+    message.warning('当前账号无删除用户权限')
+    return
+  }
   try {
     const isLastItemOnPage = userList.value.length === 1
     const isNotFirstPage = pageinfo.page > 1

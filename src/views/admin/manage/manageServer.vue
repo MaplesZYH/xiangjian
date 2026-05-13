@@ -2,6 +2,7 @@
   <VendorToolbar
     :checked-ids="checkedIds"
     :search-name="searchName"
+    :can-batch-delete-vendor="canDeleteVendor"
     @batch-delete="handleBatchDelete"
     @update:search-name="searchName = $event"
     @reset="handleReset"
@@ -23,6 +24,10 @@
     :page-info="pageInfo"
     :get-service-type-name="getServiceTypeName"
     :format-status="formatStatus"
+    :can-view-vendor="canViewVendor"
+    :can-delete-vendor="canDeleteVendor"
+    :can-batch-delete-vendor="canDeleteVendor"
+    :can-audit-vendor="canAuditVendor"
     @check-all="handleCheckAll"
     @check-one="handleCheckOne($event.checked, $event.id)"
     @open-audit="handleShowAudit"
@@ -39,6 +44,7 @@
     :get-cert-file-ext="getCertFileExt"
     :get-cert-file-name="getCertFileName"
     :get-cert-resolved-url="getCertResolvedUrl"
+    :can-audit-vendor="canAuditVendor"
     @open-reject="openRejectModal"
     @submit-pass="submitAudit(1)"
   />
@@ -62,9 +68,14 @@ import VendorStatusTabs from '@/views/admin/vendor/VendorStatusTabs.vue'
 import VendorToolbar from '@/views/admin/vendor/VendorToolbar.vue'
 import { useAdminVendorStore } from '@/stores/vendor/useAdminVendorStore'
 import { resolveAssetUrl } from '@/utils/asset'
+import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 
 const message = useMessage()
 const vendorStore = useAdminVendorStore()
+const employeePermissions = getEmployeePermissions()
+const canViewVendor = hasPermission(employeePermissions, 'vendor:view')
+const canDeleteVendor = hasPermission(employeePermissions, 'vendor:delete')
+const canAuditVendor = hasPermission(employeePermissions, 'vendor:audit')
 const {
   currentStatus,
   searchName,
@@ -151,6 +162,10 @@ const handleCheckOne = (checked, id) => vendorStore.handleCheckOne(checked, id)
 
 const handleBatchDelete = async (ids) => {
   if (!ids || ids.length === 0) return
+  if (!canDeleteVendor) {
+    message.warning('当前账号无删除商户权限')
+    return
+  }
 
   try {
     const res = await vendorStore.deleteVendors(ids)
@@ -176,6 +191,10 @@ const handleBatchDelete = async (ids) => {
 }
 
 const handleDeleteService = async (id) => {
+  if (!canDeleteVendor) {
+    message.warning('当前账号无删除商户权限')
+    return
+  }
   try {
     const res = await vendorStore.deleteVendors([id])
     if (res.code === 200) {
@@ -196,6 +215,10 @@ const showRejectInput = ref(false)
 const rejectMessage = ref('')
 
 const handleShowAudit = async (item) => {
+  if (!canViewVendor) {
+    message.warning('当前账号无商户详情查看权限')
+    return
+  }
   try {
     const res = await vendorStore.fetchVendorDetail(item.id)
     if (res.code === 200) {
@@ -216,6 +239,10 @@ const openRejectModal = () => {
 }
 
 const submitAudit = async (audit) => {
+  if (!canAuditVendor) {
+    message.warning('当前账号无商户审核权限')
+    return
+  }
   if (audit === 0 && !rejectMessage.value.trim()) {
     message.warning('请输入驳回理由')
     return

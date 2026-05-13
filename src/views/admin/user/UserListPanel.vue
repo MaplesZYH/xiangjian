@@ -4,6 +4,7 @@
       <div class="list-header">
         <div class="header-item center">
           <n-checkbox
+            v-if="canBatchDeleteUser"
             :checked="isAllChecked"
             :indeterminate="isIndeterminate"
             @update:checked="emit('check-all', $event)"
@@ -19,6 +20,7 @@
         <div v-for="item in userList" :key="item.id" class="list-row">
           <div class="list-item center">
             <n-checkbox
+              v-if="canBatchDeleteUser"
               :checked="checkedIds.includes(item.id)"
               @update:checked="emit('check-one', { checked: $event, id: item.id })"
             />
@@ -30,12 +32,17 @@
           </div>
           <div class="list-item actions">
             <EditUser
+              v-if="canUpdateUser"
               title="编辑用户"
               :userData="item"
               :isEdit="true"
               @update-user="(...args) => emit('update-user', item.id, ...args)"
             />
-            <Delete :itemId="item.id" @delete="emit('delete-user', $event)" />
+            <Delete
+              v-if="canDeleteUser"
+              :itemId="item.id"
+              @delete="emit('delete-user', $event)"
+            />
           </div>
         </div>
       </div>
@@ -82,6 +89,18 @@ defineProps({
   pageinfo: {
     type: Object,
     required: true,
+  },
+  canUpdateUser: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteUser: {
+    type: Boolean,
+    default: false,
+  },
+  canBatchDeleteUser: {
+    type: Boolean,
+    default: false,
   },
 })
 

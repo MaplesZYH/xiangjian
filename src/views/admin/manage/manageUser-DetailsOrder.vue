@@ -16,6 +16,10 @@
       :get-status-text="getStatusText"
       :get-payment-type="getPaymentType"
       :get-payment-text="getPaymentText"
+      :can-view-order="canViewOrder"
+      :can-manage-dispatch="canManageDispatch"
+      :can-delete-order="canDeleteOrder"
+      :detail-button-text="detailButtonText"
       :can-open-dispatch-entry="canOpenDispatchEntry"
       @search="handleSearch"
       @update:filter-field="handleFilterFieldUpdate"
@@ -320,10 +324,32 @@ const canConfigureConstructionPrice = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:price'),
 )
 const canViewConstruction = computed(() =>
-  hasPermission(employeePermissions, 'construction:view'),
+  hasPermission(employeePermissions, [
+    'construction:view',
+    'construction:admin:list',
+  ]),
 )
 const canAuditConstruction = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:audit'),
+)
+const canViewOrder = computed(() =>
+  hasPermission(employeePermissions, 'order:view'),
+)
+const canDeleteOrder = computed(() =>
+  hasPermission(employeePermissions, 'order:delete'),
+)
+const canManageDispatch = computed(() =>
+  hasPermission(employeePermissions, [
+    'dispatch:view',
+    'dispatch:add',
+    'dispatch:update',
+  ]),
+)
+const canEditOrder = computed(() =>
+  hasPermission(employeePermissions, 'order:update'),
+)
+const detailButtonText = computed(() =>
+  canEditOrder.value ? '详情/编辑' : '查看详情',
 )
 const canAuditOptionalChange = computed(() =>
   hasPermission(employeePermissions, 'order:update'),
@@ -495,8 +521,13 @@ const handlePageChange = (page) => {
 const showDetailModal = ref(false)
 const isReadOnly = ref(false)
 const handleOpenUnifiedDetail = (item) => {
+  if (!canViewOrder.value) {
+    message.warning('当前账号无订单详情查看权限')
+    return
+  }
   showDetailModal.value = true
-  isReadOnly.value = ![0, 1, 2, 3].includes(Number(item.orderStatus))
+  isReadOnly.value =
+    !canEditOrder.value || ![0, 1, 2, 3].includes(Number(item.orderStatus))
   orderManageStore.fetchOrderDetailInternal(item.id).catch((error) => {
     console.error(error)
     message.error('获取详情失败')
@@ -573,6 +604,10 @@ const handleUploadContract = async ({ file, onFinish, onError }) => {
 }
 
 const handleUserOrderDelete = async (id) => {
+  if (!canDeleteOrder.value) {
+    message.warning('当前账号无删除订单权限')
+    return
+  }
   try {
     const res = await orderManageStore.deleteUserOrder(id)
     if (res.code === 200) {

@@ -22,6 +22,7 @@
       :sorted-order-list="sortedOrderList"
       :pagination="pagination"
       :is-need-handle-construction-status="isNeedHandleConstructionStatus"
+      :get-order-status-text="getOrderStatusText"
       :can-cancel-vendor-order="canCancelVendorOrder"
       @update:order-status-tab="$emit('update:order-status-tab', $event)"
       @accept="$emit('accept', $event)"
@@ -106,6 +107,10 @@ defineProps({
     required: true,
   },
   isNeedHandleConstructionStatus: {
+    type: Function,
+    required: true,
+  },
+  getOrderStatusText: {
     type: Function,
     required: true,
   },

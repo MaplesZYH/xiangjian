@@ -21,6 +21,9 @@
       :get-design-status-text="getDesignStatusText"
       :get-payment-type="getPaymentType"
       :get-payment-text="getPaymentText"
+      :can-view-order="canViewOrder"
+      :can-cancel-order="canCancelDesignOrder"
+      :detail-button-text="detailButtonText"
       @open-detail="openDetail"
       @cancel-order="handleCancelOrder"
       @page-change="handlePageChange"
@@ -41,6 +44,7 @@
       :get-bound-main-product-text="getBoundMainProductText"
       :get-display-design-requirements="getDisplayDesignRequirements"
       :get-draft-file-href="getDraftFileHref"
+      :readonly="isDesignDetailReadOnly"
       @update:show="handleDetailModalShowChange"
       @submit-uploads="submitAllUploadForms"
       @delivery-files-selected="handleDraftFilesSelected('delivery', $event)"
@@ -61,6 +65,7 @@ import userDataAPI from '@/api/user/userData'
 import DesignOrderDetailModal from '@/views/admin/design-order/DesignOrderDetailModal.vue'
 import DesignOrderListPanel from '@/views/admin/design-order/DesignOrderListPanel.vue'
 import DesignOrderSearchBar from '@/views/admin/design-order/DesignOrderSearchBar.vue'
+import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 import {
   extractDesignOrderProductBinding,
   stripDesignOrderProductBinding,
@@ -91,6 +96,7 @@ const pageInfo = reactive({
   itemCount: 0,
 })
 const savingUploads = ref(false)
+const employeePermissions = getEmployeePermissions()
 const uploadForms = reactive({
   delivery: {
     mainProductId: null,
@@ -100,6 +106,17 @@ const uploadForms = reactive({
     files: [],
   },
 })
+const canViewOrder = hasPermission(employeePermissions, 'order:view')
+const canCancelDesignOrder = hasPermission(
+  employeePermissions,
+  'design-order:cancel',
+)
+const canUploadDesignDelivery = hasPermission(
+  employeePermissions,
+  'design-order:delivery',
+)
+const isDesignDetailReadOnly = !canUploadDesignDelivery
+const detailButtonText = canUploadDesignDelivery ? '详情/上传' : '查看详情'
 
 const designStatusOptions = [
   { label: '待支付定金', value: 0 },
@@ -397,6 +414,10 @@ const fetchData = async () => {
 
 const openDetail = async (row) => {
   if (!row?.id) return
+  if (!canViewOrder) {
+    message.warning('当前账号无设计订单详情查看权限')
+    return
+  }
 
   showDetailModal.value = true
   loadingDetail.value = true
@@ -476,6 +497,10 @@ const handleRemoveDraftFile = ({ target, key }) => {
 }
 
 const submitAllUploadForms = async () => {
+  if (!canUploadDesignDelivery) {
+    message.warning('当前账号无设计交付上传权限')
+    return
+  }
   if (!currentOrder.value?.id) {
     message.error('未获取到设计订单ID')
     return
@@ -542,6 +567,10 @@ const handlePageChange = (page) => {
 }
 
 const handleCancelOrder = (row) => {
+  if (!canCancelDesignOrder) {
+    message.warning('当前账号无取消设计订单权限')
+    return
+  }
   const designOrderId = Number(row?.id || 0)
   const orderLabel = row?.designOrderNo || `ID ${row?.id || '--'}`
 

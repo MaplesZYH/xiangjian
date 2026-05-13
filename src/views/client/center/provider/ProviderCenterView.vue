@@ -24,6 +24,7 @@
       :sorted-order-list="sortedOrderList"
       :pagination="pagination"
       :is-need-handle-construction-status="isNeedHandleConstructionStatus"
+      :get-order-status-text="getOrderStatusText"
       :can-cancel-vendor-order="canCancelVendorOrder"
       @edit="handleEdit"
       @update:order-status-tab="handleOrderTabChange"

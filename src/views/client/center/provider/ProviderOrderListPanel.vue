@@ -74,13 +74,15 @@
                 :type="
                   isNeedHandleConstructionStatus(row.constructionStatusText)
                     ? 'success'
-                    : 'info'
+                    : Number(row.orderStatus) === 2
+                      ? 'primary'
+                      : 'info'
                 "
               >
                 {{
                   isNeedHandleConstructionStatus(row.constructionStatusText)
                     ? '需要处理'
-                    : '等待处理'
+                    : getOrderStatusText(row.orderStatus)
                 }}
               </n-tag>
             </div>
@@ -202,6 +204,10 @@ defineProps({
     required: true,
   },
   isNeedHandleConstructionStatus: {
+    type: Function,
+    required: true,
+  },
+  getOrderStatusText: {
     type: Function,
     required: true,
   },

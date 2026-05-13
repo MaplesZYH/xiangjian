@@ -132,8 +132,19 @@ service.interceptors.response.use(
 )
 
 const request = (options) => {
-  options.method = options.method || 'get'
-  return service(options)
+  const nextOptions = {
+    ...options,
+    method: options.method || 'get',
+  }
+
+  if (
+    isUploadRequest(nextOptions) &&
+    !Object.prototype.hasOwnProperty.call(nextOptions, 'timeout')
+  ) {
+    nextOptions.timeout = UPLOAD_REQUEST_TIMEOUT
+  }
+
+  return service(nextOptions)
 }
 
 export default request
