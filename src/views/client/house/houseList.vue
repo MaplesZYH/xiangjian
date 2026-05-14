@@ -907,18 +907,24 @@ onBeforeUnmount(() => {
     }
 
     .house-price {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 12px;
       border-top: 1px solid #eee;
       padding-top: 12px;
+      min-width: 0;
 
       .price-text {
+        display: inline-flex;
+        align-items: baseline;
+        max-width: 100%;
         font-size: 0.9rem;
         color: #666;
+        white-space: nowrap;
 
         .amount {
+          flex-shrink: 0;
           font-size: 1.3rem;
           color: #d03050;
           font-weight: bold;
@@ -928,6 +934,10 @@ onBeforeUnmount(() => {
 
       .house-actions {
         display: flex;
+        width: auto;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
         gap: 8px;
       }
     }
@@ -1024,16 +1034,11 @@ onBeforeUnmount(() => {
   .house-card {
     .house-info {
       .house-price {
-        align-items: flex-start;
-        flex-direction: column;
+        gap: 10px;
 
         .house-actions {
-          width: 100%;
-          flex-wrap: wrap;
-
           :deep(.n-button) {
-            flex: 1;
-            min-height: 40px;
+            min-height: 36px;
           }
         }
       }
@@ -1079,6 +1084,10 @@ onBeforeUnmount(() => {
 
       h3 {
         font-size: 1.05rem;
+      }
+
+      .house-price {
+        gap: 8px;
       }
     }
   }
