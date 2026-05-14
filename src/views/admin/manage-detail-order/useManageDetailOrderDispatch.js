@@ -8,6 +8,7 @@ export const useManageDetailOrderDispatch = ({
   canCreateDispatch,
   canUpdateDispatch,
   canViewPaymentBills,
+  canViewOptionalChange,
   canViewConstruction,
   isDispatchStageLocked,
   activeConstructionOrder,
@@ -103,7 +104,9 @@ export const useManageDetailOrderDispatch = ({
         tabs.push('bills')
       }
 
-      tabs.push('optionalChange')
+      if (canViewOptionalChange.value) {
+        tabs.push('optionalChange')
+      }
     }
 
     return tabs
@@ -328,7 +331,6 @@ export const useManageDetailOrderDispatch = ({
 
     await orderManageStore.fetchOrderDetailInternal(item.id)
     orderManageStore.syncDispatchListItem()
-    await loadAdminOptionalChangeList(item.id)
 
     dispatchTab.value = pickAccessibleDispatchTab(
       currentContractUrl.value ? 'dispatch' : 'contract',
@@ -339,7 +341,10 @@ export const useManageDetailOrderDispatch = ({
     await orderManageStore.initDispatchState()
     constructionVendorOptions.value = []
 
-    if (Number(detailOrder.value?.orderStatus) >= 3) {
+    if (
+      canViewConstruction.value &&
+      Number(detailOrder.value?.orderStatus) >= 3
+    ) {
       await loadConstructionStatus()
       dispatchTab.value = pickAccessibleDispatchTab(
         hasAdminPaymentBillRows.value ? 'bills' : 'flow',

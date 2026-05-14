@@ -115,6 +115,10 @@ const canUploadDesignDelivery = hasPermission(
   employeePermissions,
   'design-order:delivery',
 )
+const ADMIN_USER_VIEW_PERMISSION_CONFIG = {
+  authScope: 'employee',
+  requiredEmployeePermissions: ['user:view'],
+}
 const isDesignDetailReadOnly = !canUploadDesignDelivery
 const detailButtonText = canUploadDesignDelivery ? '详情/上传' : '查看详情'
 
@@ -196,7 +200,10 @@ const hydrateAdminDesignOrderUserInfo = async (userId) => {
   }
 
   try {
-    const res = await userDataAPI.getUserDataById(numericUserId)
+    const res = await userDataAPI.getUserDataById(
+      numericUserId,
+      ADMIN_USER_VIEW_PERMISSION_CONFIG,
+    )
     if (res.code !== 200 || !res.data) {
       return null
     }

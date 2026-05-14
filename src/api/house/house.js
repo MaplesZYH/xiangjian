@@ -39,6 +39,8 @@ export default {
     return request({
       url: '/admin/products/page', // 1. 去掉 URL 后面的拼接参数
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:list'],
       // 2. 将 data 改为 params，因为是 GET 请求
       params: {
         pageNum: current,
@@ -69,6 +71,8 @@ export default {
     return request({
       url: `/admin/products/${id}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:view'],
     })
   },
   //创建主体产品
@@ -76,6 +80,8 @@ export default {
     return request({
       url: '/admin/products',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:create'],
       data,
     })
   },
@@ -84,6 +90,8 @@ export default {
     return request({
       url: `/admin/products/${id}`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:update'],
       data,
     })
   },
@@ -93,6 +101,8 @@ export default {
     return request({
       url: `/admin/products/batch-delete`,
       method: 'post',//后端就是设置的post
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:delete'],
       data: ids
     })
   },
@@ -101,6 +111,8 @@ export default {
     return request({
       url: `/admin/products/${productId}/upload-model3d`,
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:upload'],
       data: formData,
       timeout,
       headers: {
@@ -115,6 +127,8 @@ export default {
     return request({
       url: `/admin/products/${productId}/renderings`,
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:upload'],
       data: formData,
       timeout: 300000,
       headers: {
@@ -128,6 +142,8 @@ export default {
     return request({
       url: `/admin/products/${productId}/floor-plans`, // 确认后端路径
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:upload'],
       data: formData,
       timeout: 300000,
       headers: {
@@ -142,6 +158,8 @@ export default {
     return request({
       url: `/admin/products/${productId}/model3d`,
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:delete'],
     })
   },
 
@@ -150,6 +168,8 @@ export default {
     return request({
       url: `/admin/products/renderings/${renderingId}`,
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:delete'],
     })
   },
 
@@ -158,6 +178,8 @@ export default {
     return request({
       url: `/admin/products/floor-plans/${floorPlanId}`,
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:delete'],
     })
   },
   // --- 修改开始 ---
@@ -167,6 +189,8 @@ export default {
     return request({
       url: `/admin/products/${productId}/cover-image`,
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:upload'],
       data: formData, // data 应该是 FormData
       timeout: 300000,
       headers: {
@@ -182,6 +206,8 @@ export default {
     return request({
       url: `/admin/products/${productId}/cover-image`,
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:delete'],
     })
   },
 }

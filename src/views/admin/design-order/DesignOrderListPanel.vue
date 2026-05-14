@@ -7,7 +7,7 @@
         <div class="header-item">产品名称</div>
         <div class="header-item">设计状态</div>
         <div class="header-item">支付状态</div>
-        <div class="header-item actions-header">操作</div>
+        <div v-if="showActionColumn" class="header-item actions-header">操作</div>
       </div>
 
       <n-spin :show="loading" class="design-order-spin">
@@ -32,7 +32,7 @@
                 {{ getPaymentText(item.paymentStatus) }}
               </n-tag>
             </div>
-            <div class="list-item actions">
+            <div v-if="showActionColumn" class="list-item actions">
               <n-space justify="center" size="small">
                 <n-button v-if="canViewOrder" type="info" size="small" @click="emit('open-detail', item)">
                   {{ detailButtonText }}
@@ -70,7 +70,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   loading: {
     type: Boolean,
     default: false,
@@ -116,6 +118,10 @@ defineProps({
     default: '详情/上传',
   },
 })
+
+const showActionColumn = computed(
+  () => props.canViewOrder || props.canCancelOrder,
+)
 
 const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
 </script>

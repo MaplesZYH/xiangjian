@@ -15,6 +15,7 @@ import {
   removeToken,
   resolveClientScope,
 } from '@/utils/auth'
+import { hasEmployeeAllPermissions } from '@/utils/adminAuth'
 
 const API_BASE_URL = import.meta.env.DEV
   ? '/api'
@@ -84,6 +85,8 @@ const { message } = createDiscreteApi(['message'], {
   },
 })
 const NETWORK_ERROR = '网络异常，请稍后重试'
+let lastPermissionDeniedToastAt = 0
+const PERMISSION_DENIED_TOAST_INTERVAL = 1500
 
 const resolveErrorMessage = (error) => {
   const responseData = error?.response?.data
@@ -103,6 +106,26 @@ const resolveErrorMessage = (error) => {
     return String(error.message)
   }
   return NETWORK_ERROR
+}
+
+const isPermissionDeniedError = (error) => {
+  const responseStatus = Number(error?.response?.status || 0)
+  const responseData = error?.response?.data
+  const code = Number(responseData?.code || error?.code || 0)
+  const messageText = String(
+    responseData?.msg ||
+      responseData?.message ||
+      error?.msg ||
+      error?.message ||
+      '',
+  ).trim()
+
+  if (responseStatus === 403) return true
+  if (code === 403) return true
+  if (messageText.includes('不允许访问') || messageText.includes('无权限')) {
+    return true
+  }
+  return false
 }
 
 service.interceptors.response.use(
@@ -126,6 +149,15 @@ service.interceptors.response.use(
       }
       authStore.hydrateFromStorage()
     }
+    if (isPermissionDeniedError(error)) {
+      const now = Date.now()
+      if (now - lastPermissionDeniedToastAt > PERMISSION_DENIED_TOAST_INTERVAL) {
+        message.warning('当前账号没有该功能权限')
+        lastPermissionDeniedToastAt = now
+      }
+      return Promise.reject(error)
+    }
+
     message.error(resolveErrorMessage(error))
     return Promise.reject(error)
   }
@@ -135,6 +167,20 @@ const request = (options) => {
   const nextOptions = {
     ...options,
     method: options.method || 'get',
+  }
+
+  if (
+    nextOptions.authScope === AUTH_SCOPE_EMPLOYEE &&
+    Array.isArray(nextOptions.requiredEmployeePermissions) &&
+    nextOptions.requiredEmployeePermissions.length > 0 &&
+    !hasEmployeeAllPermissions(nextOptions.requiredEmployeePermissions)
+  ) {
+    return Promise.reject({
+      code: 403,
+      msg: '不允许访问',
+      permissionDenied: true,
+      requiredEmployeePermissions: nextOptions.requiredEmployeePermissions,
+    })
   }
 
   if (

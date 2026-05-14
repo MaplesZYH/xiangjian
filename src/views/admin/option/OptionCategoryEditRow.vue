@@ -2,10 +2,17 @@
   <div class="option-row">
     <n-input
       :value="categoryName"
+      :disabled="!canUpdateCategory"
       placeholder="分类名称"
       @update:value="emit('update:category-name', $event)"
     />
-    <n-button type="primary" @click="emit('save-name')">修改分类名称</n-button>
+    <n-button
+      v-if="canUpdateCategory"
+      type="primary"
+      @click="emit('save-name')"
+    >
+      修改分类名称
+    </n-button>
   </div>
 </template>
 
@@ -14,6 +21,10 @@ defineProps({
   categoryName: {
     type: String,
     default: '',
+  },
+  canUpdateCategory: {
+    type: Boolean,
+    default: false,
   },
 })
 

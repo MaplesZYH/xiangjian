@@ -275,6 +275,8 @@ export default {
     return request({
       url: `/order/refund/admin/audit`,
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['refund:audit'],
       params: {
         operator,
       },
@@ -292,6 +294,8 @@ export default {
     return request({
       url: `/order/refund/admin`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['refund:list'],
       params: {
         page,
         pageSize,
@@ -308,6 +312,8 @@ export default {
     return request({
       url: `/order/refund/admin/${refundId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['refund:view'],
     })
   },
 
@@ -315,6 +321,8 @@ export default {
     return request({
       url: `/order/refund/admin/sync/${refundId}`,
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['refund:audit'],
       params: {
         operator,
       },
@@ -375,6 +383,8 @@ export default {
     return request({
       url: `/payment/record`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['payment:list'],
       params: {
         page: params.page,
         pageSize: params.pageSize,
@@ -389,6 +399,8 @@ export default {
     return request({
       url: `/payment/record/${paymentRecordId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['payment:view'],
     })
   },
 
@@ -406,6 +418,8 @@ export default {
     return request({
       url: '/order/management/payment-statement',
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:update:statement'],
       data: {
         statement,
       },
@@ -417,6 +431,8 @@ export default {
     return request({
       url: '/order/management/payment-default-deposit',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:view'],
     })
   },
 
@@ -425,6 +441,8 @@ export default {
     return request({
       url: '/order/management/payment-default-deposit',
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:update'],
       data: {
         depositAmount,
       },

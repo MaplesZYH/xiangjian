@@ -1,10 +1,16 @@
 <template>
   <div class="userManage">
     <div class="left-actions">
-      <n-button size="small" type="info" @click="emit('open-add-category')">
+      <n-button
+        v-if="canCreateCategory"
+        size="small"
+        type="info"
+        @click="emit('open-add-category')"
+      >
         添加选配分类
       </n-button>
       <Delete
+        v-if="canDeleteCategory"
         :checkedIds="checkedCategoryIds"
         :isBatch="true"
         @delete="emit('batch-delete', $event)"
@@ -20,6 +26,14 @@ defineProps({
   checkedCategoryIds: {
     type: Array,
     default: () => [],
+  },
+  canCreateCategory: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteCategory: {
+    type: Boolean,
+    default: false,
   },
 })
 

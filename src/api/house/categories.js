@@ -6,6 +6,8 @@ export default {
     return request({
       url: `/admin/opt-categories?pageNum=${pageNum}&pageSize=${pageSize}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['category:admin:list'],
     })
   },
   // 添加分类名称
@@ -13,6 +15,8 @@ export default {
     return request({
       url: `/admin/opt-categories`,
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['category:admin:create'],
       data: { name },
     })
   },
@@ -21,6 +25,8 @@ export default {
     return request({
       url: `/admin/opt-categories/${id}`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['category:admin:update'],
       data: { name },
     })
   },
@@ -30,6 +36,8 @@ export default {
     return request({
       url: '/admin/opt-categories/batch-delete',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['category:admin:delete'],
       data: ids,
     })
   },
@@ -39,6 +47,8 @@ export default {
     return request({
       url: '/admin/optionProducts/page',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['optional:admin:list'],
       params: {
         pageNum,
         pageSize,
@@ -52,6 +62,8 @@ export default {
     return request({
       url: '/admin/optionProducts',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['optional:admin:create'],
       data,
     })
   },
@@ -60,6 +72,8 @@ export default {
     return request({
       url: `/admin/optionProducts/${data.id}`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['optional:admin:update'],
       data,
     })
   },
@@ -69,6 +83,8 @@ export default {
     return request({
       url: '/admin/optionProducts/batch-delete',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['optional:admin:delete'],
       data: ids,
     })
   },

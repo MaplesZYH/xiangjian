@@ -11,12 +11,15 @@
     <div class="option-list-container">
       <OptionCategoryEditRow
         :category-name="currentCategoryName"
+        :can-update-category="canUpdateCategory"
         @update:category-name="emit('update:current-category-name', $event)"
         @save-name="emit('save-category-name')"
       />
 
       <OptionProductsToolbar
         :checked-option-ids="checkedOptionIds"
+        :can-create-option="canCreateOption"
+        :can-delete-option="canDeleteOption"
         @open-add-option="emit('update:show-add-option-modal', true)"
         @batch-delete-option="emit('batch-delete-option', $event)"
       />
@@ -58,6 +61,8 @@
       <OptionProductList
         :option-list="optionList"
         :checked-option-ids="checkedOptionIds"
+        :can-update-option="canUpdateOption"
+        :can-delete-option="canDeleteOption"
         @check-one="emit('check-option', $event)"
         @open-edit="emit('open-edit-option', $event)"
         @delete-option="emit('delete-option', $event)"
@@ -115,6 +120,22 @@ const props = defineProps({
     default: false,
   },
   showEditOptionModal: {
+    type: Boolean,
+    default: false,
+  },
+  canUpdateCategory: {
+    type: Boolean,
+    default: false,
+  },
+  canCreateOption: {
+    type: Boolean,
+    default: false,
+  },
+  canUpdateOption: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteOption: {
     type: Boolean,
     default: false,
   },

@@ -81,7 +81,7 @@
       <div class="header-item">手机号</div>
       <div class="header-item">订单状态</div>
       <div class="header-item">支付状态</div>
-      <div class="header-item actions-header">操作</div>
+      <div v-if="showActionColumn" class="header-item actions-header">操作</div>
     </div>
 
     <n-spin :show="loadingList">
@@ -100,7 +100,7 @@
               {{ getPaymentText(item.paymentStatus) }}
             </n-tag>
           </div>
-          <div class="list-item actions">
+          <div v-if="showActionColumn" class="list-item actions">
             <n-button
               v-if="canViewOrder"
               type="info"
@@ -149,9 +149,10 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import Delete from '@/components/operation/Delete.vue'
 
-defineProps({
+const props = defineProps({
   filters: {
     type: Object,
     required: true,
@@ -233,6 +234,10 @@ defineProps({
     required: true,
   },
 })
+
+const showActionColumn = computed(
+  () => props.canViewOrder || props.canManageDispatch || props.canDeleteOrder,
+)
 
 const emit = defineEmits([
   'search',

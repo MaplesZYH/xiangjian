@@ -2,6 +2,26 @@ import { computed, reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
 import API from '@/api/user/userData'
 
+const USER_LIST_PERMISSION_CONFIG = {
+  authScope: 'employee',
+  requiredEmployeePermissions: ['user:list'],
+}
+
+const USER_DELETE_PERMISSION_CONFIG = {
+  authScope: 'employee',
+  requiredEmployeePermissions: ['user:delete'],
+}
+
+const USER_ADD_PERMISSION_CONFIG = {
+  authScope: 'employee',
+  requiredEmployeePermissions: ['user:add'],
+}
+
+const USER_UPDATE_PERMISSION_CONFIG = {
+  authScope: 'employee',
+  requiredEmployeePermissions: ['user:update'],
+}
+
 export const useAdminUserStore = defineStore('adminUser', () => {
   const userList = ref([])
   const searchPhone = ref('')
@@ -19,6 +39,7 @@ export const useAdminUserStore = defineStore('adminUser', () => {
       pageinfo.page,
       pageinfo.pageSize,
       searchPhone.value,
+      USER_LIST_PERMISSION_CONFIG,
     )
 
     if (pageResult && pageResult.data) {
@@ -36,6 +57,7 @@ export const useAdminUserStore = defineStore('adminUser', () => {
           pageinfo.page,
           pageinfo.pageSize,
           searchPhone.value,
+          USER_LIST_PERMISSION_CONFIG,
         )
       }
 
@@ -73,9 +95,11 @@ export const useAdminUserStore = defineStore('adminUser', () => {
     checkedIds.value = []
   }
 
-  const deleteUsers = async (ids) => API.deleteUserData(ids)
-  const addUser = async (data) => API.addUserData(data)
-  const updateUser = async (data) => API.updateUserData(data)
+  const deleteUsers = async (ids) =>
+    API.deleteUserData(ids, USER_DELETE_PERMISSION_CONFIG)
+  const addUser = async (data) => API.addUserData(data, USER_ADD_PERMISSION_CONFIG)
+  const updateUser = async (data) =>
+    API.updateUserData(data, USER_UPDATE_PERMISSION_CONFIG)
 
   const isAllChecked = computed(() => {
     if (userList.value.length === 0) return false

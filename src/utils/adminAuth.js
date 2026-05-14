@@ -42,6 +42,18 @@ export const getEmployeePermissions = () => {
   }
 }
 
+export const hasEmployeePermission = (requiredPermission) =>
+  hasPermission(getEmployeePermissions(), requiredPermission)
+
+export const hasEmployeeAllPermissions = (requiredPermissions = []) => {
+  if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0) {
+    return true
+  }
+
+  const permissions = getEmployeePermissions()
+  return requiredPermissions.every((item) => hasPermission(permissions, item))
+}
+
 export const hasPermission = (permissions, requiredPermission) => {
   if (!requiredPermission) {
     return true

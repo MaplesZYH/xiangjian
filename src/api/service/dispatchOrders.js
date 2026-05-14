@@ -8,6 +8,8 @@ export default {
     return request({
       url: `/order/dispatch/construction/${userOrderId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:list:vendor'],
     })
   },
 
@@ -16,6 +18,8 @@ export default {
     return request({
       url: `/order/dispatch/material/${userOrderId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:list:vendor'],
       params: {
         category: categoryId, // 传入材料大类ID
       },
@@ -26,6 +30,8 @@ export default {
     return request({
       url: '/order/dispatch',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:add'],
       data,
     })
   },
@@ -34,6 +40,8 @@ export default {
     return request({
       url: `/order/dispatch/split/${userOrderId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:view'],
     })
   },
 
@@ -42,6 +50,8 @@ export default {
     return request({
       url: `/order/dispatch/info/${vendorOrderId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:view'],
     })
   },
 
@@ -50,6 +60,8 @@ export default {
     return request({
       url: '/order/dispatch/info',
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:update'],
       data,
     })
   },
@@ -59,6 +71,8 @@ export default {
     return request({
       url: `/order/dispatch/redispatch/${vendorOrderId}`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:update'],
       params: {
         newVendorId,
       },
@@ -70,6 +84,8 @@ export default {
     return request({
       url: `/order/dispatch/info/${vendorOrderId}`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['dispatch:update'],
       params: {
         message,
       },

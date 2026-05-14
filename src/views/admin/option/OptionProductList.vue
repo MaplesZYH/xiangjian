@@ -17,10 +17,19 @@
         </div>
       </div>
       <div class="option-card__actions">
-        <n-button size="small" type="primary" @click="emit('open-edit', item)">
+        <n-button
+          v-if="canUpdateOption"
+          size="small"
+          type="primary"
+          @click="emit('open-edit', item)"
+        >
           修改
         </n-button>
-        <Delete :itemId="item.id" @delete="emit('delete-option', $event)" />
+        <Delete
+          v-if="canDeleteOption"
+          :itemId="item.id"
+          @delete="emit('delete-option', $event)"
+        />
       </div>
     </div>
   </div>
@@ -37,6 +46,14 @@ defineProps({
   checkedOptionIds: {
     type: Array,
     default: () => [],
+  },
+  canUpdateOption: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteOption: {
+    type: Boolean,
+    default: false,
   },
 })
 

@@ -13,7 +13,7 @@
         <div class="header-item">姓名</div>
         <div class="header-item">手机号</div>
         <div class="header-item">地址</div>
-        <div class="header-item">操作</div>
+        <div v-if="showActionColumn" class="header-item">操作</div>
       </div>
 
       <div v-if="userList.length > 0" class="list-body">
@@ -30,7 +30,7 @@
           <div class="list-item" :title="item.address || '用户暂未填写'">
             {{ item.address || '用户暂未填写' }}
           </div>
-          <div class="list-item actions">
+          <div v-if="showActionColumn" class="list-item actions">
             <EditUser
               v-if="canUpdateUser"
               title="编辑用户"
@@ -66,10 +66,11 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import Delete from '@/components/operation/Delete.vue'
 import EditUser from '@/components/operation/EditUser.vue'
 
-defineProps({
+const props = defineProps({
   userList: {
     type: Array,
     default: () => [],
@@ -111,6 +112,10 @@ const emit = defineEmits([
   'delete-user',
   'page-change',
 ])
+
+const showActionColumn = computed(
+  () => props.canUpdateUser || props.canDeleteUser,
+)
 </script>
 
 <style lang="scss" scoped>

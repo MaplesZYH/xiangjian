@@ -6,6 +6,8 @@ export default {
     return request({
       url: '/order/management',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:list'],
       params: {
         page: params.page,
         pageSize: params.pageSize,
@@ -21,6 +23,8 @@ export default {
     return request({
       url: `/order/management/info/${id}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:view'],
     })
   },
 
@@ -29,6 +33,8 @@ export default {
     return request({
       url: '/order/management/info',
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:update'],
       data: updateData,
     })
   },
@@ -38,6 +44,8 @@ export default {
     return request({
       url: `/order/management/info/${id}`,
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:delete'],
     })
   },
 
@@ -48,6 +56,8 @@ export default {
     return request({
       url: '/order/management/contract/upload',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:upload'],
       params: { orderId }, // Query 参数
       data: formData, // Body 参数
       headers: {
@@ -61,6 +71,8 @@ export default {
     return request({
       url: '/order/optional-change/admin',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:view'],
       params: {
         orderId,
       },
@@ -72,6 +84,8 @@ export default {
     return request({
       url: '/order/optional-change/admin/refundable-records',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:view'],
       params: {
         orderId,
       },
@@ -83,6 +97,8 @@ export default {
     return request({
       url: '/order/optional-change/admin/audit',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:update'],
       params: {
         operator,
       },

@@ -6,6 +6,8 @@ export default {
     return request({
       url: '/construction/admin/start',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:admin:start'],
       data: {
         orderId,
       },
@@ -16,6 +18,8 @@ export default {
     return request({
       url: `/construction/status/${orderId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:view'],
     })
   },
   //预设施工节点金额
@@ -23,6 +27,8 @@ export default {
     return request({
       url: '/construction/admin/price',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:admin:price'],
       data: {
         orderId: data.orderId,
         nodePrices: data.nodePrices,
@@ -34,6 +40,8 @@ export default {
     return request({
       url: '/construction/admin/deposit',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:admin:price'],
       data: {
         orderId: data.orderId,
         depositAmount: data.depositAmount,
@@ -89,6 +97,8 @@ export default {
     return request({
       url: `/construction/node/${orderId}/${nodeId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:view'],
     })
   },
 
@@ -97,6 +107,8 @@ export default {
     return request({
       url: '/construction/admin/audit',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:admin:audit'],
       data: {
         nodeId,
         orderId,
@@ -139,6 +151,8 @@ export default {
     return request({
       url: '/construction/admin/audit/list',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['construction:admin:list'],
       params,
     })
   },

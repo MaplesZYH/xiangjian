@@ -1,10 +1,16 @@
 <template>
   <div class="userManage optionManage">
     <div class="left-actions">
-      <n-button size="small" type="info" @click="emit('open-add-option')">
+      <n-button
+        v-if="canCreateOption"
+        size="small"
+        type="info"
+        @click="emit('open-add-option')"
+      >
         添加产品
       </n-button>
       <Delete
+        v-if="canDeleteOption"
         :checkedIds="checkedOptionIds"
         :isBatch="true"
         @delete="emit('batch-delete-option', $event)"
@@ -20,6 +26,14 @@ defineProps({
   checkedOptionIds: {
     type: Array,
     default: () => [],
+  },
+  canCreateOption: {
+    type: Boolean,
+    default: false,
+  },
+  canDeleteOption: {
+    type: Boolean,
+    default: false,
   },
 })
 

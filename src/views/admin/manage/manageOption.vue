@@ -1,6 +1,8 @@
 <template>
   <OptionCategoryToolbar
     :checked-category-ids="checkedCategoryIds"
+    :can-create-category="canCreateCategory"
+    :can-delete-category="canDeleteCategory"
     @open-add-category="showAddCategory = true"
     @batch-delete="handleBatchDeleteCategory"
   />
@@ -20,6 +22,7 @@
     :is-all-category-checked="isAllCategoryChecked"
     :is-category-indeterminate="isCategoryIndeterminate"
     :page-info="pageinfo"
+    :can-delete-category="canDeleteCategory"
     @check-all="handleCheckAllCategories"
     @check-one="handleCategoryChecked($event.id, $event.checked)"
     @edit-products="handleGetOption"
@@ -27,18 +30,22 @@
     @page-change="handleGetCategories"
   />
 
-  <OptionProductsModal
-    v-model:show="showModal"
-    :current-category-name="currentCategoryName"
-    :search-keyword="searchKeyword"
-    :option-list="OptionList"
-    :checked-option-ids="checkedOptionIds"
-    :option-page-info="optionPageInfo"
-    :show-add-option-modal="showAddOptionModal"
-    :show-edit-option-modal="showEditOptionModal"
-    :add-option-name="OptionsData.name"
-    :add-option-price="OptionsData.price"
-    :add-option-description="OptionsData.description"
+    <OptionProductsModal
+      v-model:show="showModal"
+      :current-category-name="currentCategoryName"
+      :search-keyword="searchKeyword"
+      :option-list="OptionList"
+      :checked-option-ids="checkedOptionIds"
+      :option-page-info="optionPageInfo"
+      :show-add-option-modal="showAddOptionModal"
+      :show-edit-option-modal="showEditOptionModal"
+      :can-update-category="canUpdateCategory"
+      :can-create-option="canCreateOption"
+      :can-update-option="canUpdateOption"
+      :can-delete-option="canDeleteOption"
+      :add-option-name="OptionsData.name"
+      :add-option-price="OptionsData.price"
+      :add-option-description="OptionsData.description"
     :edit-option-name="editingOption.name"
     :edit-option-price="editingOption.price"
     :edit-option-description="editingOption.description"
@@ -76,9 +83,35 @@ import OptionCategoryList from '@/views/admin/option/OptionCategoryList.vue'
 import OptionCategoryToolbar from '@/views/admin/option/OptionCategoryToolbar.vue'
 import OptionProductsModal from '@/views/admin/option/OptionProductsModal.vue'
 import { useAdminOptionStore } from '@/stores/option/useAdminOptionStore'
+import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 
 const message = useMessage()
 const optionStore = useAdminOptionStore()
+const employeePermissions = getEmployeePermissions()
+const canCreateCategory = hasPermission(
+  employeePermissions,
+  'category:admin:create',
+)
+const canUpdateCategory = hasPermission(
+  employeePermissions,
+  'category:admin:update',
+)
+const canDeleteCategory = hasPermission(
+  employeePermissions,
+  'category:admin:delete',
+)
+const canCreateOption = hasPermission(
+  employeePermissions,
+  'optional:admin:create',
+)
+const canUpdateOption = hasPermission(
+  employeePermissions,
+  'optional:admin:update',
+)
+const canDeleteOption = hasPermission(
+  employeePermissions,
+  'optional:admin:delete',
+)
 const {
   CategoriesList,
   checkedCategoryIds,

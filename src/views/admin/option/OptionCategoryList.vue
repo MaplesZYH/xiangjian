@@ -1,29 +1,36 @@
 <template>
   <div class="house-list admin-shell-list">
     <div class="house-header">
-      <div class="center">
+      <div v-if="showCategorySelector" class="center">
         <n-checkbox
           :checked="isAllCategoryChecked"
           :indeterminate="isCategoryIndeterminate"
           @update:checked="emit('check-all', $event)"
         />
       </div>
+      <div v-else></div>
       <div>选配类型</div>
-      <div>操作</div>
+      <div v-if="showActionColumn">操作</div>
+      <div v-else></div>
     </div>
     <div v-for="item in categories" :key="item.id" class="house-item">
-      <div class="center">
+      <div v-if="showCategorySelector" class="center">
         <n-checkbox
           :checked="checkedCategoryIds.includes(item.id)"
           @update:checked="emit('check-one', { id: item.id, checked: $event })"
         />
       </div>
+      <div v-else></div>
       <div class="category-name">{{ item.name }}</div>
       <div class="actions">
         <n-button size="small" type="info" @click="emit('edit-products', item.id)">
           编辑产品
         </n-button>
-        <Delete :itemId="item.id" @delete="emit('delete-category', $event)" />
+        <Delete
+          v-if="canDeleteCategory"
+          :itemId="item.id"
+          @delete="emit('delete-category', $event)"
+        />
       </div>
     </div>
   </div>
@@ -41,9 +48,10 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import Delete from '@/components/operation/delete.vue'
 
-defineProps({
+const props = defineProps({
   categories: {
     type: Array,
     default: () => [],
@@ -64,7 +72,14 @@ defineProps({
     type: Object,
     required: true,
   },
+  canDeleteCategory: {
+    type: Boolean,
+    default: false,
+  },
 })
+
+const showCategorySelector = computed(() => props.canDeleteCategory)
+const showActionColumn = computed(() => true)
 
 const emit = defineEmits([
   'check-all',

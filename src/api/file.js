@@ -8,6 +8,8 @@ export default {
     const config = {
       url: '/file/upload',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['product:admin:upload'],
       data: formData,
       headers: {
         'Content-Type': 'multipart/form-data',

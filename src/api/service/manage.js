@@ -6,6 +6,8 @@ export default {
     return request({
       url: '/vendor/management/info',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['vendor:list'],
       params: {
         page,
         pageSize,
@@ -20,6 +22,8 @@ export default {
     return request({
       url: `/vendor/management/info/${id}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['vendor:view'],
     })
   },
 
@@ -28,6 +32,8 @@ export default {
     return request({
       url: '/vendor/management/info',
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['vendor:update'],
       data,
     })
   },
@@ -37,6 +43,8 @@ export default {
     return request({
       url: '/vendor/management/info',
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['vendor:delete'],
       data: ids, // 直接传数组 [1, 2]
     })
   },
@@ -46,6 +54,8 @@ export default {
     return request({
       url: `/vendor/management/info/${id}`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['vendor:audit'],
       params: {
         audit,
         message,

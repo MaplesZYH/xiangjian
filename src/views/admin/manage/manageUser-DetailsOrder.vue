@@ -111,6 +111,7 @@
       :current-node-detail-status-text="currentNodeDetailStatusText"
       :is-pending-audit="isPendingAudit"
       :can-view-payment-bills="canViewPaymentBills"
+      :can-view-optional-change="canAuditOptionalChange"
       :has-admin-payment-bill-rows="hasAdminPaymentBillRows"
       :admin-payment-bill-rows="adminPaymentBillRows"
       :optional-change-loading="optionalChangeLoading"
@@ -329,14 +330,13 @@ const canStartConstruction = computed(() =>
 const canUploadContract = computed(() =>
   hasPermission(employeePermissions, 'order:upload'),
 )
-const canConfigureConstructionPrice = computed(() =>
-  hasPermission(employeePermissions, 'construction:admin:price'),
-)
 const canViewConstruction = computed(() =>
-  hasPermission(employeePermissions, [
-    'construction:view',
-    'construction:admin:list',
-  ]),
+  hasPermission(employeePermissions, 'construction:view'),
+)
+const canConfigureConstructionPrice = computed(
+  () =>
+    hasPermission(employeePermissions, 'construction:admin:price') &&
+    canViewConstruction.value,
 )
 const canAuditConstruction = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:audit'),
@@ -364,6 +364,11 @@ const canOpenDispatchFlow = computed(() =>
 )
 const canEditOrder = computed(() =>
   hasPermission(employeePermissions, 'order:update'),
+)
+const canLoadOrderMetadata = computed(
+  () =>
+    hasPermission(employeePermissions, 'category:admin:list') &&
+    hasPermission(employeePermissions, 'optional:admin:list'),
 )
 const detailButtonText = computed(() =>
   canEditOrder.value ? '详情/编辑' : '查看详情',
@@ -746,6 +751,7 @@ const {
   canUpdateDispatch,
   canUploadContract,
   canViewPaymentBills,
+  canViewOptionalChange: canAuditOptionalChange,
   canViewConstruction,
   isDispatchStageLocked,
   activeConstructionOrder,
@@ -785,13 +791,16 @@ const {
 
 watch(dispatchTab, (newVal) => {
   if (
-    newVal === 'pricing' ||
-    newVal === 'flow' ||
-    newVal === 'bills'
+    canViewConstruction.value &&
+    (
+      newVal === 'pricing' ||
+      newVal === 'flow' ||
+      newVal === 'bills'
+    )
   ) {
     loadConstructionStatus()
   }
-  if (newVal === 'optionalChange') {
+  if (canAuditOptionalChange.value && newVal === 'optionalChange') {
     loadAdminOptionalChangeList()
   }
 })
@@ -850,9 +859,11 @@ const startConstructionProcess = async (nextTab = 'dispatch') => {
 }
 
 onMounted(() => {
-  orderManageStore.initMetadata().catch((error) => {
-    console.error('初始化元数据失败', error)
-  })
+  if (canLoadOrderMetadata.value) {
+    orderManageStore.initMetadata().catch((error) => {
+      console.error('初始化元数据失败', error)
+    })
+  }
   fetchData()
 })
 

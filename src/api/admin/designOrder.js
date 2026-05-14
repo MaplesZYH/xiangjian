@@ -5,6 +5,8 @@ export default {
     return request({
       url: '/order/design/admin/page',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:list'],
       params,
     })
   },
@@ -13,6 +15,8 @@ export default {
     return request({
       url: `/order/design/admin/${designOrderId}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['order:view'],
     })
   },
 
@@ -20,6 +24,8 @@ export default {
     return request({
       url: `/order/design/admin/${designOrderId}/cancel`,
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['design-order:cancel'],
       params: {
         reason,
       },
@@ -30,6 +36,8 @@ export default {
     return request({
       url: '/order/design/admin/delivery-files',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['design-order:delivery'],
       data,
     })
   },
@@ -38,6 +46,8 @@ export default {
     return request({
       url: '/order/design/admin/feedback-files',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['design-order:delivery'],
       data,
     })
   },

@@ -139,7 +139,12 @@
           />
         </n-tab-pane>
 
-        <n-tab-pane name="optionalChange" tab="6. 选配变更" :disabled="!detailOrder?.id">
+        <n-tab-pane
+          v-if="canViewOptionalChange"
+          name="optionalChange"
+          tab="6. 选配变更"
+          :disabled="!detailOrder?.id"
+        >
           <ManageDetailOrderDispatchOptionalChangeTab
             :optional-change-loading="optionalChangeLoading"
             :visible-optional-change-records="visibleOptionalChangeRecords"
@@ -377,6 +382,10 @@ const props = defineProps({
     default: false,
   },
   canViewPaymentBills: {
+    type: Boolean,
+    default: false,
+  },
+  canViewOptionalChange: {
     type: Boolean,
     default: false,
   },

@@ -5,6 +5,8 @@ export default {
     return request({
       url: '/emp/management/info',
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['emp:list'],
       params: {
         page,
         pageSize,
@@ -17,6 +19,8 @@ export default {
     return request({
       url: `/emp/management/info/${id}`,
       method: 'get',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['emp:view'],
     })
   },
 
@@ -24,6 +28,8 @@ export default {
     return request({
       url: '/emp/management/info',
       method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['emp:add'],
       data,
     })
   },
@@ -32,6 +38,8 @@ export default {
     return request({
       url: '/emp/management/info',
       method: 'put',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['emp:update'],
       data,
     })
   },
@@ -41,6 +49,8 @@ export default {
     return request({
       url: '/emp/management/info',
       method: 'delete',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['emp:delete'],
       data: deleteIds,
     })
   },
