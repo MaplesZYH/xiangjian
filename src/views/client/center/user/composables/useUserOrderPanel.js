@@ -478,6 +478,8 @@ export const useUserOrderPanel = ({
     getDetailPaymentStageText,
     getPaymentBillTypeText,
     getPaymentBillTypeTagType,
+    getPaymentBillStatusTagType,
+    getPaymentBillStatusText,
     getPaymentBillDisplayTitle: (bill) =>
       getPaymentBillDisplayTitle(bill, constructionPanel.constructionInfo.value),
     getPaymentStatusType,

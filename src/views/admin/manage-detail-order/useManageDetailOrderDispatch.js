@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue'
 export const useManageDetailOrderDispatch = ({
   detailOrder,
   canDispatch,
+  canViewPaymentBills,
+  canViewConstruction,
   isDispatchStageLocked,
   activeConstructionOrder,
   allServicesAccepted,
@@ -75,6 +77,39 @@ export const useManageDetailOrderDispatch = ({
       window.clearTimeout(dispatchPaymentPollTimer)
       dispatchPaymentPollTimer = null
     }
+  }
+
+  const resolveAvailableDispatchTabs = () => {
+    const tabs = ['contract']
+
+    if (currentContractUrl.value && canDispatch.value) {
+      tabs.push('dispatch')
+    }
+
+    if (detailOrder.value?.id) {
+      tabs.push('pricing')
+
+      if (constructionInfo.value && canViewConstruction.value) {
+        tabs.push('flow')
+      }
+
+      if (canViewPaymentBills.value) {
+        tabs.push('bills')
+      }
+
+      tabs.push('optionalChange')
+    }
+
+    return tabs
+  }
+
+  const pickAccessibleDispatchTab = (...candidates) => {
+    const availableTabs = resolveAvailableDispatchTabs()
+    return (
+      candidates.find((tab) => availableTabs.includes(tab)) ||
+      availableTabs[0] ||
+      'contract'
+    )
   }
 
   const shouldShowConstructionPricingButton = computed(
@@ -272,7 +307,10 @@ export const useManageDetailOrderDispatch = ({
     orderManageStore.syncDispatchListItem()
     await loadAdminOptionalChangeList(item.id)
 
-    dispatchTab.value = currentContractUrl.value ? 'dispatch' : 'contract'
+    dispatchTab.value = pickAccessibleDispatchTab(
+      currentContractUrl.value ? 'dispatch' : 'contract',
+      'contract',
+    )
 
     orderManageStore.resetConstructionForm()
     await orderManageStore.initDispatchState()
@@ -280,7 +318,13 @@ export const useManageDetailOrderDispatch = ({
 
     if (Number(detailOrder.value?.orderStatus) >= 3) {
       await loadConstructionStatus()
-      dispatchTab.value = hasAdminPaymentBillRows.value ? 'bills' : 'flow'
+      dispatchTab.value = pickAccessibleDispatchTab(
+        hasAdminPaymentBillRows.value ? 'bills' : 'flow',
+        'flow',
+        'pricing',
+        currentContractUrl.value ? 'dispatch' : 'contract',
+        'contract',
+      )
     }
     stopDispatchPaymentPolling()
   }
@@ -296,7 +340,7 @@ export const useManageDetailOrderDispatch = ({
       orderManageStore.syncDispatchListItem()
       await orderManageStore.initDispatchState()
     }
-    dispatchTab.value = 'pricing'
+    dispatchTab.value = pickAccessibleDispatchTab('pricing', 'contract')
     if (constructionWorkflowStarted.value) {
       await loadConstructionStatus()
     }
@@ -402,7 +446,13 @@ export const useManageDetailOrderDispatch = ({
           await orderManageStore.fetchOrderDetailInternal(currentDispatchOrder.value.id)
           orderManageStore.syncDispatchListItem()
           await loadConstructionStatus()
-          dispatchTab.value = 'bills'
+          dispatchTab.value = pickAccessibleDispatchTab(
+            'bills',
+            'flow',
+            'pricing',
+            currentContractUrl.value ? 'dispatch' : 'contract',
+            'contract',
+          )
           message.success('节点金额已确认并开启施工，用户可按当前节点账单继续支付')
           return true
         } finally {
@@ -750,6 +800,7 @@ export const useManageDetailOrderDispatch = ({
     startConstructionBlockedReason,
     canSyncConstructionPricePlan,
     shouldShowConstructionProgressButton,
+    pickAccessibleDispatchTab,
     handleOpenDispatch,
     handleGoToConstructionPricing,
     handleUpdateConstructionDepositDraft,

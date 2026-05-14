@@ -105,6 +105,7 @@
       :current-node-detail="currentNodeDetail"
       :current-node-detail-status-text="currentNodeDetailStatusText"
       :is-pending-audit="isPendingAudit"
+      :can-view-payment-bills="canViewPaymentBills"
       :has-admin-payment-bill-rows="hasAdminPaymentBillRows"
       :admin-payment-bill-rows="adminPaymentBillRows"
       :optional-change-loading="optionalChangeLoading"
@@ -357,6 +358,9 @@ const canAuditOptionalChange = computed(() =>
 const canViewPaymentRecordList = computed(() =>
   hasPermission(employeePermissions, 'payment:list'),
 )
+const canViewPaymentBills = computed(() =>
+  hasPermission(employeePermissions, 'payment:list'),
+)
 const operatorName = computed(() => {
   const name = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'name')
   const phone = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'phone')
@@ -435,7 +439,7 @@ const handleDispatchModalShowChange = (value) => {
 }
 
 const handleDispatchTabChange = (value) => {
-  dispatchTab.value = value
+  dispatchTab.value = pickAccessibleDispatchTab(value)
 }
 
 const handleMaterialDispatchModalShowChange = (value) => {
@@ -698,6 +702,7 @@ const {
   startConstructionBlockedReason,
   canSyncConstructionPricePlan,
   shouldShowConstructionProgressButton,
+  pickAccessibleDispatchTab,
   handleOpenDispatch,
   handleGoToConstructionPricing,
   handleUpdateConstructionDepositDraft,
@@ -718,6 +723,8 @@ const {
 } = useManageDetailOrderDispatch({
   detailOrder,
   canDispatch,
+  canViewPaymentBills,
+  canViewConstruction,
   isDispatchStageLocked,
   activeConstructionOrder,
   allServicesAccepted,

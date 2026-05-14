@@ -100,7 +100,12 @@
           />
         </n-tab-pane>
 
-        <n-tab-pane name="bills" tab="5. 支付账单" :disabled="!detailOrder?.id">
+        <n-tab-pane
+          v-if="canViewPaymentBills"
+          name="bills"
+          tab="5. 支付账单"
+          :disabled="!detailOrder?.id"
+        >
           <ManageDetailOrderDispatchBillsTab
             :has-admin-payment-bill-rows="hasAdminPaymentBillRows"
             :admin-payment-bill-rows="adminPaymentBillRows"
@@ -332,6 +337,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  canViewPaymentBills: {
+    type: Boolean,
+    default: false,
+  },
   hasAdminPaymentBillRows: {
     type: Boolean,
     default: false,
@@ -506,6 +515,10 @@ const showModel = computed({
 })
 
 const updateDispatchTab = (value) => {
+  if (value === 'bills' && !props.canViewPaymentBills) {
+    emit('update:dispatchTab', props.detailOrder?.id ? 'pricing' : 'contract')
+    return
+  }
   emit('update:dispatchTab', value)
 }
 </script>
