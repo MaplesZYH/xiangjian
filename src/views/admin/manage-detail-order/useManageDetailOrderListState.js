@@ -4,6 +4,7 @@ export const useManageDetailOrderListState = ({
   orderList,
   filters,
   dialog,
+  canOpenDispatchFlow,
 }) => {
   const activeTodoFilter = ref('all')
 
@@ -272,7 +273,8 @@ export const useManageDetailOrderListState = ({
     filters[key] = value
   }
 
-  const canOpenDispatchEntry = (item) => Number(item?.orderStatus) < 4
+  const canOpenDispatchEntry = (item) =>
+    canOpenDispatchFlow.value && Number(item?.orderStatus) < 4
 
   return {
     activeTodoFilter,

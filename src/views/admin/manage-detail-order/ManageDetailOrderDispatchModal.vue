@@ -13,15 +13,24 @@
           <ManageDetailOrderDispatchContractTab
             :current-contract-url="currentContractUrl"
             :detail-order="detailOrder"
+            :can-upload-contract="canUploadContract"
             :get-payment-text="getPaymentText"
             :is-image="isImage"
             :handle-upload-contract="handleUploadContract"
           />
         </n-tab-pane>
 
-        <n-tab-pane name="dispatch" tab="2. 派单管理" :disabled="!canDispatch">
+        <n-tab-pane
+          v-if="canViewDispatchDetail"
+          name="dispatch"
+          tab="2. 派单管理"
+          :disabled="!canDispatch"
+        >
           <ManageDetailOrderDispatchAssignTab
             :can-dispatch="canDispatch"
+            :can-list-dispatch-vendors="canListDispatchVendors"
+            :can-create-dispatch="canCreateDispatch"
+            :can-update-dispatch="canUpdateDispatch"
             :is-dispatch-stage-locked="isDispatchStageLocked"
             :active-construction-order="activeConstructionOrder"
             :all-services-accepted="allServicesAccepted"
@@ -49,7 +58,12 @@
           />
         </n-tab-pane>
 
-        <n-tab-pane name="pricing" tab="3. 施工金额" :disabled="!detailOrder?.id">
+        <n-tab-pane
+          v-if="canConfigureConstructionPrice"
+          name="pricing"
+          tab="3. 施工金额"
+          :disabled="!detailOrder?.id"
+        >
           <ManageDetailOrderDispatchPricingTab
             :detail-order="detailOrder"
             :construction-pricing-process-text="constructionPricingProcessText"
@@ -81,7 +95,12 @@
           />
         </n-tab-pane>
 
-        <n-tab-pane name="flow" tab="4. 施工流程" :disabled="!constructionInfo">
+        <n-tab-pane
+          v-if="canViewConstruction"
+          name="flow"
+          tab="4. 施工流程"
+          :disabled="!constructionInfo"
+        >
           <ManageDetailOrderDispatchFlowTab
             :construction-info="constructionInfo"
             :loading-construction="loadingConstruction"
@@ -174,6 +193,26 @@ const props = defineProps({
     default: '',
   },
   canDispatch: {
+    type: Boolean,
+    default: false,
+  },
+  canUploadContract: {
+    type: Boolean,
+    default: false,
+  },
+  canViewDispatchDetail: {
+    type: Boolean,
+    default: false,
+  },
+  canListDispatchVendors: {
+    type: Boolean,
+    default: false,
+  },
+  canCreateDispatch: {
+    type: Boolean,
+    default: false,
+  },
+  canUpdateDispatch: {
     type: Boolean,
     default: false,
   },
@@ -515,8 +554,36 @@ const showModel = computed({
 })
 
 const updateDispatchTab = (value) => {
+  if (value === 'dispatch' && !props.canViewDispatchDetail) {
+    emit('update:dispatchTab', 'contract')
+    return
+  }
+  if (value === 'pricing' && !props.canConfigureConstructionPrice) {
+    emit('update:dispatchTab', props.canViewDispatchDetail ? 'dispatch' : 'contract')
+    return
+  }
+  if (value === 'flow' && !props.canViewConstruction) {
+    emit(
+      'update:dispatchTab',
+      props.canConfigureConstructionPrice
+        ? 'pricing'
+        : props.canViewDispatchDetail
+          ? 'dispatch'
+          : 'contract',
+    )
+    return
+  }
   if (value === 'bills' && !props.canViewPaymentBills) {
-    emit('update:dispatchTab', props.detailOrder?.id ? 'pricing' : 'contract')
+    emit(
+      'update:dispatchTab',
+      props.canViewConstruction
+        ? 'flow'
+        : props.canConfigureConstructionPrice
+          ? 'pricing'
+          : props.canViewDispatchDetail
+            ? 'dispatch'
+            : 'contract',
+    )
     return
   }
   emit('update:dispatchTab', value)

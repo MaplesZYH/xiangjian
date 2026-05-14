@@ -3,6 +3,10 @@ import { computed, ref, watch } from 'vue'
 export const useManageDetailOrderDispatch = ({
   detailOrder,
   canDispatch,
+  canViewDispatchDetail,
+  canListDispatchVendors,
+  canCreateDispatch,
+  canUpdateDispatch,
   canViewPaymentBills,
   canViewConstruction,
   isDispatchStageLocked,
@@ -82,12 +86,14 @@ export const useManageDetailOrderDispatch = ({
   const resolveAvailableDispatchTabs = () => {
     const tabs = ['contract']
 
-    if (currentContractUrl.value && canDispatch.value) {
+    if (canViewDispatchDetail.value) {
       tabs.push('dispatch')
     }
 
     if (detailOrder.value?.id) {
-      tabs.push('pricing')
+      if (canConfigureConstructionPrice.value) {
+        tabs.push('pricing')
+      }
 
       if (constructionInfo.value && canViewConstruction.value) {
         tabs.push('flow')
@@ -123,11 +129,17 @@ export const useManageDetailOrderDispatch = ({
   const constructionPricingButtonText = computed(() => '确认开工节点金额')
 
   const canOpenConstructionPricingEntry = computed(
-    () => canDispatch.value && Number(detailOrder.value?.orderStatus) !== 5,
+    () =>
+      canConfigureConstructionPrice.value &&
+      canDispatch.value &&
+      Number(detailOrder.value?.orderStatus) !== 5,
   )
 
   const canManageMaterialDispatch = computed(
-    () => canDispatch.value && Number(detailOrder.value?.orderStatus) < 4,
+    () =>
+      (canCreateDispatch.value || canUpdateDispatch.value) &&
+      canDispatch.value &&
+      Number(detailOrder.value?.orderStatus) < 4,
   )
 
   const canStartConstructionEntry = computed(
@@ -267,7 +279,10 @@ export const useManageDetailOrderDispatch = ({
   }
 
   const shouldShowConstructionProgressButton = computed(
-    () => Number(detailOrder.value?.orderStatus) >= 3 && !!constructionInfo.value,
+    () =>
+      canViewConstruction.value &&
+      Number(detailOrder.value?.orderStatus) >= 3 &&
+      !!constructionInfo.value,
   )
 
   const ensureMaterialDispatchEditable = () => {
@@ -277,6 +292,10 @@ export const useManageDetailOrderDispatch = ({
   }
 
   const ensureConstructionDispatchEditable = () => {
+    if (!canCreateDispatch.value) {
+      message.warning('当前账号缺少创建派单权限')
+      return false
+    }
     if (!canDispatch.value) {
       message.warning('请先上传合同后再派单')
       return false
@@ -293,6 +312,10 @@ export const useManageDetailOrderDispatch = ({
   }
 
   const handleOpenDispatch = async (item) => {
+    if (!canViewDispatchDetail.value) {
+      message.warning('当前账号无订单处理流程查看权限')
+      return
+    }
     if (Number(item?.orderStatus) === 5) {
       message.warning('已取消订单无法继续处理/派单')
       return
@@ -331,7 +354,11 @@ export const useManageDetailOrderDispatch = ({
 
   const handleGoToConstructionPricing = async () => {
     if (!canOpenConstructionPricingEntry.value) {
-      message.warning('请先完成合同上传后，再确认开工节点金额')
+      message.warning(
+        canConfigureConstructionPrice.value
+          ? '请先完成合同上传后，再确认开工节点金额'
+          : '当前账号缺少“确认开工节点金额”权限',
+      )
       return
     }
 
@@ -488,6 +515,10 @@ export const useManageDetailOrderDispatch = ({
   }
 
   const loadBuilders = async () => {
+    if (!canListDispatchVendors.value) {
+      message.warning('当前账号缺少供应商推荐列表查看权限')
+      return
+    }
     try {
       await orderManageStore.loadBuilders()
     } catch (e) {
@@ -513,6 +544,10 @@ export const useManageDetailOrderDispatch = ({
 
   const openMaterialDispatch = async (row, replacingVendorOrderId = null) => {
     if (!ensureMaterialDispatchEditable()) return
+    if (!canCreateDispatch.value) {
+      message.warning('当前账号缺少创建派单权限')
+      return
+    }
     showMaterialDispatchModal.value = true
     materialDispatchReplacingVendorOrderId.value =
       Number(replacingVendorOrderId) || null
@@ -531,6 +566,10 @@ export const useManageDetailOrderDispatch = ({
 
   const openRedispatchModal = async (vendorOrder) => {
     if (!ensureMaterialDispatchEditable()) return
+    if (!canUpdateDispatch.value) {
+      message.warning('当前账号缺少更新派单权限')
+      return
+    }
     showRedispatchModal.value = true
 
     try {
@@ -546,6 +585,10 @@ export const useManageDetailOrderDispatch = ({
 
   const submitRedispatch = async () => {
     if (!ensureMaterialDispatchEditable()) return
+    if (!canUpdateDispatch.value) {
+      message.warning('当前账号缺少更新派单权限')
+      return
+    }
     redispatchSubmitting.value = true
     try {
       const updateRes = await orderManageStore.submitRedispatch()
@@ -566,8 +609,16 @@ export const useManageDetailOrderDispatch = ({
 
   const submitMaterialDispatch = async () => {
     if (!ensureMaterialDispatchEditable()) return
+    if (!canCreateDispatch.value) {
+      message.warning('当前账号缺少创建派单权限')
+      return
+    }
     try {
       if (materialDispatchReplacingVendorOrderId.value) {
+        if (!canUpdateDispatch.value) {
+          message.warning('当前账号缺少更新派单权限')
+          return
+        }
         orderManageStore.prepareCancelVendorOrder(
           materialDispatchReplacingVendorOrderId.value,
         )
@@ -595,12 +646,20 @@ export const useManageDetailOrderDispatch = ({
 
   const handlePreCancel = (vendorOrderId) => {
     if (!ensureMaterialDispatchEditable()) return
+    if (!canUpdateDispatch.value) {
+      message.warning('当前账号缺少更新派单权限')
+      return
+    }
     orderManageStore.prepareCancelVendorOrder(vendorOrderId)
     showCancelModal.value = true
   }
 
   const handleReDispatch = (vendorOrderId) => {
     if (!ensureMaterialDispatchEditable()) return
+    if (!canUpdateDispatch.value) {
+      message.warning('当前账号缺少更新派单权限')
+      return
+    }
     const sourceOrder =
       activeConstructionOrder.value?.vendorOrderId === vendorOrderId
         ? activeConstructionOrder.value

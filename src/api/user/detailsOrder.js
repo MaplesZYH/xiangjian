@@ -67,6 +67,17 @@ export default {
     })
   },
 
+  // 6.1 管理端查询选配变更可退款支付记录
+  getAdminOptionalChangeRefundableRecords(orderId) {
+    return request({
+      url: '/order/optional-change/admin/refundable-records',
+      method: 'get',
+      params: {
+        orderId,
+      },
+    })
+  },
+
   // 7. 管理端审核订单选配变更
   auditAdminOptionalChange(data, operator) {
     return request({

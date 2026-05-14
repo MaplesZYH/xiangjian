@@ -43,7 +43,7 @@
 
         <n-divider />
 
-        <div class="center-text">
+        <div v-if="canUploadContract" class="center-text">
           <n-upload
             :custom-request="handleUploadContract"
             :show-file-list="false"
@@ -59,7 +59,7 @@
         </div>
       </div>
 
-      <div v-else class="upload-area">
+      <div v-else-if="canUploadContract" class="upload-area">
         <n-upload
           :custom-request="handleUploadContract"
           :show-file-list="false"
@@ -77,6 +77,9 @@
           </n-upload-dragger>
         </n-upload>
       </div>
+      <n-alert v-else type="warning" class="inline-alert-md">
+        当前账号缺少合同上传权限 `order:upload`，仅可查看当前合同。
+      </n-alert>
     </div>
   </div>
 </template>
@@ -92,6 +95,10 @@ defineProps({
   detailOrder: {
     type: Object,
     default: null,
+  },
+  canUploadContract: {
+    type: Boolean,
+    default: false,
   },
   getPaymentText: {
     type: Function,

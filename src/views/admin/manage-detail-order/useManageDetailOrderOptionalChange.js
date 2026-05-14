@@ -1,11 +1,10 @@
 import { computed, reactive, ref, watch } from 'vue'
 import adminOrderAPI from '@/api/user/detailsOrder'
-import paymentAPI from '@/api/user/userOrder'
 
 export const useManageDetailOrderOptionalChange = ({
   detailOrder,
   currentDispatchOrder,
-  canViewPaymentRecordList,
+  canViewRefundablePaymentRecords,
   orderManageStore,
   operatorName,
   message,
@@ -238,7 +237,7 @@ export const useManageDetailOrderOptionalChange = ({
   const loadOptionalChangePaymentRecordOptions = async (
     orderId = currentDispatchOrder.value?.id || detailOrder.value?.id,
   ) => {
-    if (!orderId || !canViewPaymentRecordList.value) {
+    if (!orderId || !canViewRefundablePaymentRecords.value) {
       optionalChangePaymentRecords.value = []
       optionalChangePaymentRecordOptions.value = []
       return []
@@ -246,18 +245,14 @@ export const useManageDetailOrderOptionalChange = ({
 
     optionalChangePaymentRecordLoading.value = true
     try {
-      const res = await paymentAPI.getPaymentRecordList({
-        page: 1,
-        pageSize: 100,
-        orderId,
-      })
-      if (res?.code !== 200 || !res.data) {
+      const res = await adminOrderAPI.getAdminOptionalChangeRefundableRecords(orderId)
+      if (res?.code !== 200 || !Array.isArray(res.data)) {
         optionalChangePaymentRecords.value = []
         optionalChangePaymentRecordOptions.value = []
         return []
       }
 
-      const rows = sortPaymentRecords(res.data.rows || res.data.records || [])
+      const rows = sortPaymentRecords(res.data)
       optionalChangePaymentRecords.value = rows
       optionalChangePaymentRecordOptions.value = rows.map((item) => ({
         label: formatPaymentRecordOptionLabel(item),

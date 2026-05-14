@@ -63,7 +63,11 @@
 
         <div class="dispatch-card-actions">
           <n-button
-            v-if="!isDispatchStageLocked && activeConstructionOrder.orderStatus === 0"
+            v-if="
+              canUpdateDispatch &&
+              !isDispatchStageLocked &&
+              activeConstructionOrder.orderStatus === 0
+            "
             type="warning"
             size="small"
             @click="handleReDispatch(activeConstructionOrder.vendorOrderId)"
@@ -72,7 +76,11 @@
           </n-button>
 
           <n-button
-            v-if="!isDispatchStageLocked && [1, 3].includes(activeConstructionOrder.orderStatus)"
+            v-if="
+              canUpdateDispatch &&
+              !isDispatchStageLocked &&
+              [1, 3].includes(activeConstructionOrder.orderStatus)
+            "
             type="error"
             size="small"
             @click="handlePreCancel(activeConstructionOrder.vendorOrderId)"
@@ -86,7 +94,7 @@
         当前订单已进入施工阶段，施工单位派单信息已锁定。
       </n-alert>
 
-      <div v-else-if="canDispatch">
+      <div v-else-if="canDispatch && canCreateDispatch">
         <n-card size="small" :bordered="true" title="指派施工单位" embedded>
           <n-space align="center">
             <div class="dispatch-vendor-select">
@@ -98,7 +106,7 @@
                 clearable
                 size="small"
                 :loading="loadingVendorOpts"
-                @focus="loadBuilders"
+                @focus="canListDispatchVendors && loadBuilders()"
                 @update:value="updateConstructionFormField('vendorId', $event)"
               />
             </div>
@@ -122,7 +130,7 @@
             <n-button
               type="primary"
               size="small"
-              :disabled="!constructionForm.vendorId"
+              :disabled="!canCreateDispatch || !constructionForm.vendorId"
               @click="submitConstructionDispatch"
             >
               确认派单
@@ -130,6 +138,13 @@
           </n-space>
         </n-card>
       </div>
+      <n-alert
+        v-else-if="canDispatch && !canCreateDispatch"
+        type="warning"
+        class="inline-alert-md"
+      >
+        当前账号可查看派单状态，但缺少创建派单权限 `dispatch:add`。
+      </n-alert>
     </div>
 
     <n-divider title-placement="left">材料供应商指派</n-divider>
@@ -154,10 +169,9 @@
           追加选配/基础信息
         </n-button>
         <n-button
-          v-if="shouldShowConstructionPricingButton"
+          v-if="shouldShowConstructionPricingButton && canOpenConstructionPricingEntry"
           type="success"
           size="large"
-          :disabled="!canOpenConstructionPricingEntry"
           @click="handleGoToConstructionPricing"
         >
           {{ constructionPricingButtonText }}
@@ -180,6 +194,18 @@
 <script setup>
 defineProps({
   canDispatch: {
+    type: Boolean,
+    default: false,
+  },
+  canListDispatchVendors: {
+    type: Boolean,
+    default: false,
+  },
+  canCreateDispatch: {
+    type: Boolean,
+    default: false,
+  },
+  canUpdateDispatch: {
     type: Boolean,
     default: false,
   },

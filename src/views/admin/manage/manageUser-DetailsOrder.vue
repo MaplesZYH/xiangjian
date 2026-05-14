@@ -17,7 +17,7 @@
       :get-payment-type="getPaymentType"
       :get-payment-text="getPaymentText"
       :can-view-order="canViewOrder"
-      :can-manage-dispatch="canManageDispatch"
+      :can-manage-dispatch="canOpenDispatchFlow"
       :can-delete-order="canDeleteOrder"
       :detail-button-text="detailButtonText"
       :can-open-dispatch-entry="canOpenDispatchEntry"
@@ -65,6 +65,11 @@
       :dispatch-tab="dispatchTab"
       :current-contract-url="currentContractUrl"
       :can-dispatch="canDispatch"
+      :can-upload-contract="canUploadContract"
+      :can-view-dispatch-detail="canViewDispatchDetail"
+      :can-list-dispatch-vendors="canListDispatchVendors"
+      :can-create-dispatch="canCreateDispatch"
+      :can-update-dispatch="canUpdateDispatch"
       :is-dispatch-stage-locked="isDispatchStageLocked"
       :active-construction-order="activeConstructionOrder"
       :all-services-accepted="allServicesAccepted"
@@ -157,7 +162,7 @@
       :audit-form="optionalChangeAuditForm"
       :mode-options="currentOptionalChangeAuditModeOptions"
       :mode-hint="currentOptionalChangeAuditModeHint"
-      :can-view-payment-record-list="canViewPaymentRecordList"
+      :can-view-payment-record-list="canViewRefundablePaymentRecords"
       :payment-record-options="optionalChangePaymentRecordOptions"
       :payment-record-loading="optionalChangePaymentRecordLoading"
       :resolved-payment-record-text="resolvedOptionalChangePaymentRecordText"
@@ -321,6 +326,9 @@ const employeePermissions = getEmployeePermissions()
 const canStartConstruction = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:start'),
 )
+const canUploadContract = computed(() =>
+  hasPermission(employeePermissions, 'order:upload'),
+)
 const canConfigureConstructionPrice = computed(() =>
   hasPermission(employeePermissions, 'construction:admin:price'),
 )
@@ -339,12 +347,20 @@ const canViewOrder = computed(() =>
 const canDeleteOrder = computed(() =>
   hasPermission(employeePermissions, 'order:delete'),
 )
-const canManageDispatch = computed(() =>
-  hasPermission(employeePermissions, [
-    'dispatch:view',
-    'dispatch:add',
-    'dispatch:update',
-  ]),
+const canViewDispatchDetail = computed(() =>
+  hasPermission(employeePermissions, 'dispatch:view'),
+)
+const canListDispatchVendors = computed(() =>
+  hasPermission(employeePermissions, 'dispatch:list:vendor'),
+)
+const canCreateDispatch = computed(() =>
+  hasPermission(employeePermissions, 'dispatch:add'),
+)
+const canUpdateDispatch = computed(() =>
+  hasPermission(employeePermissions, 'dispatch:update'),
+)
+const canOpenDispatchFlow = computed(() =>
+  canViewOrder.value && canViewDispatchDetail.value,
 )
 const canEditOrder = computed(() =>
   hasPermission(employeePermissions, 'order:update'),
@@ -355,11 +371,11 @@ const detailButtonText = computed(() =>
 const canAuditOptionalChange = computed(() =>
   hasPermission(employeePermissions, 'order:update'),
 )
-const canViewPaymentRecordList = computed(() =>
-  hasPermission(employeePermissions, 'payment:list'),
-)
 const canViewPaymentBills = computed(() =>
   hasPermission(employeePermissions, 'payment:list'),
+)
+const canViewRefundablePaymentRecords = computed(() =>
+  hasPermission(employeePermissions, 'order:view'),
 )
 const operatorName = computed(() => {
   const name = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'name')
@@ -428,6 +444,7 @@ const {
   orderList,
   filters,
   dialog,
+  canOpenDispatchFlow,
 })
 
 const handleDetailModalShowChange = (value) => {
@@ -671,7 +688,7 @@ const {
 } = useManageDetailOrderOptionalChange({
   detailOrder,
   currentDispatchOrder,
-  canViewPaymentRecordList,
+  canViewRefundablePaymentRecords,
   orderManageStore,
   operatorName,
   message,
@@ -723,6 +740,11 @@ const {
 } = useManageDetailOrderDispatch({
   detailOrder,
   canDispatch,
+  canViewDispatchDetail,
+  canListDispatchVendors,
+  canCreateDispatch,
+  canUpdateDispatch,
+  canUploadContract,
   canViewPaymentBills,
   canViewConstruction,
   isDispatchStageLocked,
