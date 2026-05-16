@@ -18,8 +18,6 @@ export default {
     return request({
       url: `/construction/status/${orderId}`,
       method: 'get',
-      authScope: 'employee',
-      requiredEmployeePermissions: ['construction:view'],
     })
   },
   //预设施工节点金额
@@ -97,8 +95,6 @@ export default {
     return request({
       url: `/construction/node/${orderId}/${nodeId}`,
       method: 'get',
-      authScope: 'employee',
-      requiredEmployeePermissions: ['construction:view'],
     })
   },
 

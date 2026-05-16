@@ -21,6 +21,8 @@ export const useProviderOrderDetailPanel = ({ refreshVendorOrders }) => {
     currentOrderDetail,
     constructionStatus,
     currentNodeDetail,
+    constructionFlowState,
+    constructionFlowErrorMessage,
   } = storeToRefs(vendorOrderStore)
   const { vendorInfo } = storeToRefs(vendorProfileStore)
 
@@ -388,6 +390,8 @@ export const useProviderOrderDetailPanel = ({ refreshVendorOrders }) => {
     currentOrderDetail,
     constructionStatus,
     currentNodeDetail,
+    constructionFlowState,
+    constructionFlowErrorMessage,
     showOrderModal,
     uploadNodeDescription,
     uploadNodeFileList,

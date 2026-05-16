@@ -71,6 +71,8 @@
       :current-order-detail="currentOrderDetail"
       :construction-status="constructionStatus"
       :current-node-detail="currentNodeDetail"
+      :construction-flow-state="constructionFlowState"
+      :construction-flow-error-message="constructionFlowErrorMessage"
       :construction-grid-cols="constructionGridCols"
       :current-node-status-text="currentNodeStatusText"
       :can-upload-current-node="canUploadCurrentNode"
@@ -224,6 +226,8 @@ const {
   currentOrderDetail,
   constructionStatus,
   currentNodeDetail,
+  constructionFlowState,
+  constructionFlowErrorMessage,
   showOrderModal,
   uploadNodeDescription,
   uploadNodeFileList,

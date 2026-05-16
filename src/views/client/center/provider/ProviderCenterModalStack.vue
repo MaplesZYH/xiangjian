@@ -54,6 +54,8 @@
     :current-order-detail="currentOrderDetail"
     :construction-status="constructionStatus"
     :current-node-detail="currentNodeDetail"
+    :construction-flow-state="constructionFlowState"
+    :construction-flow-error-message="constructionFlowErrorMessage"
     :is-compact-viewport="isCompactViewport"
     :construction-grid-cols="constructionGridCols"
     :current-node-status-text="currentNodeStatusText"
@@ -244,6 +246,14 @@ defineProps({
   currentNodeDetail: {
     type: Object,
     default: null,
+  },
+  constructionFlowState: {
+    type: String,
+    default: 'idle',
+  },
+  constructionFlowErrorMessage: {
+    type: String,
+    default: '',
   },
   constructionGridCols: {
     type: Number,

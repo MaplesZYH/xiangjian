@@ -59,7 +59,10 @@
         </n-descriptions>
 
         <div
-          v-if="currentOrderDetail.type === 1 && !constructionStatus"
+          v-if="
+            currentOrderDetail.type === 1 &&
+            constructionFlowState === 'empty'
+          "
           class="construction-waiting-state"
         >
           <n-card
@@ -79,224 +82,245 @@
         </div>
 
         <div
-          v-if="currentOrderDetail.type === 1"
+          v-else-if="
+            currentOrderDetail.type === 1 &&
+            constructionFlowState === 'error'
+          "
+          class="construction-waiting-state"
+        >
+          <n-card
+            size="small"
+            class="construction-waiting-card client-center-info-card"
+          >
+            <n-space vertical size="small" align="center">
+              <n-tag type="error" size="large">加载失败</n-tag>
+              <div class="construction-waiting-title">施工进度暂时无法加载</div>
+              <div class="construction-waiting-desc">
+                {{ constructionFlowErrorMessage || '请稍后重试。' }}
+              </div>
+            </n-space>
+          </n-card>
+        </div>
+
+        <div
+          v-if="
+            currentOrderDetail.type === 1 &&
+            constructionFlowState === 'success' &&
+            constructionStatus
+          "
           class="construction-flow-section"
         >
           <n-divider title-placement="left">施工全流程进度</n-divider>
 
-          <div v-if="constructionStatus">
-            <div class="service-flow-header">
-              当前阶段：
-              <span class="service-flow-header__node">
-                {{ constructionStatus.currentNodeName }}
-              </span>
-              <n-tag size="small" class="service-flow-header__tag">
-                {{ getFlowCurrentNodeStatusText(constructionStatus) }}
-              </n-tag>
-              <span class="service-flow-header__meta">
-                施工方式：{{
-                  getProcessText(
-                    constructionStatus.processType,
-                    constructionStatus.processName,
-                  )
-                }}
-              </span>
-            </div>
+          <div class="service-flow-header">
+            当前阶段：
+            <span class="service-flow-header__node">
+              {{ constructionStatus.currentNodeName }}
+            </span>
+            <n-tag size="small" class="service-flow-header__tag">
+              {{ getFlowCurrentNodeStatusText(constructionStatus) }}
+            </n-tag>
+            <span class="service-flow-header__meta">
+              施工方式：{{
+                getProcessText(
+                  constructionStatus.processType,
+                  constructionStatus.processName,
+                )
+              }}
+            </span>
+          </div>
 
-            <n-grid :cols="constructionGridCols" :x-gap="16" :y-gap="16">
-              <n-grid-item :span="1" class="service-flow-nav">
-                <n-steps
-                  vertical
-                  :current="getConstructionStepsCurrent(constructionStatus)"
-                  size="small"
-                >
-                  <n-step
-                    v-for="(node, index) in constructionStatus.nodeDetails"
-                    :key="node.nodeId"
-                    :title="node.name"
-                    :description="
-                      getNodeStatusDesc(
-                        index,
-                        constructionStatus.currentNodeIndex,
-                        constructionStatus,
-                      )
-                    "
-                    :status="
-                      getNodeStatus(
-                        index,
-                        constructionStatus.currentNodeIndex,
-                        constructionStatus,
-                      )
-                    "
-                    class="service-flow-step"
-                    @click="$emit('node-click', node)"
-                  />
-                </n-steps>
-              </n-grid-item>
+          <n-grid :cols="constructionGridCols" :x-gap="16" :y-gap="16">
+            <n-grid-item :span="1" class="service-flow-nav">
+              <n-steps
+                vertical
+                :current="getConstructionStepsCurrent(constructionStatus)"
+                size="small"
+              >
+                <n-step
+                  v-for="(node, index) in constructionStatus.nodeDetails"
+                  :key="node.nodeId"
+                  :title="node.name"
+                  :description="
+                    getNodeStatusDesc(
+                      index,
+                      constructionStatus.currentNodeIndex,
+                      constructionStatus,
+                    )
+                  "
+                  :status="
+                    getNodeStatus(
+                      index,
+                      constructionStatus.currentNodeIndex,
+                      constructionStatus,
+                    )
+                  "
+                  class="service-flow-step"
+                  @click="$emit('node-click', node)"
+                />
+              </n-steps>
+            </n-grid-item>
 
-              <n-grid-item :span="isCompactViewport ? 1 : 2">
-                <div v-if="currentNodeDetail">
-                  <n-card :title="`节点详情：${currentNodeDetail.nodeName}`" size="small">
-                    <template #header-extra>
-                      <n-tag type="info" size="small">
-                        {{ currentNodeStatusText }}
-                      </n-tag>
-                    </template>
+            <n-grid-item :span="isCompactViewport ? 1 : 2">
+              <div v-if="currentNodeDetail">
+                <n-card :title="`节点详情：${currentNodeDetail.nodeName}`" size="small">
+                  <template #header-extra>
+                    <n-tag type="info" size="small">
+                      {{ currentNodeStatusText }}
+                    </n-tag>
+                  </template>
 
-                    <n-alert
-                      v-if="shouldShowRejectReason"
-                      type="error"
-                      title="驳回原因"
-                      class="service-node-reject-alert"
+                  <n-alert
+                    v-if="shouldShowRejectReason"
+                    type="error"
+                    title="驳回原因"
+                    class="service-node-reject-alert"
+                  >
+                    {{ resolvedRejectReason }}
+                  </n-alert>
+
+                  <div class="service-upload-panel">
+                    <n-input
+                      :value="uploadNodeDescription"
+                      type="textarea"
+                      :rows="3"
+                      maxlength="500"
+                      placeholder="请输入本次施工情况描述（选填）"
+                      :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
+                      class="service-upload-panel__input"
+                      @update:value="$emit('update:upload-node-description', $event)"
+                    />
+                    <n-upload
+                      :file-list="uploadNodeFileList"
+                      :default-upload="false"
+                      :show-file-list="false"
+                      accept=".jpg,.jpeg,.png"
+                      multiple
+                      :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
+                      @update:file-list="$emit('update:upload-node-file-list', $event)"
                     >
-                      {{ resolvedRejectReason }}
-                    </n-alert>
-
-                    <div class="service-upload-panel">
-                      <n-input
-                        :value="uploadNodeDescription"
-                        type="textarea"
-                        :rows="3"
-                        maxlength="500"
-                        placeholder="请输入本次施工情况描述（选填）"
+                      <n-button
+                        secondary
+                        size="small"
                         :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
-                        class="service-upload-panel__input"
-                        @update:value="$emit('update:upload-node-description', $event)"
-                      />
-                      <n-upload
-                        :file-list="uploadNodeFileList"
-                        :default-upload="false"
-                        :show-file-list="false"
-                        accept=".jpg,.jpeg,.png"
-                        multiple
-                        :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
-                        @update:file-list="$emit('update:upload-node-file-list', $event)"
+                        class="service-upload-panel__trigger"
                       >
-                        <n-button
-                          secondary
-                          size="small"
-                          :disabled="!canUploadCurrentNode || nodeUploadSubmitting"
-                          class="service-upload-panel__trigger"
-                        >
-                          <template #icon>
-                            <n-icon><CloudUploadOutline /></n-icon>
-                          </template>
-                          选择施工图片
-                        </n-button>
-                      </n-upload>
+                        <template #icon>
+                          <n-icon><CloudUploadOutline /></n-icon>
+                        </template>
+                        选择施工图片
+                      </n-button>
+                    </n-upload>
 
+                    <div
+                      v-if="uploadNodeFileList.length"
+                      class="service-upload-panel__preview-list"
+                    >
                       <div
-                        v-if="uploadNodeFileList.length"
-                        class="service-upload-panel__preview-list"
+                        v-for="file in uploadNodeFileList"
+                        :key="file.id"
+                        class="service-upload-panel__preview-item"
                       >
-                        <div
-                          v-for="file in uploadNodeFileList"
-                          :key="file.id"
-                          class="service-upload-panel__preview-item"
-                        >
-                          <div class="service-upload-panel__preview-image-wrap">
-                            <n-image
-                              :src="getUploadNodePreviewUrl(file)"
-                              object-fit="cover"
-                              class="service-upload-panel__preview-image"
-                            />
-                            <n-button
-                              circle
-                              size="tiny"
-                              type="error"
-                              class="service-upload-panel__preview-remove"
-                              :disabled="nodeUploadSubmitting"
-                              @click="$emit('remove-upload-file', file.id)"
-                            >
-                              <template #icon>
-                                <n-icon><CloseCircle /></n-icon>
-                              </template>
-                            </n-button>
-                          </div>
-                          <div class="service-upload-panel__preview-name">
-                            {{ file.name }}
-                          </div>
+                        <div class="service-upload-panel__preview-image-wrap">
+                          <n-image
+                            :src="getUploadNodePreviewUrl(file)"
+                            object-fit="cover"
+                            class="service-upload-panel__preview-image"
+                          />
+                          <n-button
+                            circle
+                            size="tiny"
+                            type="error"
+                            class="service-upload-panel__preview-remove"
+                            :disabled="nodeUploadSubmitting"
+                            @click="$emit('remove-upload-file', file.id)"
+                          >
+                            <template #icon>
+                              <n-icon><CloseCircle /></n-icon>
+                            </template>
+                          </n-button>
                         </div>
-                      </div>
-
-                      <div class="service-upload-panel__actions">
-                        <n-button
-                          type="primary"
-                          size="small"
-                          :loading="nodeUploadSubmitting"
-                          :disabled="!canUploadCurrentNode"
-                          @click="$emit('submit-node-upload')"
-                        >
-                          提交并上传
-                        </n-button>
-                      </div>
-                      <div class="service-upload-panel__tip">
-                        {{ uploadNodeTipText }}
+                        <div class="service-upload-panel__preview-name">
+                          {{ file.name }}
+                        </div>
                       </div>
                     </div>
 
-                    <n-scrollbar class="service-flow-timeline">
-                      <n-timeline>
-                        <n-timeline-item
-                          v-for="record in currentNodeDetail.progressRecords"
-                          :key="record.progressId"
-                          type="success"
-                          :title="record.operateTime?.replace('T', ' ')"
+                    <div class="service-upload-panel__actions">
+                      <n-button
+                        type="primary"
+                        size="small"
+                        :loading="nodeUploadSubmitting"
+                        :disabled="!canUploadCurrentNode"
+                        @click="$emit('submit-node-upload')"
+                      >
+                        提交并上传
+                      </n-button>
+                    </div>
+                    <div class="service-upload-panel__tip">
+                      {{ uploadNodeTipText }}
+                    </div>
+                  </div>
+
+                  <n-scrollbar class="service-flow-timeline">
+                    <n-timeline>
+                      <n-timeline-item
+                        v-for="record in currentNodeDetail.progressRecords"
+                        :key="record.progressId"
+                        type="success"
+                        :title="record.operateTime?.replace('T', ' ')"
+                      >
+                        <div
+                          v-if="record.description"
+                          class="service-flow-record-description"
                         >
-                          <div
-                            v-if="record.description"
-                            class="service-flow-record-description"
-                          >
-                            {{ record.description }}
-                          </div>
-                          <div class="service-flow-image-group">
-                            <n-image-group>
-                              <n-space>
-                                <div
-                                  v-for="img in record.imageList"
-                                  :key="img.imageId"
-                                  class="service-flow-image-wrap"
+                          {{ record.description }}
+                        </div>
+                        <div class="service-flow-image-group">
+                          <n-image-group>
+                            <n-space>
+                              <div
+                                v-for="img in record.imageList"
+                                :key="img.imageId"
+                                class="service-flow-image-wrap"
+                              >
+                                <n-image
+                                  width="100"
+                                  :src="resolveAssetUrl(img.imageUrl)"
+                                  class="service-flow-image"
+                                />
+                                <n-button
+                                  circle
+                                  type="error"
+                                  size="tiny"
+                                  :disabled="!canDeleteCurrentNodePhoto"
+                                  class="service-flow-image-delete"
+                                  @click="$emit('delete-photo', img.imageId)"
                                 >
-                                  <n-image
-                                    width="100"
-                                    :src="resolveAssetUrl(img.imageUrl)"
-                                    class="service-flow-image"
-                                  />
-                                  <n-button
-                                    circle
-                                    type="error"
-                                    size="tiny"
-                                    :disabled="!canDeleteCurrentNodePhoto"
-                                    class="service-flow-image-delete"
-                                    @click="$emit('delete-photo', img.imageId)"
-                                  >
-                                    <template #icon>
-                                      <n-icon><CloseCircle /></n-icon>
-                                    </template>
-                                  </n-button>
-                                </div>
-                              </n-space>
-                            </n-image-group>
-                          </div>
-                        </n-timeline-item>
-                      </n-timeline>
-                      <n-empty
-                        v-if="!currentNodeDetail.progressRecords?.length"
-                        description="暂无上传记录"
-                        class="service-flow-empty"
-                      />
-                    </n-scrollbar>
-                  </n-card>
-                </div>
+                                  <template #icon>
+                                    <n-icon><CloseCircle /></n-icon>
+                                  </template>
+                                </n-button>
+                              </div>
+                            </n-space>
+                          </n-image-group>
+                        </div>
+                      </n-timeline-item>
+                    </n-timeline>
+                    <n-empty
+                      v-if="!currentNodeDetail.progressRecords?.length"
+                      description="暂无上传记录"
+                      class="service-flow-empty"
+                    />
+                  </n-scrollbar>
+                </n-card>
+              </div>
 
-                <div v-else class="service-flow-empty-state">
-                  <n-empty description="请点击左侧节点查看详情与上传照片" />
-                </div>
-              </n-grid-item>
-            </n-grid>
-          </div>
-
-          <div v-else class="construction-progress-placeholder" />
+              <div v-else class="service-flow-empty-state">
+                <n-empty description="请点击左侧节点查看详情与上传照片" />
+              </div>
+            </n-grid-item>
+          </n-grid>
         </div>
       </div>
     </n-spin>
@@ -341,6 +365,14 @@ const props = defineProps({
   currentNodeDetail: {
     type: Object,
     default: null,
+  },
+  constructionFlowState: {
+    type: String,
+    default: 'idle',
+  },
+  constructionFlowErrorMessage: {
+    type: String,
+    default: '',
   },
   isCompactViewport: {
     type: Boolean,

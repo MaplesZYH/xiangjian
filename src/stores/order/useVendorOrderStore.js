@@ -65,6 +65,17 @@ const countNeedHandleOrders = (rows) =>
       isNeedHandleConstructionStatus(row?.constructionStatusText),
   ).length
 
+const getConstructionRequestErrorMessage = (
+  error,
+  fallback = '加载施工进度失败',
+) =>
+  error?.msg ||
+  error?.response?.data?.msg ||
+  error?.response?.data?.message ||
+  (typeof error?.response?.data === 'string' ? error.response.data : '') ||
+  error?.message ||
+  fallback
+
 export const useVendorOrderStore = defineStore('vendorOrder', () => {
   const orderList = ref([])
   const ordersLoading = ref(false)
@@ -78,6 +89,8 @@ export const useVendorOrderStore = defineStore('vendorOrder', () => {
   const currentOrderDetail = ref(null)
   const constructionStatus = ref(null)
   const currentNodeDetail = ref(null)
+  const constructionFlowState = ref('idle')
+  const constructionFlowErrorMessage = ref('')
   const constructionFlowCache = ref({})
   const constructionFlowPromiseMap = ref({})
 
@@ -384,39 +397,80 @@ export const useVendorOrderStore = defineStore('vendorOrder', () => {
     await Promise.all(tasks)
   }
 
-  const loadNodeDetail = async (userOrderId, node) => {
+  const loadNodeDetail = async (userOrderId, node, options = {}) => {
     if (!userOrderId || !node) return null
+    const { silent = false } = options
     const nodeId = node.nodeId || node.id
-    const res = await ConstructionAPI.getConstructionDetail(userOrderId, nodeId)
-    if (res.code === 200) {
-      currentNodeDetail.value = res.data
+    try {
+      const res = await ConstructionAPI.getConstructionDetail(userOrderId, nodeId)
+      if (res.code === 200) {
+        currentNodeDetail.value = res.data
+      } else {
+        currentNodeDetail.value = null
+      }
+      return res
+    } catch (error) {
+      currentNodeDetail.value = null
+      if (!silent) {
+        throw error
+      }
+      return null
     }
-    return res
   }
 
   const loadConstructionFlow = async (userOrderId, { force = false } = {}) => {
     if (!userOrderId) return null
+    const previousFlow = constructionStatus.value
+    const previousNodeDetail = currentNodeDetail.value
 
-    const flow = await fetchConstructionFlowData(userOrderId, { force })
+    constructionFlowState.value = 'loading'
+    constructionFlowErrorMessage.value = ''
 
-    if (flow) {
-      constructionStatus.value = flow
-      if (flow.nodeDetails && flow.nodeDetails.length > 0) {
-        const targetIndex =
-          flow.currentNodeIndex < flow.nodeDetails.length
-            ? flow.currentNodeIndex
-            : 0
-        const targetNode = flow.nodeDetails[targetIndex]
-        if (targetNode) {
-          await loadNodeDetail(userOrderId, targetNode)
+    try {
+      const flow = await fetchConstructionFlowData(userOrderId, { force })
+
+      if (flow) {
+        constructionStatus.value = flow
+        constructionFlowState.value = 'success'
+
+        if (flow.nodeDetails && flow.nodeDetails.length > 0) {
+          const targetIndex =
+            flow.currentNodeIndex < flow.nodeDetails.length
+              ? flow.currentNodeIndex
+              : 0
+          const targetNode = flow.nodeDetails[targetIndex]
+
+          if (targetNode) {
+            currentNodeDetail.value = {
+              ...targetNode,
+              nodeName: targetNode.nodeName || targetNode.name || '',
+              progressRecords: Array.isArray(targetNode.progressRecords)
+                ? targetNode.progressRecords
+                : [],
+            }
+            await loadNodeDetail(userOrderId, targetNode, { silent: true })
+          } else {
+            currentNodeDetail.value = null
+          }
+        } else {
+          currentNodeDetail.value = null
         }
+      } else {
+        constructionStatus.value = null
+        currentNodeDetail.value = null
+        constructionFlowState.value = 'empty'
       }
-    } else {
-      constructionStatus.value = null
-      currentNodeDetail.value = null
-    }
 
-    return flow ? { code: 200, data: flow } : null
+      return flow ? { code: 200, data: flow } : null
+    } catch (error) {
+      constructionStatus.value = previousFlow
+      currentNodeDetail.value = previousNodeDetail
+      constructionFlowState.value = previousFlow ? 'success' : 'error'
+      constructionFlowErrorMessage.value = getConstructionRequestErrorMessage(
+        error,
+      )
+      return null
+    }
   }
 
   const openOrderDetail = async (vendorOrderId) => {
@@ -425,6 +479,8 @@ export const useVendorOrderStore = defineStore('vendorOrder', () => {
     currentOrderDetail.value = null
     constructionStatus.value = null
     currentNodeDetail.value = null
+    constructionFlowState.value = 'idle'
+    constructionFlowErrorMessage.value = ''
 
     try {
       const res = await VendorOrderAPI.getManageOrderDetail(vendorOrderId)
@@ -432,6 +488,8 @@ export const useVendorOrderStore = defineStore('vendorOrder', () => {
         currentOrderDetail.value = res.data
         if (res.data.type === 1 && res.data.orderId) {
           await loadConstructionFlow(res.data.orderId)
+        } else {
+          constructionFlowState.value = 'idle'
         }
       }
       return res
@@ -444,6 +502,8 @@ export const useVendorOrderStore = defineStore('vendorOrder', () => {
     currentOrderDetail.value = null
     constructionStatus.value = null
     currentNodeDetail.value = null
+    constructionFlowState.value = 'idle'
+    constructionFlowErrorMessage.value = ''
   }
 
   const clearOrderState = () => {
@@ -474,6 +534,8 @@ export const useVendorOrderStore = defineStore('vendorOrder', () => {
     currentOrderDetail,
     constructionStatus,
     currentNodeDetail,
+    constructionFlowState,
+    constructionFlowErrorMessage,
     sortedOrderList,
     resolveNodeStatusCode,
     resolveNodeStatusText,
