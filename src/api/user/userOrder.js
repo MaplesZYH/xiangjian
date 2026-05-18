@@ -218,6 +218,20 @@ export default {
     })
   },
 
+  // 管理员取消选配补价账单
+  cancelAdminOptionChangeBill(billId, operator, reason) {
+    return request({
+      url: `/payment/admin/bill/${billId}/cancel`,
+      method: 'post',
+      authScope: 'employee',
+      requiredEmployeePermissions: ['admin:payment:bill:cancel'],
+      params: {
+        operator,
+        reason,
+      },
+    })
+  },
+
   /**----------------------------------------------------------------------------- */
   //用户申请退款
   /**

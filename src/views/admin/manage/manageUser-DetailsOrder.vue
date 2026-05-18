@@ -146,6 +146,10 @@
       :get-payment-bill-type-text="getPaymentBillTypeText"
       :get-admin-bill-status-tag-type="getAdminBillStatusTagType"
       :get-admin-bill-status-text="getAdminBillStatusText"
+      :can-cancel-admin-option-change-bill="
+        canCancelAdminPaymentBill ? canCancelAdminOptionChangeBill : () => false
+      "
+      :handle-cancel-admin-option-change-bill="handleCancelAdminOptionChangeBill"
       :get-bill-related-node-name="getBillRelatedNodeName"
       :format-currency-amount="formatCurrencyAmount"
       :format-date-time="formatDateTime"
@@ -241,6 +245,7 @@ import {
   useMessage,
   useDialog,
   NButton,
+  NInput,
   NTag,
 } from 'naive-ui'
 import { useAdminOrderManageStore } from '@/stores/order/useAdminOrderManageStore'
@@ -378,6 +383,9 @@ const canAuditOptionalChange = computed(() =>
 )
 const canViewPaymentBills = computed(() =>
   hasPermission(employeePermissions, 'payment:list'),
+)
+const canCancelAdminPaymentBill = computed(() =>
+  hasPermission(employeePermissions, 'admin:payment:bill:cancel'),
 )
 const canViewRefundablePaymentRecords = computed(() =>
   hasPermission(employeePermissions, 'order:view'),
@@ -660,6 +668,7 @@ const {
   hasAdminPaymentBillRows,
   getAdminBillStatusText,
   getAdminBillStatusTagType,
+  canCancelAdminOptionChangeBill,
   getAdminBillDisplayTitle,
   getBillRelatedNodeName,
 } = useManageDetailOrderPaymentBills({
@@ -667,6 +676,85 @@ const {
   constructionInfo,
   constructionNodeStatus: CONSTRUCTION_NODE_STATUS,
 })
+
+const handleCancelAdminOptionChangeBill = (bill) => {
+  if (!canCancelAdminPaymentBill.value) {
+    message.warning('当前账号无取消选配补价账单权限')
+    return
+  }
+
+  if (!canCancelAdminOptionChangeBill(bill)) {
+    message.warning('当前账单状态不允许取消')
+    return
+  }
+
+  const reason = ref('')
+  const billTitle = getAdminBillDisplayTitle(bill)
+
+  dialog.warning({
+    title: '取消选配补价账单',
+    content: () =>
+      h('div', { style: 'display:flex;flex-direction:column;gap:12px;' }, [
+        h(
+          'div',
+          null,
+          `确认取消“${billTitle || '选配补价账单'}”吗？取消后会同步撤销关联的未完成选配补价流程。`,
+        ),
+        h(NInput, {
+          value: reason.value,
+          type: 'textarea',
+          rows: 4,
+          maxlength: 200,
+          placeholder: '请输入取消原因',
+          'onUpdate:value': (value) => {
+            reason.value = value
+          },
+        }),
+      ]),
+    positiveText: '确认取消',
+    negativeText: '暂不取消',
+    onPositiveClick: async () => {
+      const trimmedReason = reason.value.trim()
+      if (!trimmedReason) {
+        message.warning('请输入取消原因')
+        return false
+      }
+
+      try {
+        const res = await orderAPI.cancelAdminOptionChangeBill(
+          Number(bill?.id || 0),
+          operatorName.value,
+          trimmedReason,
+        )
+
+        if (res?.code !== 200) {
+          message.error(res?.msg || '取消账单失败')
+          return false
+        }
+
+        const currentOrderId = currentDispatchOrder.value?.id || detailOrder.value?.id
+        if (currentOrderId) {
+          await orderManageStore.fetchOrderDetailInternal(currentOrderId)
+          orderManageStore.syncDispatchListItem()
+          if (showDispatchModal.value) {
+            await orderManageStore.initDispatchState()
+          }
+        }
+
+        if (canAuditOptionalChange.value && dispatchTab.value === 'optionalChange') {
+          await loadAdminOptionalChangeList()
+        }
+
+        await fetchData()
+        message.success(res?.msg || '账单已取消')
+        return true
+      } catch (error) {
+        message.error(getErrorMessage(error, '取消账单失败'))
+        return false
+      }
+    },
+  })
+}
 
 const {
   optionalChangeLoading,

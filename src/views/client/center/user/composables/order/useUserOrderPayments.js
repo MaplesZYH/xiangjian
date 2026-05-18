@@ -186,6 +186,23 @@ export const useUserOrderPayments = ({
     }
   }
 
+  const confirmCancelPendingBill = (bill, dialog) => {
+    if (!dialog) {
+      return cancelPendingBill(bill)
+    }
+
+    const billTitle =
+      bill?.billTitle || paymentTarget.title || '当前选配补价账单'
+
+    dialog.warning({
+      title: '取消账单',
+      content: `确认取消“${billTitle}”吗？取消后当前未支付的选配补价流程会同步撤销。`,
+      positiveText: '确认取消',
+      negativeText: '暂不取消',
+      onPositiveClick: () => cancelPendingBill(bill),
+    })
+  }
+
   const stopPaymentStatusPolling = () => {
     if (paymentStatusPollTimer) {
       window.clearTimeout(paymentStatusPollTimer)
@@ -535,6 +552,7 @@ export const useUserOrderPayments = ({
     loadPendingPaymentBills,
     confirmUserBillPayment,
     cancelPendingBill,
+    confirmCancelPendingBill,
     stopPaymentStatusPolling,
     syncPendingOrderPaymentOnFocus,
     openPendingBillPaymentModal,

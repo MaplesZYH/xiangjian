@@ -450,14 +450,32 @@ defineEmits([
   'delete-photo',
 ])
 
-const resolvedRejectReason = computed(() => {
-  const nodeDescription = String(props.currentNodeDetail?.description || '').trim()
-  if (nodeDescription) return nodeDescription
+const normalizeReasonText = (value) => String(value || '').trim()
 
-  const latestRecordDescription = String(
-    props.currentNodeDetail?.progressRecords?.[0]?.description || '',
-  ).trim()
-  return latestRecordDescription
+const pickFirstRejectReasonByKeywords = (records = []) =>
+  records
+    .map((item) => normalizeReasonText(item?.description))
+    .find((text) => text && /(驳回|未通过|审核不通过)/.test(text)) || ''
+
+const resolvedRejectReason = computed(() => {
+  const explicitReasonFields = [
+    props.currentNodeDetail?.reason,
+    props.currentNodeDetail?.rejectReason,
+    props.currentNodeDetail?.auditReason,
+    props.currentNodeDetail?.auditRemark,
+  ]
+
+  const explicitReason = explicitReasonFields
+    .map((item) => normalizeReasonText(item))
+    .find(Boolean)
+  if (explicitReason) return explicitReason
+
+  const rejectRecordReason = pickFirstRejectReasonByKeywords(
+    props.currentNodeDetail?.progressRecords || [],
+  )
+  if (rejectRecordReason) return rejectRecordReason
+
+  return normalizeReasonText(props.currentNodeDetail?.description)
 })
 
 const shouldShowRejectReason = computed(

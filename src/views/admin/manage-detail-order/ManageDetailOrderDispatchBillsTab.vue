@@ -56,6 +56,19 @@
               }}
             </span>
           </div>
+          <div class="admin-payment-bills-cell admin-payment-bills-cell--actions">
+            <span class="admin-payment-bills-label">操作</span>
+            <n-button
+              v-if="canCancelAdminOptionChangeBill(bill)"
+              size="small"
+              type="warning"
+              secondary
+              @click="$emit('cancel-admin-option-change-bill', bill)"
+            >
+              取消账单
+            </n-button>
+            <span v-else>--</span>
+          </div>
         </div>
       </div>
     </div>
@@ -96,6 +109,10 @@ defineProps({
     type: Function,
     required: true,
   },
+  canCancelAdminOptionChangeBill: {
+    type: Function,
+    required: true,
+  },
   getBillRelatedNodeName: {
     type: Function,
     required: true,
@@ -105,6 +122,8 @@ defineProps({
     required: true,
   },
 })
+
+defineEmits(['cancel-admin-option-change-bill'])
 </script>
 
 <style lang="scss" scoped>
@@ -154,7 +173,7 @@ defineProps({
 .admin-payment-bills-head,
 .admin-payment-bills-row {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr 1.1fr;
+  grid-template-columns: 1.6fr 1fr 1fr 1fr 1.1fr 0.9fr;
   gap: 12px;
   align-items: center;
   padding: 14px 16px;
@@ -177,6 +196,11 @@ defineProps({
   color: var(--color-text-primary);
 }
 
+.admin-payment-bills-cell--actions {
+  display: flex;
+  align-items: center;
+}
+
 .admin-payment-bills-label {
   display: none;
 }
@@ -184,7 +208,7 @@ defineProps({
 @media (max-width: 992px) {
   .admin-payment-bills-head,
   .admin-payment-bills-row {
-    grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 1fr;
+    grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 1fr 0.9fr;
   }
 }
 

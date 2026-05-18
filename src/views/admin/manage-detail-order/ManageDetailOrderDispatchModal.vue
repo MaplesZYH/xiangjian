@@ -133,9 +133,13 @@
             :get-payment-bill-type-text="getPaymentBillTypeText"
             :get-admin-bill-status-tag-type="getAdminBillStatusTagType"
             :get-admin-bill-status-text="getAdminBillStatusText"
+            :can-cancel-admin-option-change-bill="canCancelAdminOptionChangeBill"
             :get-bill-related-node-name="getBillRelatedNodeName"
             :format-currency-amount="formatCurrencyAmount"
             :format-date-time="formatDateTime"
+            @cancel-admin-option-change-bill="
+              handleCancelAdminOptionChangeBill($event)
+            "
           />
         </n-tab-pane>
 
@@ -522,6 +526,14 @@ const props = defineProps({
     required: true,
   },
   getAdminBillStatusText: {
+    type: Function,
+    required: true,
+  },
+  canCancelAdminOptionChangeBill: {
+    type: Function,
+    required: true,
+  },
+  handleCancelAdminOptionChangeBill: {
     type: Function,
     required: true,
   },

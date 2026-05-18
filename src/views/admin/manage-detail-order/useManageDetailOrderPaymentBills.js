@@ -238,6 +238,14 @@ export const useManageDetailOrderPaymentBills = ({
     return 'warning'
   }
 
+  const canCancelAdminOptionChangeBill = (bill) =>
+    Boolean(
+      bill &&
+        bill?.billType === 'OPTION_CHANGE' &&
+        resolveAdminBillStatus(bill) === 'PENDING' &&
+        Number(bill?.id || 0) > 0,
+    )
+
   const resolveStagePaymentNodeName = (bill) => {
     const relatedNodeId = Number(bill?.relatedNodeId || 0)
     if (relatedNodeId > 0) {
@@ -341,6 +349,7 @@ export const useManageDetailOrderPaymentBills = ({
     hasAdminPaymentBillRows,
     getAdminBillStatusText,
     getAdminBillStatusTagType,
+    canCancelAdminOptionChangeBill,
     getAdminBillDisplayTitle,
     getBillRelatedNodeName,
   }

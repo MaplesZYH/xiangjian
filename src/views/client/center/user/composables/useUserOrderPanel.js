@@ -128,6 +128,9 @@ export const useUserOrderPanel = ({
       constructionPanel.refreshConstructionAfterNodePayment,
   })
 
+  const handleCancelPendingBill = (bill) =>
+    paymentsPanel.confirmCancelPendingBill(bill, dialog)
+
   const optionsPanel = useUserOrderOptions({
     optionCatalogStore,
     currentOrder,
@@ -544,6 +547,7 @@ export const useUserOrderPanel = ({
     cancelLatestOptionalChange: optionsPanel.cancelLatestOptionalChange,
     submitUserOptionSelectionChanges: () =>
       optionsPanel.submitUserOptionSelectionChanges(pendingPaymentBills),
+    cancelPendingBill: handleCancelPendingBill,
     viewOrderDetail,
     handleNodeClick: constructionPanel.handleNodeClick,
     currentNodeDetailStatusText: constructionPanel.currentNodeDetailStatusText,
@@ -580,7 +584,6 @@ export const useUserOrderPanel = ({
     handleVisibilityChange,
     handleWindowFocus,
     openPendingBillPaymentModal: paymentsPanel.openPendingBillPaymentModal,
-    cancelPendingBill: paymentsPanel.cancelPendingBill,
     shouldShowOptionalChangePendingBillTag,
     cleanup,
   }

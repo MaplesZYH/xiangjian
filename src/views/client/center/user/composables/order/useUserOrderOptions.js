@@ -80,8 +80,13 @@ export const useUserOrderOptions = ({
   }
 
   const currentEffectiveOptionSnapshot = computed(() => {
-    const latestRows = resolveLatestRecordSnapshot('currentEffectiveOptions')
-    return latestRows.length > 0 ? latestRows : buildCurrentOrderOptionSnapshot()
+    const currentOrderRows = buildCurrentOrderOptionSnapshot()
+    if (currentOrderRows.length > 0) {
+      return currentOrderRows
+    }
+
+    // 已生效选配必须以订单详情快照为准，变更记录中的历史快照仅作兜底。
+    return resolveLatestRecordSnapshot('currentEffectiveOptions')
   })
 
   const pendingTargetOptionSnapshot = computed(() => {
