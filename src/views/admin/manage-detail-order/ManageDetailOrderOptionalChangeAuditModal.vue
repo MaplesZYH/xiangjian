@@ -88,14 +88,14 @@
             </n-input-number>
           </n-form-item>
 
-          <n-form-item label="支付流水">
+          <n-form-item label="关联支付记录">
             <n-input
               :value="resolvedPaymentRecordText || ''"
               class="full-width-input"
               :placeholder="
                 paymentRecordLoading
-                  ? '系统正在识别最近一次已支付节点进度款...'
-                  : '系统将自动关联最近一次已支付节点进度款'
+                  ? '正在匹配最近一次已支付节点款...'
+                  : '将自动关联最近一次已支付节点款'
               "
               disabled
             />
@@ -106,14 +106,14 @@
             type="warning"
             class="inline-alert-md"
           >
-            系统暂未识别到最近一次已支付节点进度款。请先确认上一笔节点账单已支付，再发起退款审核。
+            暂未匹配到最近一次已支付节点款。请先确认上一笔节点账单已支付，再发起退款审核。
           </n-alert>
           <n-alert
             v-else
             type="info"
             class="inline-alert-md"
           >
-            退款会自动关联系统识别的最近一次已支付节点进度款，无需手动填写支付流水。
+            退款会自动关联最近一次已支付节点款，无需手动填写支付流水码。
           </n-alert>
         </template>
       </template>

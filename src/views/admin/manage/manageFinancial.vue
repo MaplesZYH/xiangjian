@@ -304,7 +304,7 @@ const formatDateTime = (value) => {
 }
 
 const defaultPaymentStatement =
-  '<p style="text-align: center;"><strong>支付协议（模拟文案）</strong></p><p><strong>1.</strong> 下单后请在规定时间内完成付款。</p><p><strong>2.</strong> 施工节点付款请以系统提示金额为准。</p><p><strong>3.</strong> 如有疑问请联系客服。</p>'
+  '<p style="text-align: center;"><strong>支付协议</strong></p><p><strong>1.</strong> 下单后请在规定时间内完成付款。</p><p><strong>2.</strong> 施工节点付款请以系统提示金额为准。</p><p><strong>3.</strong> 如有疑问请联系客服。</p>'
 const DEFAULT_DESIGN_DEPOSIT_DRAFT = 0.01
 const showDepositSettingModal = ref(false)
 const showPaymentStatementModal = ref(false)

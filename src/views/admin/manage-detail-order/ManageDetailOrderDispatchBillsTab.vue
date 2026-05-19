@@ -1,7 +1,7 @@
 <template>
   <div class="dispatch-panel">
     <n-alert type="info" class="inline-alert-md">
-      这里仅展示后端真实返回的支付数据。建房定金支付状态按订单支付状态展示，施工节点账单按后端返回的待支付账单展示。
+      这里展示当前订单的支付账单。建房定金、施工节点款和选配补价将按订单最新状态展示。
     </n-alert>
 
     <div v-if="hasAdminPaymentBillRows" class="admin-payment-bills">

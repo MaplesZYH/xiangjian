@@ -1225,7 +1225,7 @@ const buildPersistedDesignRequirements = () =>
 
 const designPaymentAmountText = computed(() => {
   if (designPaymentPreviewAmount.value == null) {
-    return '以后端账单金额为准'
+    return '以实际账单金额为准'
   }
 
   const amount = Number(designPaymentPreviewAmount.value)

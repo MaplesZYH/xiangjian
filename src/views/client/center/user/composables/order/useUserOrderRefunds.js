@@ -234,7 +234,7 @@ export const useUserOrderRefunds = ({
       !paymentRecordId ||
       Number.isNaN(paymentRecordId)
     ) {
-      message.warning('未获取到退款详情所需的支付流水信息')
+      message.warning('未获取到退款详情所需的支付记录信息')
       return
     }
 
@@ -286,7 +286,7 @@ export const useUserOrderRefunds = ({
       return
     }
     if (!paymentRecordId || Number.isNaN(paymentRecordId)) {
-      message.error('未获取到系统关联的支付流水，请刷新后重试')
+      message.error('未获取到关联支付记录，请刷新后重试')
       return
     }
     if (!reason) {

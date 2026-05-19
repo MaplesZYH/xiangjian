@@ -11,7 +11,7 @@
       <n-form-item label="订单号">
         <n-input :value="form.orderNumber" disabled />
       </n-form-item>
-      <n-form-item label="支付流水ID">
+      <n-form-item label="支付流水码">
         <n-input :value="String(form.paymentRecordId || '')" disabled />
       </n-form-item>
       <n-form-item label="审核结果">

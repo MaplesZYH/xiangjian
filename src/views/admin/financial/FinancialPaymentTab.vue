@@ -1,7 +1,7 @@
 <template>
   <section class="financial-section">
     <div class="financial-section__header">
-      <h3 class="financial-section__title">支付流水管理</h3>
+      <h3 class="financial-section__title">支付记录管理</h3>
     </div>
     <n-space vertical size="large">
       <div class="financial-filter-row">
@@ -31,7 +31,7 @@
         <div class="financial-table-scroll">
           <div class="financial-table">
             <div class="list-header">
-              <div class="header-item">支付流水ID</div>
+              <div class="header-item">支付流水码</div>
               <div class="header-item">订单号</div>
               <div class="header-item">用户名</div>
               <div class="header-item">手机号</div>
@@ -91,7 +91,7 @@
               </div>
 
               <div v-else class="empty-state">
-                <n-empty description="暂无支付流水数据" />
+                <n-empty description="暂无支付记录" />
               </div>
             </n-spin>
           </div>

@@ -544,7 +544,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
 
   const constructionPricePlanHint = computed(() => {
     if (!constructionInfo.value?.nodeDetails?.length) {
-      return '正在加载后端节点金额计划。'
+      return '正在加载节点金额方案。'
     }
     if (constructionPriceDraftDirty.value) {
       if (constructionPricePlanGapAmount.value > 0) {
@@ -555,7 +555,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       }
       return constructionInfo.value?.constructionStarted
         ? '当前存在尚未保存的节点金额改动。已支付节点不可修改，请确认未支付节点金额后统一保存。'
-        : '当前存在尚未保存的节点金额预设。保存后会直接写入后端预设表，确认开启施工前会先自动保存。'
+        : '当前存在尚未保存的节点金额预设。保存后会更新当前开工金额方案，确认开启施工前会先自动保存。'
     }
     if (buildDepositSeedAmount.value <= 0) {
       return '暂未识别到有效的建房定金金额，请先确认定金账单。'
@@ -564,8 +564,8 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       return ''
     }
     return constructionInfo.value?.constructionStarted
-      ? '当前方案已保存到后端。后续仅可继续调整未支付节点，且需保证剩余节点金额合计与未支付总额一致。'
-      : '当前预设金额已保存到后端，开启施工时会按这份方案生成正式节点金额。'
+      ? '当前方案已保存。后续仅可继续调整未支付节点，且需保证剩余节点金额合计与未支付总额一致。'
+      : '当前金额方案已保存，开启施工时会按这份方案生成正式节点金额。'
   })
 
   const resolvedCurrentNodeAmount = computed(() => {

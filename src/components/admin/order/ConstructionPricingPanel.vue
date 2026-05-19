@@ -4,7 +4,7 @@
       {{
         workflowStarted
           ? '订单已进入施工阶段。已支付节点金额已锁定，剩余未支付节点可继续编辑，但合计必须与剩余待支付总额一致。'
-          : '这一环节用于在派单完成后、开工前预设各阶段金额。当前修改会直接保存到后端预设表，开启施工时自动生成正式节点金额。'
+          : '这一环节用于在派单完成后、开工前预设各阶段金额。当前修改会保存为开工金额方案，开启施工时将生成各阶段正式金额。'
       }}
     </n-alert>
 
@@ -41,7 +41,7 @@
                   ? '当前定金已完成支付，金额已锁定，不可再修改。'
                 : workflowStarted
                   ? '订单已开工，定金金额已锁定。'
-                  : '当前定金账单不满足编辑条件，展示为后端当前识别金额。'
+                  : '当前定金暂不可编辑，已按现有账单金额展示。'
             }}
           </div>
         </div>
@@ -85,7 +85,7 @@
       <div class="plan-card__header">
         <div>
           <div class="plan-card__title">确认开工节点金额</div>
-          <div class="plan-card__desc">请按后端规则确认当前节点金额同步结果。</div>
+          <div class="plan-card__desc">请确认当前各阶段金额分配结果。</div>
         </div>
         <n-tag size="small" :bordered="false" type="info">
           {{ pricePlanStatusText || '--' }}
@@ -408,18 +408,18 @@ const remainingStageAmountTotal = computed(() =>
 
 const allocationHintText = computed(() => {
   if (!pricingStageRows.value.length) {
-    return '正在加载后端节点金额计划。'
+    return '正在加载节点金额方案。'
   }
 
   if (!props.workflowStarted) {
-    return '当前可先逐阶段调整并保存后端预设金额；开启施工后，系统会按这份预设生成各节点正式金额。'
+    return '当前可先逐阶段调整并保存金额方案；开启施工后，将按该方案生成各阶段正式金额。'
   }
 
   if (lockedStageCount.value > 0) {
-    return '已支付节点金额会被后端锁定；剩余未支付节点仍按当前总价与既有定金，继续按固定比例同步。'
+    return '已支付节点金额不可修改；剩余未支付节点仍按当前总价与既有定金继续分配。'
   }
 
-  return '当前尚未产生已支付阶段款，可继续按后端固定比例同步未支付节点金额。'
+  return '当前尚未产生已支付阶段款，可继续按固定比例分配未支付节点金额。'
 })
 
 watch(

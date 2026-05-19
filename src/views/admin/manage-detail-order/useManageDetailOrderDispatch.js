@@ -203,7 +203,7 @@ export const useManageDetailOrderDispatch = ({
     const orderStatus = Number(detailOrder.value?.orderStatus)
     if (orderStatus !== 2) {
       if (allServicesAccepted.value) {
-        return '当前可见派单已全部接单，但主订单状态仍未刷新为“已派单”。这通常是后端主订单状态同步未完成，请检查历史已取消或已拒接的子单是否仍被计入派单状态。'
+        return '当前可见派单已全部接单，但主订单状态仍未刷新为“已派单”。请检查历史已取消或已拒接的子单是否仍影响派单状态。'
       }
       const orderStatusTextMap = {
         0: '未派单',
@@ -454,7 +454,7 @@ export const useManageDetailOrderDispatch = ({
     dialog.warning({
       title: '确认节点金额并开启施工',
       content:
-        '确认后会先检查并保存当前未保存的定金/节点金额，再调用后端开启施工。',
+        '确认后会先检查并保存当前未保存的定金/节点金额，再开启施工流程。',
       positiveText: '确认开启',
       negativeText: '再检查一下',
       onPositiveClick: async () => {

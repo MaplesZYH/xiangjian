@@ -70,7 +70,7 @@
               </div>
               <div class="flow-highlight-card__desc">
                 当前施工节点“{{ activeConstructionNode?.name || currentNodeDetail?.nodeName || '未命名节点' }}”
-                已审核通过，当前节点已进入待支付状态。请切换到第 5 步“支付账单”查看后端返回的账单信息；用户支付完成后，流程会自动推进到下一节点。
+                已审核通过，当前节点已进入待支付状态。请切换到第 5 步“支付账单”查看对应账单信息；用户支付完成后，流程会自动推进到下一节点。
               </div>
             </div>
           </div>

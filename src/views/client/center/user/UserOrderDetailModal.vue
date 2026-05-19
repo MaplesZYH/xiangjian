@@ -370,7 +370,7 @@
                         type="default"
                         :bordered="false"
                       >
-                        未找到关联选配支付流水
+                        未找到关联选配支付记录
                       </n-tag>
                       <n-button
                         v-if="record.isLatestRecord && canCancelLatestOptionalChange"
@@ -730,7 +730,7 @@
             <div v-if="hasDetailPaymentRecords" class="detail-payment-records">
               <div class="detail-payment-records-table client-center-paper">
                 <div class="detail-payment-records-head">
-                  <div>支付流水ID</div>
+                  <div>支付流水码</div>
                   <div>支付阶段</div>
                   <div>支付渠道</div>
                   <div>支付金额</div>
@@ -745,7 +745,7 @@
                   class="detail-payment-records-row"
                 >
                   <div class="detail-payment-records-cell">
-                    <span class="detail-payment-records-label">支付流水ID</span>
+                    <span class="detail-payment-records-label">支付流水码</span>
                     <span>{{ row.id || '--' }}</span>
                   </div>
                   <div class="detail-payment-records-cell">

@@ -189,7 +189,7 @@ export const useManageDetailOrderOptionalChange = ({
 
   const resolvedOptionalChangePaymentRecordText = computed(() => {
     if (optionalChangePaymentRecordLoading.value) {
-      return '系统正在识别最近一次已支付节点进度款...'
+      return '正在匹配最近一次已支付节点款...'
     }
 
     if (!resolvedOptionalChangePaymentRecord.value) return ''
@@ -375,7 +375,7 @@ export const useManageDetailOrderOptionalChange = ({
           return
         }
         if (!(paymentRecordId > 0)) {
-          message.warning('系统未识别到最近一次已支付节点进度款，请先确认节点账单已完成支付')
+          message.warning('暂未匹配到最近一次已支付节点款，请先确认节点账单已完成支付')
           return
         }
         payload.finalRefundAmount = refundAmount

@@ -1,7 +1,7 @@
 <template>
   <div class="dispatch-panel">
     <n-alert type="info" class="inline-alert-md">
-      这里仅处理后端真实返回的选配变更申请。审核通过后可直接通过、生成补价账单或发起退款。
+      这里处理当前订单的选配变更申请。审核通过后，可根据差额直接通过、生成补价账单或发起退款。
     </n-alert>
 
     <n-spin :show="optionalChangeLoading">
@@ -55,7 +55,7 @@
             <div v-if="record.linkedRefundStatusLabel">
               退款状态：{{ record.linkedRefundStatusLabel }}
             </div>
-            <div v-if="record.paymentRecordId">关联支付流水：#{{ record.paymentRecordId }}</div>
+            <div v-if="record.paymentRecordId">关联支付流水码：#{{ record.paymentRecordId }}</div>
             <div v-if="record.auditOperator || record.auditTime">
               审核信息：{{ record.auditOperator || '--' }} / {{ formatDateTime(record.auditTime) }}
             </div>

@@ -408,7 +408,7 @@ export const useUserOrderConstruction = ({
       billTitle:
         activeNode?.name || currentNodeDetail.value?.nodeName || '当前施工节点',
       remark:
-        '当前施工阶段待支付，支付时若后端尚未生成账单，将按当前节点自动拉起支付。',
+        '当前施工阶段待支付。若账单暂未生成，系统会按当前节点自动发起支付。',
       createTime:
         currentOrder.value?.updateTime ||
         currentOrder.value?.orderTime ||

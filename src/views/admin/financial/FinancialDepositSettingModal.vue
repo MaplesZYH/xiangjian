@@ -9,7 +9,7 @@
       <section class="deposit-setting-card">
         <div class="deposit-setting-card__title">设计订单定金</div>
         <div class="deposit-setting-card__desc">
-          这里直接读取并修改后端全局默认定金，保存后后续新建设计订单会立即按新金额生效。
+          用于维护新建设计订单的默认定金，保存后新的设计订单将按该金额生效。
         </div>
 
         <n-form label-placement="top">
@@ -33,7 +33,7 @@
           </strong>
         </div>
         <div class="deposit-setting-card__hint">
-          已创建的历史订单不会回溯修改，实际支付金额仍以后端实时生成账单为准。
+          已创建的历史订单不会回溯修改，实际支付金额以订单账单为准。
         </div>
       </section>
 

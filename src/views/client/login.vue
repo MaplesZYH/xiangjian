@@ -488,7 +488,7 @@ const handleUserLogin = async () => {
   } catch (error) {
     const errorMessage = getErrorMessage(error, '用户登录失败')
     if (!userForm.code.trim() && errorMessage.includes('验证码错误')) {
-      message.error('当前连接的后端环境仍在校验验证码，前端已放开校验，但线上后端还未切到手机号直登')
+      message.error('当前登录方式暂不可用，请稍后重试或联系管理员。')
       return
     }
     message.error(errorMessage)

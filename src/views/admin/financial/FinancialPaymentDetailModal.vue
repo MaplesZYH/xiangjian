@@ -2,14 +2,14 @@
   <n-modal
     v-model:show="showModel"
     preset="card"
-    title="支付流水详情"
+    title="支付记录详情"
     style="width: min(760px, calc(100vw - 24px))"
   >
     <n-spin :show="loading">
       <div v-if="detail" class="refund-detail-panel">
         <div class="refund-detail-row">
           <div class="refund-detail-item">
-            <span class="refund-detail-item__label">支付流水ID：</span>
+            <span class="refund-detail-item__label">支付流水码：</span>
             <span class="refund-detail-item__value">{{ detail.id || '--' }}</span>
           </div>
           <div class="refund-detail-item">
@@ -62,7 +62,7 @@
           </div>
         </div>
       </div>
-      <n-empty v-else description="暂无支付流水详情" />
+      <n-empty v-else description="暂无支付记录详情" />
     </n-spin>
   </n-modal>
 </template>
