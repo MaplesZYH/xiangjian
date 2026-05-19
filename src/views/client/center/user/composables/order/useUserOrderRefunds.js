@@ -22,6 +22,7 @@ export const useUserOrderRefunds = ({
   fetchOrders,
   message,
   dialog,
+  latestOptionalChangeRecord,
 }) => {
   const showRefundDetailModal = ref(false)
   const showRefundModal = ref(false)
@@ -128,17 +129,29 @@ export const useUserOrderRefunds = ({
   const canViewRefundDetailForPaymentRecord = (record) =>
     canViewRefund.value && getPaymentRecordRefundStatus(record) === 4
 
+  const getLatestOptionalChangeRefundState = () => {
+    const latestRecord = latestOptionalChangeRecord?.value
+    if (!latestRecord) return ''
+    return String(latestRecord?.status || '').trim().toUpperCase()
+  }
+
+  const isLatestOptionalChangeRefundClosed = () =>
+    ['REFUNDED', 'REFUND_PENDING'].includes(getLatestOptionalChangeRefundState())
+
   const canApplyRefundForLatestOptionalChange = computed(() =>
+    !isLatestOptionalChangeRefundClosed() &&
     canApplyRefundForPaymentRecord(latestOptionalChangeRefundPaymentRecord.value),
   )
 
   const canCancelRefundForLatestOptionalChange = computed(() =>
+    isLatestOptionalChangeRefundClosed() &&
     canCancelRefundForPaymentRecord(
       latestOptionalChangeRefundPaymentRecord.value,
     ),
   )
 
   const canViewRefundDetailForLatestOptionalChange = computed(() =>
+    isLatestOptionalChangeRefundClosed() &&
     canViewRefundDetailForPaymentRecord(
       latestOptionalChangeRefundPaymentRecord.value,
     ),

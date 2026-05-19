@@ -86,6 +86,12 @@ export const useManageDetailOrderOptionalChange = ({
     return rows.find((item) => isConstructionStagePaymentRecord(item)) || null
   }
 
+  const hasRefundableConstructionStagePayment = computed(() =>
+    optionalChangePaymentRecords.value.some((item) =>
+      isConstructionStagePaymentRecord(item),
+    ),
+  )
+
   const visibleOptionalChangeRecords = computed(() => {
     if (!optionalChangeRecords.value.length) return []
     return sortOptionalChangeRecords(optionalChangeRecords.value).slice(0, 1)
@@ -127,23 +133,31 @@ export const useManageDetailOrderOptionalChange = ({
   const resolveOptionalChangeAllowedModes = (record) => {
     const diff = Number(record?.theoreticalDiffAmount || 0)
     const changeType = String(record?.changeType || '').trim()
+    const shouldUseRefundForNegativeDiff =
+      hasRefundableConstructionStagePayment.value
 
     if (changeType === 'ADD_ONLY') {
       return diff > 0 ? ['charge'] : ['direct']
     }
 
     if (changeType === 'REMOVE') {
-      return diff < 0 ? ['refund'] : ['direct']
+      return diff < 0
+        ? [shouldUseRefundForNegativeDiff ? 'refund' : 'direct']
+        : ['direct']
     }
 
     if (['REPLACE', 'MIXED'].includes(changeType)) {
       if (diff > 0) return ['charge']
-      if (diff < 0) return ['refund']
+      if (diff < 0) {
+        return [shouldUseRefundForNegativeDiff ? 'refund' : 'direct']
+      }
       return ['direct']
     }
 
     if (diff > 0) return ['charge']
-    if (diff < 0) return ['refund']
+    if (diff < 0) {
+      return [shouldUseRefundForNegativeDiff ? 'refund' : 'direct']
+    }
     return ['direct']
   }
 
@@ -290,6 +304,7 @@ export const useManageDetailOrderOptionalChange = ({
   const openOptionalChangeAuditModal = async (record) => {
     currentOptionalChangeAuditRecord.value = record
     resetOptionalChangeAuditForm()
+    await loadOptionalChangePaymentRecordOptions()
     optionalChangeAuditForm.mode = resolveOptionalChangeAuditMode(record)
 
     const diffAmount = Math.abs(Number(record?.theoreticalDiffAmount || 0))
@@ -303,7 +318,6 @@ export const useManageDetailOrderOptionalChange = ({
     showOptionalChangeAuditModal.value = true
 
     if (optionalChangeAuditForm.mode === 'refund') {
-      await loadOptionalChangePaymentRecordOptions()
       syncResolvedOptionalChangePaymentRecord(record)
     }
   }

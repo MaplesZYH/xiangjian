@@ -174,6 +174,7 @@ export const useUserOrderPanel = ({
     getDetailPaymentStageText,
     latestOptionalChangeRefundPaymentRecord:
       optionsPanel.latestOptionalChangeRefundPaymentRecord,
+    latestOptionalChangeRecord: optionsPanel.latestUserOptionalChangeRecord,
     loadDetailPaymentRecords,
     syncCurrentOrderFromServer,
     fetchOrders,
@@ -392,7 +393,7 @@ export const useUserOrderPanel = ({
         await optionsPanel.loadUserOptionConfigList()
         pendingPaymentBills.value = currentOrder.value.pendingPaymentBills || []
         if ([3, 4].includes(currentOrder.value.orderStatus)) {
-          await constructionPanel.loadConstructionFlow(currentOrder.value.id)
+          constructionPanel.applyConstructionFlowFromOrderDetail()
         }
         await orderPanelBridge.loadPendingPaymentBills(currentOrder.value.id)
         await optionsPanel.loadUserOptionalChangeRecords(currentOrder.value.id)

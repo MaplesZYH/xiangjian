@@ -27,6 +27,7 @@ export const useUserOrderConstruction = ({
   const currentNodeDetail = ref(null)
   const showAuditRejectModal = ref(false)
   const auditRejectReason = ref('')
+  const selectedConstructionNodeId = ref(null)
 
   let constructionPaymentPollTimer = null
   const constructionPaymentTracker = reactive({
@@ -35,52 +36,123 @@ export const useUserOrderConstruction = ({
     billId: null,
   })
 
-  const handleNodeClick = async (node) => {
-    if (!currentOrder.value) return
-    const orderId = currentOrder.value.id
-    try {
-      const nodeId = node.nodeId || node.id
-      const res = await ConstructionAPI.getConstructionDetail(orderId, nodeId)
-      if (res.code === 200) {
-        currentNodeDetail.value = res.data
-      }
-    } catch (error) {
-      void error
-      message.error('加载节点详情失败')
-    }
+  const resolveNodeId = (node) => Number(node?.nodeId || node?.id || 0)
+
+  const findNodeById = (flow, nodeId) => {
+    if (!flow?.nodeDetails?.length || !(Number(nodeId) > 0)) return null
+    return (
+      flow.nodeDetails.find((item) => resolveNodeId(item) === Number(nodeId)) ||
+      null
+    )
   }
 
-  const applyConstructionStatus = async (statusData) => {
-    const flow = normalizeConstructionFlow(statusData)
-    constructionInfo.value = flow
+  const resolveCurrentFlowNode = (flow) => {
+    if (!flow?.nodeDetails?.length) return null
 
+    const currentIndex = Number(flow.currentNodeIndex)
+    if (currentIndex >= 0 && currentIndex < flow.nodeDetails.length) {
+      return flow.nodeDetails[currentIndex] || null
+    }
+
+    return flow.nodeDetails[0] || null
+  }
+
+  const buildNodeDetailFromFlowNode = (node = {}, flow = constructionInfo.value) => ({
+    ...node,
+    nodeId: node?.nodeId || node?.id || null,
+    nodeName: node?.nodeName || node?.name || '',
+    status:
+      node?.status ??
+      (Number(node?.nodeId || node?.id || 0) ===
+      Number(
+        flow?.nodeDetails?.[Number(flow?.currentNodeIndex || 0)]?.nodeId ||
+          flow?.nodeDetails?.[Number(flow?.currentNodeIndex || 0)]?.id ||
+          0,
+      )
+        ? flow?.currentNodeStatus
+        : node?.status),
+    statusText:
+      node?.statusText ||
+      (Number(node?.nodeId || node?.id || 0) ===
+      Number(
+        flow?.nodeDetails?.[Number(flow?.currentNodeIndex || 0)]?.nodeId ||
+          flow?.nodeDetails?.[Number(flow?.currentNodeIndex || 0)]?.id ||
+          0,
+      )
+        ? flow?.currentNodeStatusText
+        : ''),
+    progressRecords: Array.isArray(node?.progressRecords) ? node.progressRecords : [],
+  })
+
+  const syncCurrentNodeDetail = (
+    flow,
+    preferredNodeId = selectedConstructionNodeId.value,
+  ) => {
     if (!flow?.nodeDetails?.length) {
+      selectedConstructionNodeId.value = null
       currentNodeDetail.value = null
       return
     }
 
-    const targetIndex =
-      flow.currentNodeIndex < flow.nodeDetails.length ? flow.currentNodeIndex : 0
-    const targetNode = flow.nodeDetails[targetIndex]
-    if (targetNode) {
-      await handleNodeClick(targetNode)
+    const targetNode =
+      findNodeById(flow, preferredNodeId) || resolveCurrentFlowNode(flow)
+
+    selectedConstructionNodeId.value = resolveNodeId(targetNode) || null
+    currentNodeDetail.value = targetNode
+      ? buildNodeDetailFromFlowNode(targetNode, flow)
+      : null
+  }
+
+  const applyConstructionFlowFromOrderDetail = (
+    preferredNodeId = selectedConstructionNodeId.value,
+  ) => {
+    const flow = normalizeConstructionFlow(currentOrder.value?.constructionFlow)
+    constructionInfo.value = flow
+
+    if (!flow?.nodeDetails?.length) {
+      selectedConstructionNodeId.value = null
+      currentNodeDetail.value = null
+      return
     }
+
+    syncCurrentNodeDetail(flow, preferredNodeId)
+  }
+
+  const handleNodeClick = async (node) => {
+    if (!constructionInfo.value?.nodeDetails?.length) return
+    const nodeId = resolveNodeId(node)
+    const targetNode = findNodeById(constructionInfo.value, nodeId)
+
+    if (!targetNode) {
+      currentNodeDetail.value = null
+      return
+    }
+
+    selectedConstructionNodeId.value = nodeId
+    currentNodeDetail.value = buildNodeDetailFromFlowNode(
+      targetNode,
+      constructionInfo.value,
+    )
   }
 
   const loadConstructionFlow = async (orderId) => {
-    try {
-      const res = await ConstructionAPI.getConstructionStatus(orderId)
-      if (res.code === 200 && res.data) {
-        await applyConstructionStatus(res.data)
-      } else {
-        constructionInfo.value = null
-        currentNodeDetail.value = null
-      }
-    } catch (error) {
-      void error
-      constructionInfo.value = null
-      currentNodeDetail.value = null
+    const normalizedOrderId = Number(orderId || currentOrder.value?.id || 0)
+    if (
+      normalizedOrderId > 0 &&
+      Number(currentOrder.value?.id || 0) === normalizedOrderId
+    ) {
+      applyConstructionFlowFromOrderDetail()
+      return
     }
+
+    const latestOrder = await syncCurrentOrderFromServer(normalizedOrderId)
+    if (latestOrder) {
+      applyConstructionFlowFromOrderDetail()
+      return
+    }
+
+    constructionInfo.value = null
+    currentNodeDetail.value = null
   }
 
   const showConstructionPaymentResult = () => {
@@ -95,10 +167,12 @@ export const useUserOrderConstruction = ({
     options = {},
   ) => {
     if (!orderId) return
+    const preferredNodeId =
+      resolveNodeId(currentNodeDetail.value) || constructionPaymentTracker.nodeId
     await syncCurrentOrderFromServer(orderId)
     await loadPendingPaymentBills(orderId)
     await loadDetailPaymentRecords(orderId)
-    await loadConstructionFlow(orderId)
+    applyConstructionFlowFromOrderDetail(preferredNodeId)
     await fetchOrders()
     if (options.focusPaymentResult) {
       showConstructionPaymentResult()
@@ -155,20 +229,14 @@ export const useUserOrderConstruction = ({
         }
       }
 
-      try {
-        const res = await ConstructionAPI.getConstructionStatus(orderId)
-        const flow = normalizeConstructionFlow(res?.data)
-        if (res.code === 200 && flow) {
-          if (isConstructionNodePaid(flow, nodeId)) {
-            await refreshConstructionAfterNodePayment(orderId, {
-              focusPaymentResult: true,
-            })
-            stopConstructionPaymentPolling(true)
-            return
-          }
-        }
-      } catch (error) {
-        console.error('Poll construction payment status failed', error)
+      const latestOrder = await syncCurrentOrderFromServer(orderId)
+      const flow = normalizeConstructionFlow(latestOrder?.constructionFlow)
+      if (flow && isConstructionNodePaid(flow, nodeId)) {
+        await refreshConstructionAfterNodePayment(orderId, {
+          focusPaymentResult: true,
+        })
+        stopConstructionPaymentPolling(true)
+        return
       }
 
       if (attempts <= 1) {
@@ -204,20 +272,15 @@ export const useUserOrderConstruction = ({
       }
     }
 
-    try {
-      const res = await ConstructionAPI.getConstructionStatus(trackedOrderId)
-      const flow = normalizeConstructionFlow(res?.data)
-      if (!(res.code === 200 && flow)) return
+    const latestOrder = await syncCurrentOrderFromServer(trackedOrderId)
+    const flow = normalizeConstructionFlow(latestOrder?.constructionFlow)
+    if (!flow) return
 
-      if (isConstructionNodePaid(flow, trackedNodeId)) {
-        await refreshConstructionAfterNodePayment(trackedOrderId, {
-          focusPaymentResult: true,
-        })
-        stopConstructionPaymentPolling(true)
-        return
-      }
-    } catch (error) {
-      console.error('Sync construction payment status on focus failed', error)
+    if (isConstructionNodePaid(flow, trackedNodeId)) {
+      await refreshConstructionAfterNodePayment(trackedOrderId, {
+        focusPaymentResult: true,
+      })
+      stopConstructionPaymentPolling(true)
       return
     }
 
@@ -403,6 +466,7 @@ export const useUserOrderConstruction = ({
       return
     }
     const userId = Number(userIdStr)
+    const targetNodeId = resolveNodeId(currentNodeDetail.value)
 
     try {
       const res = await ConstructionAPI.userAudit(
@@ -417,9 +481,8 @@ export const useUserOrderConstruction = ({
         showAuditRejectModal.value = false
         auditRejectReason.value = ''
         await syncCurrentOrderFromServer(currentOrder.value.id)
-        await loadConstructionFlow(currentOrder.value.id)
+        applyConstructionFlowFromOrderDetail(targetNodeId)
         await loadPendingPaymentBills(currentOrder.value.id)
-        await handleNodeClick({ nodeId: currentNodeDetail.value.nodeId })
         if (pass) {
           detailTab.value = 'bills'
         }
@@ -465,5 +528,6 @@ export const useUserOrderConstruction = ({
     getConstructionStepsCurrent,
     getNodeStepStatus,
     getNodeStepDescription,
+    applyConstructionFlowFromOrderDetail,
   }
 }

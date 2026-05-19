@@ -60,7 +60,6 @@ import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useDialog, useMessage } from 'naive-ui'
 import designOrderAPI from '@/api/admin/designOrder'
 import fileAPI from '@/api/file'
-import houseAPI from '@/api/house/house'
 import userDataAPI from '@/api/user/userData'
 import DesignOrderDetailModal from '@/views/admin/design-order/DesignOrderDetailModal.vue'
 import DesignOrderListPanel from '@/views/admin/design-order/DesignOrderListPanel.vue'
@@ -82,7 +81,6 @@ const loadingDetail = ref(false)
 const showDetailModal = ref(false)
 const orderList = ref([])
 const currentOrder = ref(null)
-const mainProductNameMap = reactive({})
 const orderMainProductTextMap = reactive({})
 const adminUserInfoMap = reactive({})
 const filters = reactive({
@@ -227,33 +225,9 @@ const resolveDeliveryMainProductId = (order) => {
   return extractDesignOrderProductBinding(order)?.mainProductId || null
 }
 
-const ensureAdminMainProductName = async (mainProductId) => {
-  const numericMainProductId = Number(mainProductId)
-  if (!Number.isInteger(numericMainProductId) || numericMainProductId <= 0) {
-    return ''
-  }
-  if (mainProductNameMap[numericMainProductId]) {
-    return mainProductNameMap[numericMainProductId]
-  }
-
-  try {
-    const res = await houseAPI.getHouseDetails(numericMainProductId)
-    const productName = String(res?.data?.name || '').trim()
-    if (productName) {
-      mainProductNameMap[numericMainProductId] = productName
-      return productName
-    }
-  } catch (error) {
-    void error
-  }
-
-  return ''
-}
-
 const getBoundMainProductText = (order) => {
-  const mainProductId = resolveDeliveryMainProductId(order)
-  if (!mainProductId) return '--'
-  return mainProductNameMap[mainProductId] || '加载中...'
+  const deliveredMpName = String(order?.deliveredMpName || '').trim()
+  return deliveredMpName || '--'
 }
 
 const getDesignOrderListMainProductText = (order) =>
@@ -276,14 +250,12 @@ const hydrateAdminListMainProductNames = async (rows = []) => {
           ...row,
           ...res.data,
         }
-        const mainProductId = resolveDeliveryMainProductId(detail)
-        if (!mainProductId) {
-          orderMainProductTextMap[orderId] = '--'
+        const deliveredMpName = String(detail?.deliveredMpName || '').trim()
+        if (deliveredMpName) {
+          orderMainProductTextMap[orderId] = deliveredMpName
           return
         }
-
-        const productName = await ensureAdminMainProductName(mainProductId)
-        orderMainProductTextMap[orderId] = productName || '--'
+        orderMainProductTextMap[orderId] = '--'
       } catch (error) {
         void error
         orderMainProductTextMap[orderId] = '--'
@@ -447,7 +419,6 @@ const openDetail = async (row) => {
           phoneNumber: userInfo.phoneNumber || currentOrder.value.phoneNumber || '',
         }
       }
-      await ensureAdminMainProductName(resolveDeliveryMainProductId(currentOrder.value))
       hydrateUploadForms(currentOrder.value)
       return
     }

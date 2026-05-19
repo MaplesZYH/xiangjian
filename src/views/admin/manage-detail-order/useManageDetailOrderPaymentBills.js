@@ -150,17 +150,8 @@ export const useManageDetailOrderPaymentBills = ({
     const rows = Array.isArray(detailOrder.value?.pendingPaymentBills)
       ? detailOrder.value.pendingPaymentBills
       : []
-    const latestOptionChangeBill = sortAdminPaymentBills(
-      rows.filter((bill) => bill?.billType === 'OPTION_CHANGE'),
-    )[0]
-    const latestOptionChangeBillId = Number(latestOptionChangeBill?.id || 0)
 
-    return sortAdminPaymentBills(
-      rows.filter((bill) => {
-        if (bill?.billType !== 'OPTION_CHANGE') return true
-        return latestOptionChangeBillId > 0 && Number(bill?.id || 0) === latestOptionChangeBillId
-      }),
-    )
+    return sortAdminPaymentBills(rows)
   })
 
   const adminSupplementPaymentBillRows = computed(() =>
