@@ -125,9 +125,12 @@ export const useManageDetailOrderDispatch = ({
     () => Number(detailOrder.value?.orderStatus) < 3,
   )
 
-  const constructionWorkflowStarted = computed(
-    () => Number(detailOrder.value?.orderStatus) >= 3,
-  )
+  const constructionWorkflowStarted = computed(() => {
+    if (typeof constructionInfo.value?.constructionStarted === 'boolean') {
+      return constructionInfo.value.constructionStarted
+    }
+    return Number(detailOrder.value?.orderStatus) >= 3
+  })
 
   const constructionPricingButtonText = computed(() => '确认开工节点金额')
 
@@ -221,8 +224,8 @@ export const useManageDetailOrderDispatch = ({
 
   const canSyncConstructionPricePlan = computed(
     () =>
-      Number(detailOrder.value?.orderStatus) === 3 &&
-      hasConstructionNodeInstances.value &&
+      Array.isArray(constructionInfo.value?.nodeDetails) &&
+      constructionInfo.value.nodeDetails.length > 0 &&
       canConfigureConstructionPrice.value,
   )
 
@@ -373,9 +376,7 @@ export const useManageDetailOrderDispatch = ({
       await orderManageStore.initDispatchState()
     }
     dispatchTab.value = pickAccessibleDispatchTab('pricing', 'contract')
-    if (constructionWorkflowStarted.value) {
-      await loadConstructionStatus()
-    }
+    await loadConstructionStatus()
   }
 
   const handleUpdateConstructionDepositDraft = (amount) => {

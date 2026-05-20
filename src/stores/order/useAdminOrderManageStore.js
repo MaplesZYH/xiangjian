@@ -520,7 +520,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
 
   const constructionPricePlanDirty = computed(() => {
     if (!constructionInfo.value?.nodeDetails?.length) return false
-    return constructionPlanCurrentTotal.value !== roundCurrencyAmount(priceLimitTotal.value)
+    return constructionPlanCurrentTotal.value > roundCurrencyAmount(priceLimitTotal.value)
   })
 
   const constructionPricePlanReady = computed(() => {
@@ -533,7 +533,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   const constructionPricePlanStatusText = computed(() => {
     if (!constructionInfo.value?.nodeDetails?.length) return '待加载'
     if (constructionPriceDraftDirty.value) {
-      if (constructionPricePlanGapAmount.value > 0) return '待补足'
       if (constructionPricePlanGapAmount.value < 0) return '已超额'
       return constructionInfo.value?.constructionStarted ? '待保存' : '待预设'
     }
@@ -547,9 +546,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       return '正在加载节点金额方案。'
     }
     if (constructionPriceDraftDirty.value) {
-      if (constructionPricePlanGapAmount.value > 0) {
-        return `当前还有 ¥${constructionPricePlanGapAmount.value.toFixed(2)} 未分配，请继续填写剩余节点金额。`
-      }
       if (constructionPricePlanGapAmount.value < 0) {
         return `当前已超出可分配金额 ¥${Math.abs(constructionPricePlanGapAmount.value).toFixed(2)}，请下调节点金额。`
       }
@@ -1446,26 +1442,29 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     const totalAmount = roundCurrencyAmount(priceLimitTotal.value)
     const draftTotal = constructionPlanDraftTotal.value
 
-    if (draftTotal !== totalAmount) {
-      if (constructionInfo.value?.constructionStarted) {
-        const lockedAmount = roundCurrencyAmount(
-          editableConstructionNodes.value
-            .filter((row) => row?.isPaid)
-            .reduce((sum, row) => sum + Number(row?.currentAmount || 0), 0),
-        )
-        const editableAmount = roundCurrencyAmount(
-          editableConstructionNodes.value
-            .filter((row) => !row?.isPaid)
-            .reduce((sum, row) => sum + Number(row?.draftAmount || 0), 0),
-        )
-        const remainingAmount = roundCurrencyAmount(totalAmount - lockedAmount)
+    if (constructionInfo.value?.constructionStarted) {
+      const lockedAmount = roundCurrencyAmount(
+        editableConstructionNodes.value
+          .filter((row) => row?.isPaid)
+          .reduce((sum, row) => sum + Number(row?.currentAmount || 0), 0),
+      )
+      const editableAmount = roundCurrencyAmount(
+        editableConstructionNodes.value
+          .filter((row) => !row?.isPaid)
+          .reduce((sum, row) => sum + Number(row?.draftAmount || 0), 0),
+      )
+      const remainingAmount = roundCurrencyAmount(totalAmount - lockedAmount)
+      if (editableAmount > remainingAmount) {
         throw new Error(
-          `未支付节点金额合计需等于剩余可分配金额 ¥${remainingAmount.toFixed(2)}，当前为 ¥${editableAmount.toFixed(2)}。`,
+          `未支付节点金额合计不能超过剩余可分配金额 ¥${remainingAmount.toFixed(2)}，当前为 ¥${editableAmount.toFixed(2)}。`,
         )
       }
+      return
+    }
 
+    if (draftTotal > totalAmount) {
       throw new Error(
-        `节点金额合计需等于订单总金额 ¥${totalAmount.toFixed(2)}，当前为 ¥${draftTotal.toFixed(2)}。`,
+        `节点金额合计不能超过订单总金额 ¥${totalAmount.toFixed(2)}，当前为 ¥${draftTotal.toFixed(2)}。`,
       )
     }
   }
