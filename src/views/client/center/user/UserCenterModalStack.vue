@@ -85,6 +85,11 @@
     :get-detail-payment-channel-text="getDetailPaymentChannelText"
     :get-refund-status-tag-type="getRefundStatusTagType"
     :get-refund-status-text="getRefundStatusText"
+    :refund-records-loading="refundRecordsLoading"
+    :refund-records="refundRecords"
+    :has-refund-records="hasRefundRecords"
+    :can-cancel-refund-record="canCancelRefundRecord"
+    :can-view-refund-record-detail="canViewRefundRecordDetail"
     :can-apply-refund-for-payment-record-in-list="
       canApplyRefundForPaymentRecordInList
     "
@@ -124,6 +129,10 @@
     @open-refund-modal="$emit('open-refund-modal', $event)"
     @cancel-refund-apply="$emit('cancel-refund-apply', $event)"
     @open-refund-detail-modal="$emit('open-refund-detail-modal', $event)"
+    @open-refund-record-detail-modal="
+      $emit('open-refund-record-detail-modal', $event)
+    "
+    @cancel-refund-record="$emit('cancel-refund-record', $event)"
   />
 
   <UserDesignOrderDetailModal
@@ -542,6 +551,26 @@ defineProps({
     type: Function,
     required: true,
   },
+  refundRecordsLoading: {
+    type: Boolean,
+    default: false,
+  },
+  refundRecords: {
+    type: Array,
+    default: () => [],
+  },
+  hasRefundRecords: {
+    type: Boolean,
+    default: false,
+  },
+  canCancelRefundRecord: {
+    type: Function,
+    required: true,
+  },
+  canViewRefundRecordDetail: {
+    type: Function,
+    required: true,
+  },
   getPaymentRecordRefundStatus: {
     type: Function,
     required: true,
@@ -755,6 +784,8 @@ defineEmits([
   'open-refund-modal',
   'cancel-refund-apply',
   'open-refund-detail-modal',
+  'open-refund-record-detail-modal',
+  'cancel-refund-record',
   'update:show-design-detail-modal',
   'open-design-order-payment-modal',
   'mark-design-order-no-build',

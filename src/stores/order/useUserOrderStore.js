@@ -99,6 +99,15 @@ const sortPaymentRows = (rows = []) => {
   })
 }
 
+const sortRefundRows = (rows = []) => {
+  return [...rows].sort((a, b) => {
+    const timeA = a?.createTime ? new Date(a.createTime).getTime() : 0
+    const timeB = b?.createTime ? new Date(b.createTime).getTime() : 0
+    if (timeA !== timeB) return timeB - timeA
+    return Number(b?.id || 0) - Number(a?.id || 0)
+  })
+}
+
 const escapeStatementHtml = (str = '') =>
   String(str)
     .replace(/&/g, '&amp;')
@@ -164,6 +173,8 @@ export const useUserOrderStore = defineStore('userOrder', () => {
   const loadingDetail = ref(false)
   const detailPaymentRecordsLoading = ref(false)
   const detailPaymentRecords = ref([])
+  const refundRecordsLoading = ref(false)
+  const refundRecords = ref([])
   const orderPaymentStatementLoading = ref(false)
   const orderPaymentStatementHtml = ref(defaultOrderPaymentStatementHtml)
   const refundDetailLoading = ref(false)
@@ -687,6 +698,67 @@ export const useUserOrderStore = defineStore('userOrder', () => {
     }
   }
 
+  const loadRefundRecords = async ({
+    orderId,
+    userId,
+    canViewRefund = false,
+  }) => {
+    if (!orderId || !userId || !canViewRefund) {
+      refundRecords.value = []
+      return []
+    }
+
+    refundRecordsLoading.value = true
+    try {
+      const res = await orderAPI.getUserRefundList({
+        orderId,
+        userId,
+        page: 1,
+        pageSize: 100,
+      })
+      if (!(res?.code === 200 && res.data)) {
+        refundRecords.value = []
+        return []
+      }
+
+      const rows = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data.rows)
+          ? res.data.rows
+          : Array.isArray(res.data.records)
+            ? res.data.records
+            : []
+
+      refundRecords.value = sortRefundRows(rows).map((row) => ({
+        ...row,
+        orderId,
+      }))
+      return refundRecords.value
+    } catch (error) {
+      void error
+      refundRecords.value = []
+      return []
+    } finally {
+      refundRecordsLoading.value = false
+    }
+  }
+
+  const fetchRefundDetailById = async ({ refundId, userId }) => {
+    if (!refundId || !userId) return null
+
+    refundDetailLoading.value = true
+    refundDetail.value = null
+    try {
+      const res = await orderAPI.getUserRefundDetailById(refundId, userId)
+      if (res?.code === 200 && res.data) {
+        refundDetail.value = res.data
+      }
+      return res
+    } finally {
+      refundDetailLoading.value = false
+    }
+  }
+
   const submitRefundApply = async ({
     userId,
     paymentRecordId,
@@ -723,9 +795,31 @@ export const useUserOrderStore = defineStore('userOrder', () => {
     }
   }
 
+  const submitRefundCancelById = async ({ userId, refundId }) => {
+    refundSubmitting.value = true
+    try {
+      const res = await orderAPI.cancelRefundById(refundId, userId)
+      if (res?.code === 200) {
+        refundRecords.value = refundRecords.value.map((item) =>
+          Number(item?.id || 0) === Number(refundId || 0)
+            ? {
+                ...item,
+                status: 2,
+                auditRemark: item?.auditRemark || '用户撤销退款申请',
+              }
+            : item,
+        )
+      }
+      return res
+    } finally {
+      refundSubmitting.value = false
+    }
+  }
+
   const clearCurrentOrder = () => {
     currentOrder.value = null
     detailPaymentRecords.value = []
+    refundRecords.value = []
   }
 
   const clearRefundDetail = () => {
@@ -740,6 +834,8 @@ export const useUserOrderStore = defineStore('userOrder', () => {
     loadingDetail.value = false
     detailPaymentRecordsLoading.value = false
     detailPaymentRecords.value = []
+    refundRecordsLoading.value = false
+    refundRecords.value = []
     orderPaymentStatementLoading.value = false
     orderPaymentStatementHtml.value = defaultOrderPaymentStatementHtml
     orderPaymentStatementLoaded.value = false
@@ -763,6 +859,8 @@ export const useUserOrderStore = defineStore('userOrder', () => {
     loadingDetail,
     detailPaymentRecordsLoading,
     detailPaymentRecords,
+    refundRecordsLoading,
+    refundRecords,
     orderPaymentStatementLoading,
     orderPaymentStatementHtml,
     refundDetailLoading,
@@ -778,11 +876,14 @@ export const useUserOrderStore = defineStore('userOrder', () => {
     fetchOrders,
     loadOrderDetail,
     loadDetailPaymentRecords,
+    loadRefundRecords,
     syncCurrentOrderFromServer,
     loadOrderPaymentStatement,
     fetchRefundDetail,
+    fetchRefundDetailById,
     submitRefundApply,
     submitRefundCancel,
+    submitRefundCancelById,
     invalidateRefundDetailCache,
     clearCurrentOrder,
     clearRefundDetail,

@@ -156,6 +156,7 @@
       :get-optional-change-status-tag-type="getOptionalChangeStatusTagType"
       :format-admin-optional-change-snapshot="formatAdminOptionalChangeSnapshot"
       :open-optional-change-audit-modal="openOptionalChangeAuditModal"
+      :open-optional-change-refund-detail="openOptionalChangeRefundDetail"
       @update:show="handleDispatchModalShowChange"
       @update:dispatch-tab="handleDispatchTabChange"
       @update:construction-form-field="handleConstructionFormFieldChange"
@@ -228,6 +229,18 @@
       @update:audit-reject-reason="auditRejectReason = $event"
       @submit="submitAudit(false, auditRejectReason)"
     />
+
+    <FinancialRefundDetailModal
+      :show="showOptionalChangeRefundDetailModal"
+      :loading="optionalChangeRefundDetailLoading"
+      :detail="optionalChangeRefundDetail"
+      :get-refund-status-type="getRefundStatusType"
+      :get-refund-status-text="getRefundStatusText"
+      :format-money="formatMoney"
+      :format-date-time="formatDateTime"
+      :get-refund-audit-operator-phone="getRefundAuditOperatorPhone"
+      @update:show="handleOptionalChangeRefundDetailModalShowChange"
+    />
   </div>
 </template>
 
@@ -253,6 +266,7 @@ import { useAdminOrderManageStore } from '@/stores/order/useAdminOrderManageStor
 import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 import { CONSTRUCTION_NODE_STATUS } from '@/utils/construction'
 import { AUTH_SCOPE_EMPLOYEE, getAuthStorage } from '@/utils/auth'
+import FinancialRefundDetailModal from '@/views/admin/financial/FinancialRefundDetailModal.vue'
 import ManageDetailOrderAuditRejectModal from '@/views/admin/manage-detail-order/ManageDetailOrderAuditRejectModal.vue'
 import ManageDetailOrderCancelDispatchModal from '@/views/admin/manage-detail-order/ManageDetailOrderCancelDispatchModal.vue'
 import ManageDetailOrderDetailModal from '@/views/admin/manage-detail-order/ManageDetailOrderDetailModal.vue'
@@ -397,6 +411,44 @@ const operatorName = computed(() => {
   const userId = getAuthStorage(AUTH_SCOPE_EMPLOYEE, 'id')
   return name || phone || (userId ? `emp-${userId}` : 'admin')
 })
+
+const refundStatusMap = {
+  0: '待审核',
+  1: '审核通过',
+  2: '审核拒绝',
+  3: '退款处理中',
+  4: '退款成功',
+  5: '退款失败',
+}
+
+const getRefundStatusText = (status) =>
+  refundStatusMap[Number(status)] || `未知(${status})`
+
+const getRefundStatusType = (status) => {
+  const s = Number(status)
+  if (s === 4) return 'success'
+  if (s === 2 || s === 5) return 'error'
+  if (s === 1) return 'info'
+  return 'warning'
+}
+
+const formatMoney = (value) => {
+  const num = Number(value || 0)
+  return Number.isNaN(num) ? '0.00' : num.toFixed(2)
+}
+
+const getRefundAuditOperatorPhone = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return '--'
+
+  if (raw.includes('|')) {
+    const [, phonePart] = raw.split('|')
+    return (phonePart || '').trim() || '--'
+  }
+
+  if (/^1\d{10}$/.test(raw)) return raw
+  return '--'
+}
 
 const getErrorMessage = (error, fallback) => {
   return (
@@ -755,6 +807,42 @@ const handleCancelAdminOptionChangeBill = (bill) => {
       }
     },
   })
+}
+
+const showOptionalChangeRefundDetailModal = ref(false)
+const optionalChangeRefundDetailLoading = ref(false)
+const optionalChangeRefundDetail = ref(null)
+
+const handleOptionalChangeRefundDetailModalShowChange = (value) => {
+  showOptionalChangeRefundDetailModal.value = value
+  if (!value) {
+    optionalChangeRefundDetail.value = null
+  }
+}
+
+const openOptionalChangeRefundDetail = async (record) => {
+  const refundId = Number(record?.linkedRefundRecordId || 0)
+  if (!(refundId > 0)) {
+    message.warning('未获取到退款详情信息')
+    return
+  }
+
+  showOptionalChangeRefundDetailModal.value = true
+  optionalChangeRefundDetailLoading.value = true
+  optionalChangeRefundDetail.value = null
+
+  try {
+    const res = await orderAPI.getRefundDetail(refundId)
+    if (res?.code === 200 && res.data) {
+      optionalChangeRefundDetail.value = res.data
+      return
+    }
+    message.error(res?.msg || '获取退款详情失败')
+  } catch (error) {
+    message.error(getErrorMessage(error, '获取退款详情失败'))
+  } finally {
+    optionalChangeRefundDetailLoading.value = false
+  }
 }
 
 const {

@@ -158,6 +158,7 @@
             :format-currency-amount="formatCurrencyAmount"
             :format-admin-optional-change-snapshot="formatAdminOptionalChangeSnapshot"
             :open-optional-change-audit-modal="openOptionalChangeAuditModal"
+            :open-optional-change-refund-detail="openOptionalChangeRefundDetail"
           />
         </n-tab-pane>
       </n-tabs>
@@ -558,6 +559,10 @@ const props = defineProps({
     required: true,
   },
   openOptionalChangeAuditModal: {
+    type: Function,
+    required: true,
+  },
+  openOptionalChangeRefundDetail: {
     type: Function,
     required: true,
   },

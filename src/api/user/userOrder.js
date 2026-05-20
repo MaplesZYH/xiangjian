@@ -266,6 +266,40 @@ export default {
     })
   },
 
+  // 用户查询订单退款/售后记录
+  getUserRefundList({
+    orderId,
+    userId,
+    paymentRecordId,
+    status,
+    page = 1,
+    pageSize = 100,
+  }) {
+    return request({
+      url: '/order/refund/user/list',
+      method: 'get',
+      params: {
+        orderId,
+        userId,
+        paymentRecordId,
+        status,
+        page,
+        pageSize,
+      },
+    })
+  },
+
+  // 用户按退款单查看退款详情
+  getUserRefundDetailById(refundId, userId) {
+    return request({
+      url: `/order/refund/user/${refundId}`,
+      method: 'get',
+      params: {
+        userId,
+      },
+    })
+  },
+
   cancelRefund(orderId, userId, paymentRecordId) {
     return request({
       url: `/order/refund/user/cancel/${orderId}`,
@@ -273,6 +307,17 @@ export default {
       params: {
         userId,
         paymentRecordId,
+      },
+    })
+  },
+
+  // 用户按退款单撤销退款申请
+  cancelRefundById(refundId, userId) {
+    return request({
+      url: `/order/refund/user/cancel/refund/${refundId}`,
+      method: 'post',
+      params: {
+        userId,
       },
     })
   },

@@ -163,6 +163,11 @@
       :get-detail-payment-channel-text="getDetailPaymentChannelText"
       :get-refund-status-tag-type="getRefundStatusTagType"
       :get-refund-status-text="getRefundStatusText"
+      :refund-records-loading="refundRecordsLoading"
+      :refund-records="refundRecords"
+      :has-refund-records="hasRefundRecords"
+      :can-cancel-refund-record="canCancelRefundRecord"
+      :can-view-refund-record-detail="canViewRefundRecordDetail"
       :can-apply-refund-for-payment-record-in-list="
         canApplyRefundForPaymentRecordInList
       "
@@ -248,6 +253,8 @@
       @open-refund-modal="openRefundModal"
       @cancel-refund-apply="handleCancelRefundApply"
       @open-refund-detail-modal="openRefundDetailModal"
+      @open-refund-record-detail-modal="openRefundRecordDetailModal"
+      @cancel-refund-record="handleCancelRefundRecord"
       @update:show-design-detail-modal="showDesignDetailModal = $event"
       @open-design-order-payment-modal="openDesignOrderPaymentModal"
       @mark-design-order-no-build="handleMarkDesignOrderNoBuild"
@@ -345,6 +352,8 @@ const {
   loadingDetail,
   detailPaymentRecordsLoading,
   detailPaymentRecords,
+  refundRecordsLoading,
+  refundRecords,
   orderPaymentStatementLoading,
   orderPaymentStatementHtml,
   refundDetailLoading: loadingRefundDetail,
@@ -494,18 +503,23 @@ const {
   getRefundAuditOperatorPhone,
   getRefundStatusText,
   getRefundStatusTagType,
+  hasRefundRecords,
   canOpenRefundCenter,
   canApplyRefundForPaymentRecordInList,
   canCancelRefundForPaymentRecordInList,
   canViewRefundDetailForPaymentRecordInList,
   getPaymentRecordRefundStatus,
+  canCancelRefundRecord,
+  canViewRefundRecordDetail,
   hasDetailPaymentRecords,
   openRefundModal,
   openLatestOptionalChangeRefundModal,
   openRefundDetailModal,
+  openRefundRecordDetailModal,
   openLatestOptionalChangeRefundDetailModal,
   submitRefundApply,
   handleCancelRefundApply,
+  handleCancelRefundRecord,
   cancelLatestOptionalChangeRefundApply,
   handleCancelOrder,
   closePaymentModal,
@@ -549,6 +563,8 @@ const {
   orderList,
   currentOrder,
   detailPaymentRecords,
+  refundRecords,
+  refundRecordsLoading,
   refundSubmitting,
   activeOrderStatusTag,
   orderStatusFilterTagConfigs,

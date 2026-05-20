@@ -17,7 +17,7 @@
           {{ refundTarget.productName || '--' }}
         </n-descriptions-item>
         <n-descriptions-item label="已支付金额">
-          ¥{{ Number(refundTarget.paidAmount || 0).toLocaleString() }}
+          ¥{{ formatAmount(refundTarget.paymentAmount) }}
         </n-descriptions-item>
       </n-descriptions>
 

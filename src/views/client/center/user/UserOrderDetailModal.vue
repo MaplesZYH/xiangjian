@@ -347,8 +347,9 @@
                         (canCancelLatestOptionalChange ||
                           canApplyRefundForLatestOptionalChange ||
                           canCancelRefundForLatestOptionalChange ||
-                          canViewRefundDetailForLatestOptionalChange ||
                           latestOptionalChangeRefundPaymentRecordMissing))
+                      || record.canViewRefundDetail
+                      || record.refundPaymentRecordMissing
                     "
                     class="user-option-change-history__actions"
                   >
@@ -363,8 +364,9 @@
                       </n-tag>
                       <n-tag
                         v-if="
-                          record.isLatestRecord &&
-                          latestOptionalChangeRefundPaymentRecordMissing
+                          record.refundPaymentRecordMissing ||
+                          (record.isLatestRecord &&
+                            latestOptionalChangeRefundPaymentRecordMissing)
                         "
                         size="small"
                         type="default"
@@ -407,15 +409,12 @@
                         取消退款申请
                       </n-button>
                       <n-button
-                        v-if="
-                          record.isLatestRecord &&
-                          canViewRefundDetailForLatestOptionalChange
-                        "
+                        v-if="record.canViewRefundDetail"
                         size="small"
                         type="primary"
                         secondary
                         @click="
-                          $emit('open-latest-optional-change-refund-detail-modal')
+                          $emit('open-refund-detail-modal', record.refundPaymentRecord)
                         "
                       >
                         退款详情
@@ -735,7 +734,6 @@
                   <div>支付渠道</div>
                   <div>支付金额</div>
                   <div>支付时间</div>
-                  <div>退款状态</div>
                   <div>交易流水号</div>
                   <div>操作</div>
                 </div>
@@ -771,28 +769,6 @@
                     <span>{{ formatDateTime(row.payTime) }}</span>
                   </div>
                   <div class="detail-payment-records-cell">
-                    <span class="detail-payment-records-label">退款状态</span>
-                    <n-tag
-                      v-if="
-                        row.refundStatus !== null &&
-                        row.refundStatus !== undefined
-                      "
-                      :type="getRefundStatusTagType(row)"
-                      size="small"
-                      :bordered="false"
-                    >
-                      {{ getRefundStatusText(row) }}
-                    </n-tag>
-                    <n-tag
-                      v-else
-                      type="default"
-                      size="small"
-                      :bordered="false"
-                    >
-                      未申请
-                    </n-tag>
-                  </div>
-                  <div class="detail-payment-records-cell">
                     <span class="detail-payment-records-label">交易流水号</span>
                     <span class="detail-payment-records-text">
                       {{ row.transactionId || '--' }}
@@ -816,30 +792,8 @@
                             : '申请退款'
                         }}
                       </n-button>
-                      <n-button
-                        v-if="canCancelRefundForPaymentRecordInList(row)"
-                        size="small"
-                        type="warning"
-                        secondary
-                        @click="$emit('cancel-refund-apply', row)"
-                      >
-                        取消退款申请
-                      </n-button>
-                      <n-button
-                        v-if="canViewRefundDetailForPaymentRecordInList(row)"
-                        size="small"
-                        type="primary"
-                        secondary
-                        @click="$emit('open-refund-detail-modal', row)"
-                      >
-                        退款详情
-                      </n-button>
                       <span
-                        v-if="
-                          !canApplyRefundForPaymentRecordInList(row) &&
-                          !canCancelRefundForPaymentRecordInList(row) &&
-                          !canViewRefundDetailForPaymentRecordInList(row)
-                        "
+                        v-if="!canApplyRefundForPaymentRecordInList(row)"
                         class="detail-payment-records-empty-action"
                       >
                         --
@@ -854,6 +808,93 @@
               class="construction-empty-state construction-empty-state--compact"
             >
               <n-empty description="当前订单暂无支付记录" />
+            </div>
+          </n-spin>
+        </n-tab-pane>
+
+        <n-tab-pane
+          name="refunds"
+          tab="退款/售后记录"
+          :disabled="!currentOrder"
+        >
+          <n-spin :show="refundRecordsLoading">
+            <div v-if="hasRefundRecords" class="refund-records">
+              <div class="refund-records-table client-center-paper">
+                <div class="refund-records-head">
+                  <div>退款单号</div>
+                  <div>支付流水码</div>
+                  <div>退款阶段</div>
+                  <div>退款金额</div>
+                  <div>退款状态</div>
+                  <div>申请时间</div>
+                  <div>操作</div>
+                </div>
+                <div
+                  v-for="row in refundRecords"
+                  :key="row.id || row.refundId"
+                  class="refund-records-row"
+                >
+                  <div class="refund-records-cell">
+                    <span class="refund-records-label">退款单号</span>
+                    <span>{{ row.id || row.refundId || '--' }}</span>
+                  </div>
+                  <div class="refund-records-cell">
+                    <span class="refund-records-label">支付流水码</span>
+                    <span>{{ row.paymentRecordId || '--' }}</span>
+                  </div>
+                  <div class="refund-records-cell">
+                    <span class="refund-records-label">退款阶段</span>
+                    <span>{{ row.paymentStage || row.sourcePaymentStage || '--' }}</span>
+                  </div>
+                  <div class="refund-records-cell">
+                    <span class="refund-records-label">退款金额</span>
+                    <span>¥{{ formatAmount(row.refundAmount) }}</span>
+                  </div>
+                  <div class="refund-records-cell">
+                    <span class="refund-records-label">退款状态</span>
+                    <n-tag
+                      :type="getRefundStatusTagType(row)"
+                      size="small"
+                      :bordered="false"
+                    >
+                      {{ getRefundStatusText(row) }}
+                    </n-tag>
+                  </div>
+                  <div class="refund-records-cell">
+                    <span class="refund-records-label">申请时间</span>
+                    <span>{{ formatDateTime(row.createTime) }}</span>
+                  </div>
+                  <div class="refund-records-cell refund-records-cell--actions">
+                    <span class="refund-records-label">操作</span>
+                    <div class="refund-records-actions">
+                      <n-button
+                        v-if="canViewRefundRecordDetail(row)"
+                        size="small"
+                        type="primary"
+                        secondary
+                        @click="$emit('open-refund-record-detail-modal', row)"
+                      >
+                        退款详情
+                      </n-button>
+                      <n-button
+                        v-if="canCancelRefundRecord(row)"
+                        size="small"
+                        type="warning"
+                        secondary
+                        @click="$emit('cancel-refund-record', row)"
+                      >
+                        取消退款申请
+                      </n-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              v-else
+              class="construction-empty-state construction-empty-state--compact"
+            >
+              <n-empty description="当前订单暂无退款/售后记录" />
             </div>
           </n-spin>
         </n-tab-pane>
@@ -986,6 +1027,11 @@ defineProps({
   getDetailPaymentChannelText: { type: Function, required: true },
   getRefundStatusTagType: { type: Function, required: true },
   getRefundStatusText: { type: Function, required: true },
+  refundRecordsLoading: { type: Boolean, default: false },
+  refundRecords: { type: Array, default: () => [] },
+  hasRefundRecords: { type: Boolean, default: false },
+  canCancelRefundRecord: { type: Function, required: true },
+  canViewRefundRecordDetail: { type: Function, required: true },
   canApplyRefundForPaymentRecordInList: { type: Function, required: true },
   canCancelRefundForPaymentRecordInList: { type: Function, required: true },
   canViewRefundDetailForPaymentRecordInList: { type: Function, required: true },
@@ -1012,19 +1058,23 @@ defineEmits([
   'open-refund-modal',
   'cancel-refund-apply',
   'open-refund-detail-modal',
+  'open-refund-record-detail-modal',
+  'cancel-refund-record',
 ])
 </script>
 
 <style scoped>
 .detail-payment-records,
-.pending-payment-bills {
+.pending-payment-bills,
+.refund-records {
   width: 100%;
   overflow-x: auto;
   padding-bottom: 8px;
 }
 
-.detail-payment-records-table {
-  min-width: 1260px;
+.detail-payment-records-table,
+.refund-records-table {
+  min-width: 1080px;
   overflow: hidden;
 }
 
@@ -1034,7 +1084,9 @@ defineEmits([
 }
 
 .detail-payment-records-head,
-.detail-payment-records-row {
+.detail-payment-records-row,
+.refund-records-head,
+.refund-records-row {
   display: grid;
   grid-template-columns:
     120px
@@ -1042,7 +1094,6 @@ defineEmits([
     110px
     120px
     180px
-    120px
     minmax(220px, 1fr)
     minmax(220px, 1.2fr);
   align-items: start;
@@ -1062,7 +1113,8 @@ defineEmits([
 }
 
 .detail-payment-records-head,
-.pending-payment-bills-head {
+.pending-payment-bills-head,
+.refund-records-head {
   padding: 14px 16px;
   background: linear-gradient(180deg, #f7faf8 0%, #eef4ef 100%);
   color: var(--color-text-secondary);
@@ -1071,25 +1123,29 @@ defineEmits([
 }
 
 .detail-payment-records-row,
-.pending-payment-bills-row {
+.pending-payment-bills-row,
+.refund-records-row {
   padding: 14px 16px;
   border-top: 1px solid var(--color-border-soft);
 }
 
 .detail-payment-records-cell,
-.pending-payment-bills-cell {
+.pending-payment-bills-cell,
+.refund-records-cell {
   min-width: 0;
   font-size: 14px;
   color: var(--color-text-primary);
 }
 
 .detail-payment-records-cell--actions,
-.pending-payment-bills-cell--actions {
+.pending-payment-bills-cell--actions,
+.refund-records-cell--actions {
   justify-self: stretch;
 }
 
 .detail-payment-records-label,
-.pending-payment-bills-label {
+.pending-payment-bills-label,
+.refund-records-label {
   display: none;
   margin-bottom: 6px;
   font-size: 12px;
@@ -1104,7 +1160,8 @@ defineEmits([
 }
 
 .detail-payment-records-actions,
-.pending-payment-bills-actions {
+.pending-payment-bills-actions,
+.refund-records-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1121,34 +1178,40 @@ defineEmits([
 
 @media (max-width: 768px) {
   .detail-payment-records-table,
-  .pending-payment-bills-table {
+  .pending-payment-bills-table,
+  .refund-records-table {
     min-width: 0;
   }
 
   .detail-payment-records-head,
-  .pending-payment-bills-head {
+  .pending-payment-bills-head,
+  .refund-records-head {
     display: none;
   }
 
   .detail-payment-records-row,
-  .pending-payment-bills-row {
+  .pending-payment-bills-row,
+  .refund-records-row {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
 
   .detail-payment-records-label,
-  .pending-payment-bills-label {
+  .pending-payment-bills-label,
+  .refund-records-label {
     display: block;
   }
 
   .detail-payment-records-actions,
-  .pending-payment-bills-actions {
+  .pending-payment-bills-actions,
+  .refund-records-actions {
     flex-direction: column;
     align-items: stretch;
   }
 
   .detail-payment-records-actions :deep(.n-button),
-  .pending-payment-bills-actions :deep(.n-button) {
+  .pending-payment-bills-actions :deep(.n-button),
+  .refund-records-actions :deep(.n-button) {
     width: 100%;
   }
 }

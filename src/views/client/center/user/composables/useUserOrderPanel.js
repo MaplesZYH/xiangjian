@@ -34,6 +34,8 @@ export const useUserOrderPanel = ({
   orderList,
   currentOrder,
   detailPaymentRecords,
+  refundRecords,
+  refundRecordsLoading,
   refundSubmitting,
   activeOrderStatusTag,
   orderStatusFilterTagConfigs,
@@ -162,12 +164,27 @@ export const useUserOrderPanel = ({
     }
   }
 
+  const loadRefundRecords = async (orderId) => {
+    const userId = getStoredUserId()
+    try {
+      await orderStore.loadRefundRecords({
+        orderId,
+        userId,
+        canViewRefund: canViewRefund.value,
+      })
+    } catch (error) {
+      void error
+    }
+  }
+
   const refundsPanel = useUserOrderRefunds({
     orderStore,
     canApplyRefund,
     canViewRefund,
     currentOrder,
     detailPaymentRecords,
+    refundRecords,
+    refundRecordsLoading,
     refundSubmitting,
     getStoredUserId,
     getOrderProductName: listPanel.getOrderProductName,
@@ -396,6 +413,7 @@ export const useUserOrderPanel = ({
           constructionPanel.applyConstructionFlowFromOrderDetail()
         }
         await orderPanelBridge.loadPendingPaymentBills(currentOrder.value.id)
+        await loadRefundRecords(currentOrder.value.id)
         await optionsPanel.loadUserOptionalChangeRecords(currentOrder.value.id)
         optionsPanel.hydrateUserOptionSelection()
       } else {
@@ -519,6 +537,9 @@ export const useUserOrderPanel = ({
     getRefundAuditOperatorPhone: refundsPanel.getRefundAuditOperatorPhone,
     getRefundStatusText: refundsPanel.getRefundStatusText,
     getRefundStatusTagType: refundsPanel.getRefundStatusTagType,
+    refundRecords: refundsPanel.refundRecords,
+    refundRecordsLoading: refundsPanel.refundRecordsLoading,
+    hasRefundRecords: refundsPanel.hasRefundRecords,
     canOpenRefundCenter: listPanel.canOpenRefundCenter,
     canApplyRefundForPaymentRecordInList:
       refundsPanel.canApplyRefundForPaymentRecordInList,
@@ -527,15 +548,19 @@ export const useUserOrderPanel = ({
     canViewRefundDetailForPaymentRecordInList:
       refundsPanel.canViewRefundDetailForPaymentRecordInList,
     getPaymentRecordRefundStatus: refundsPanel.getPaymentRecordRefundStatus,
+    canCancelRefundRecord: refundsPanel.canCancelRefundRecord,
+    canViewRefundRecordDetail: refundsPanel.canViewRefundRecordDetail,
     hasDetailPaymentRecords: refundsPanel.hasDetailPaymentRecords,
     openRefundModal: refundsPanel.openRefundModal,
     openLatestOptionalChangeRefundModal:
       refundsPanel.openLatestOptionalChangeRefundModal,
     openRefundDetailModal: refundsPanel.openRefundDetailModal,
+    openRefundRecordDetailModal: refundsPanel.openRefundRecordDetailModal,
     openLatestOptionalChangeRefundDetailModal:
       refundsPanel.openLatestOptionalChangeRefundDetailModal,
     submitRefundApply: refundsPanel.submitRefundApply,
     handleCancelRefundApply: refundsPanel.handleCancelRefundApply,
+    handleCancelRefundRecord: refundsPanel.handleCancelRefundRecord,
     cancelLatestOptionalChangeRefundApply:
       refundsPanel.cancelLatestOptionalChangeRefundApply,
     handleCancelOrder,

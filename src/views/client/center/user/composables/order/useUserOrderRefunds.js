@@ -12,6 +12,8 @@ export const useUserOrderRefunds = ({
   canViewRefund,
   currentOrder,
   detailPaymentRecords,
+  refundRecords,
+  refundRecordsLoading,
   refundSubmitting,
   getStoredUserId,
   getOrderProductName,
@@ -157,31 +159,26 @@ export const useUserOrderRefunds = ({
     ),
   )
 
-  const isLatestOptionalChangeRefundPaymentRecord = (record) => {
-    const latestRecordId = resolvePaymentRecordId(
-      latestOptionalChangeRefundPaymentRecord.value,
-    )
-    const currentRecordId = resolvePaymentRecordId(record)
-    return Boolean(
-      latestRecordId && currentRecordId && latestRecordId === currentRecordId,
-    )
-  }
-
   const canApplyRefundForPaymentRecordInList = (record) =>
-    isLatestOptionalChangeRefundPaymentRecord(record) &&
     canApplyRefundForPaymentRecord(record)
 
   const canCancelRefundForPaymentRecordInList = (record) =>
-    isLatestOptionalChangeRefundPaymentRecord(record) &&
     canCancelRefundForPaymentRecord(record)
 
   const canViewRefundDetailForPaymentRecordInList = (record) =>
-    isLatestOptionalChangeRefundPaymentRecord(record) &&
     canViewRefundDetailForPaymentRecord(record)
 
   const hasDetailPaymentRecords = computed(
     () => detailPaymentRecords.value.length > 0,
   )
+
+  const hasRefundRecords = computed(() => refundRecords.value.length > 0)
+
+  const canCancelRefundRecord = (record) =>
+    canApplyRefund.value && Number(record?.status ?? record?.refundStatus) === 0
+
+  const canViewRefundRecordDetail = (record) =>
+    canViewRefund.value && Boolean(Number(record?.id || record?.refundId || 0))
 
   const openRefundModal = (
     paymentRecord,
@@ -193,16 +190,17 @@ export const useUserOrderRefunds = ({
     }
 
     const paymentRecordId = resolvePaymentRecordId(paymentRecord)
+    const paymentAmount = Number(paymentRecord?.amount || 0)
 
     refundTarget.value = {
       orderId: currentOrder.value?.id || paymentRecord?.orderId || null,
       orderNumber: currentOrder.value?.orderNumber || '--',
       productName: productName || getOrderProductName(currentOrder.value),
-      paidAmount: Number(currentOrder.value?.paidAmount || 0),
+      paidAmount: paymentAmount,
       paymentRecordId,
       paymentStage:
         paymentStageText || getDetailPaymentStageText(paymentRecord?.paymentStage),
-      paymentAmount: Number(paymentRecord?.amount || 0),
+      paymentAmount,
     }
 
     refundForm.reason = ''
@@ -248,6 +246,34 @@ export const useUserOrderRefunds = ({
       })
       if (!(res?.code === 200 && res?.data)) {
         message.error(res.msg || '获取退款详情失败')
+      }
+    } catch (error) {
+      const msg =
+        error?.response?.data?.msg ||
+        error?.msg ||
+        error?.message ||
+        '获取退款详情失败'
+      message.error(String(msg))
+    }
+  }
+
+  const openRefundRecordDetailModal = async (record) => {
+    const userId = getStoredUserId()
+    const refundId = Number(record?.id || record?.refundId || 0)
+    if (!userId || !refundId || Number.isNaN(refundId)) {
+      message.warning('未获取到退款详情信息')
+      return
+    }
+
+    showRefundDetailModal.value = true
+
+    try {
+      const res = await orderStore.fetchRefundDetailById({
+        refundId,
+        userId,
+      })
+      if (!(res?.code === 200 && res?.data)) {
+        message.error(res?.msg || '获取退款详情失败')
       }
     } catch (error) {
       const msg =
@@ -376,6 +402,59 @@ export const useUserOrderRefunds = ({
     })
   }
 
+  const handleCancelRefundRecord = (record) => {
+    const userId = getStoredUserId()
+    const orderId = Number(currentOrder.value?.id || record?.orderId || 0)
+    const refundId = Number(record?.id || record?.refundId || 0)
+
+    if (!userId || !orderId || !refundId || Number.isNaN(refundId)) {
+      message.warning('未获取到取消退款申请所需信息')
+      return
+    }
+
+    if (!canCancelRefundRecord(record)) {
+      message.warning('当前退款申请不可撤销')
+      return
+    }
+
+    dialog.warning({
+      title: '取消退款申请',
+      content: '确定撤销当前待审核的退款申请吗？撤销后可重新发起申请。',
+      positiveText: '确认撤销',
+      negativeText: '暂不撤销',
+      onPositiveClick: async () => {
+        try {
+          const res = await orderStore.submitRefundCancelById({
+            userId,
+            refundId,
+          })
+          if (res?.code === 200) {
+            message.success(res.msg || '退款申请已撤销')
+            await orderStore.loadRefundRecords({
+              orderId,
+              userId,
+              canViewRefund: canViewRefund.value,
+            })
+            await loadDetailPaymentRecords(orderId)
+            await syncCurrentOrderFromServer(orderId)
+            await fetchOrders()
+            return true
+          }
+          message.error(res?.msg || '取消退款申请失败')
+          return false
+        } catch (error) {
+          const msg =
+            error?.response?.data?.msg ||
+            error?.msg ||
+            error?.message ||
+            '取消退款申请失败'
+          message.error(String(msg))
+          return false
+        }
+      },
+    })
+  }
+
   const cancelLatestOptionalChangeRefundApply = () => {
     const paymentRecord = latestOptionalChangeRefundPaymentRecord.value
     if (!paymentRecord) {
@@ -395,7 +474,10 @@ export const useUserOrderRefunds = ({
     refundForm,
     refundQuickReason,
     refundReasonOptions,
+    refundRecords,
+    refundRecordsLoading,
     hasDetailPaymentRecords,
+    hasRefundRecords,
     canApplyRefundForLatestOptionalChange,
     canCancelRefundForLatestOptionalChange,
     canViewRefundDetailForLatestOptionalChange,
@@ -406,15 +488,19 @@ export const useUserOrderRefunds = ({
     canCancelRefundForPaymentRecordInList,
     canViewRefundDetailForPaymentRecordInList,
     getPaymentRecordRefundStatus,
+    canCancelRefundRecord,
+    canViewRefundRecordDetail,
     formatAmount,
     handleRefundReasonPresetChange,
     closeRefundModal,
     openRefundModal,
     openLatestOptionalChangeRefundModal,
     openRefundDetailModal,
+    openRefundRecordDetailModal,
     openLatestOptionalChangeRefundDetailModal,
     submitRefundApply,
     handleCancelRefundApply,
+    handleCancelRefundRecord,
     cancelLatestOptionalChangeRefundApply,
   }
 }

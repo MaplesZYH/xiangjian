@@ -77,11 +77,28 @@
           </div>
 
           <div
-            v-if="canAuditOptionalChange && record.status === 'PENDING'"
+            v-if="
+              (canAuditOptionalChange && record.status === 'PENDING') ||
+              record.linkedRefundRecordId
+            "
             class="admin-optional-change-card__actions"
           >
-            <n-button size="small" type="primary" @click="openOptionalChangeAuditModal(record)">
+            <n-button
+              v-if="canAuditOptionalChange && record.status === 'PENDING'"
+              size="small"
+              type="primary"
+              @click="openOptionalChangeAuditModal(record)"
+            >
               审核处理
+            </n-button>
+            <n-button
+              v-if="record.linkedRefundRecordId"
+              size="small"
+              type="primary"
+              secondary
+              @click="openOptionalChangeRefundDetail(record)"
+            >
+              退款详情
             </n-button>
           </div>
         </div>
@@ -125,6 +142,10 @@ defineProps({
     required: true,
   },
   openOptionalChangeAuditModal: {
+    type: Function,
+    required: true,
+  },
+  openOptionalChangeRefundDetail: {
     type: Function,
     required: true,
   },

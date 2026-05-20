@@ -80,13 +80,7 @@ export const useUserOrderOptions = ({
   }
 
   const currentEffectiveOptionSnapshot = computed(() => {
-    const currentOrderRows = buildCurrentOrderOptionSnapshot()
-    if (currentOrderRows.length > 0) {
-      return currentOrderRows
-    }
-
-    // 已生效选配必须以订单详情快照为准，变更记录中的历史快照仅作兜底。
-    return resolveLatestRecordSnapshot('currentEffectiveOptions')
+    return buildCurrentOrderOptionSnapshot()
   })
 
   const pendingTargetOptionSnapshot = computed(() => {
@@ -343,12 +337,6 @@ export const useUserOrderOptions = ({
   const latestUserOptionalChangeRecord = computed(
     () => sortedUserOptionalChangeRecords.value[0] || null,
   )
-  const visibleUserOptionalChangeRecords = computed(() =>
-    sortedUserOptionalChangeRecords.value.map((record, index) => ({
-      ...record,
-      isLatestRecord: index === 0,
-    })),
-  )
 
   function isPendingOptionalChangeStatus(status) {
     return ['PENDING', 'AUTO_APPROVED', 'PAYMENT_PENDING', 'REFUND_PENDING'].includes(
@@ -467,7 +455,22 @@ export const useUserOrderOptions = ({
 
   const shouldShowOptionalChangePendingBillTag = (pendingPaymentBills, record) => {
     if (!record) return false
-    return Boolean(findPendingPaymentBillById(pendingPaymentBills, record?.linkedBillId))
+    const changeStatus = String(record?.status || '').trim()
+    if (changeStatus !== 'PAYMENT_PENDING') return false
+
+    const linkedBillStatus = String(record?.linkedBillStatus || '').trim()
+    if (linkedBillStatus && !['PENDING', 'PAYING'].includes(linkedBillStatus)) {
+      return false
+    }
+
+    const pendingBill = findPendingPaymentBillById(
+      pendingPaymentBills,
+      record?.linkedBillId,
+    )
+    if (!pendingBill) return false
+
+    const pendingBillStatus = String(pendingBill?.status || '').trim()
+    return !pendingBillStatus || ['PENDING', 'PAYING'].includes(pendingBillStatus)
   }
 
   const latestPendingOptionalChangeBill = computed(() => null)
@@ -488,6 +491,84 @@ export const useUserOrderOptions = ({
 
     return null
   }
+
+  const resolveOptionalChangeRefundRecordId = (record) => {
+    const candidates = [
+      record?.linkedRefundRecordId,
+      record?.refundRecordId,
+      record?.refundId,
+      record?.refundDetail?.id,
+      record?.refundDetail?.refundId,
+    ]
+
+    for (const candidate of candidates) {
+      const resolvedId = Number(candidate || 0)
+      if (resolvedId > 0) return resolvedId
+    }
+
+    return null
+  }
+
+  const resolveOptionalChangeRefundPaymentRecord = (record) => {
+    if (!record) return null
+
+    const linkedPaymentRecordId = resolveOptionalChangePaymentRecordId(record)
+    if (linkedPaymentRecordId) {
+      return (
+        detailPaymentRecords.value.find(
+          (item) => resolvePaymentRecordId(item) === linkedPaymentRecordId,
+        ) || {
+          id: linkedPaymentRecordId,
+          paymentRecordId: linkedPaymentRecordId,
+          orderId: currentOrder.value?.id || record?.orderId || null,
+        }
+      )
+    }
+
+    const linkedRefundRecordId = resolveOptionalChangeRefundRecordId(record)
+    if (linkedRefundRecordId) {
+      return (
+        detailPaymentRecords.value.find(
+          (item) =>
+            Number(item?.refundDetail?.id || item?.refundDetail?.refundId || item?.refundId || 0) ===
+            linkedRefundRecordId,
+        ) || null
+      )
+    }
+
+    return null
+  }
+
+  const isOptionalChangeRefundRelated = (record) => {
+    const status = String(record?.status || '').trim()
+    return (
+      ['REFUND_PENDING', 'REFUNDED', 'REFUND_FAILED'].includes(status) ||
+      Boolean(resolveOptionalChangePaymentRecordId(record)) ||
+      Boolean(resolveOptionalChangeRefundRecordId(record)) ||
+      Boolean(record?.linkedRefundStatusLabel)
+    )
+  }
+
+  const visibleUserOptionalChangeRecords = computed(() =>
+    sortedUserOptionalChangeRecords.value.map((record, index) => {
+      const refundPaymentRecord = resolveOptionalChangeRefundPaymentRecord(record)
+      const hasRefundDetail = isOptionalChangeRefundRelated(record) &&
+        (
+          Boolean(resolveOptionalChangeRefundRecordId(record)) ||
+          Number(refundPaymentRecord?.refundStatus) === 4
+        )
+
+      return {
+        ...record,
+        isLatestRecord: index === 0,
+        refundPaymentRecord,
+        canViewRefundDetail: hasRefundDetail && Boolean(refundPaymentRecord),
+        refundPaymentRecordMissing:
+          isOptionalChangeRefundRelated(record) &&
+          !refundPaymentRecord,
+      }
+    }),
+  )
 
   const latestOptionalChangeNeedsRefundSource = computed(() => {
     const latestRecord = latestUserOptionalChangeRecord.value

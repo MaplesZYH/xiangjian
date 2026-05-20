@@ -94,7 +94,7 @@ export const useManageDetailOrderOptionalChange = ({
 
   const visibleOptionalChangeRecords = computed(() => {
     if (!optionalChangeRecords.value.length) return []
-    return sortOptionalChangeRecords(optionalChangeRecords.value).slice(0, 1)
+    return sortOptionalChangeRecords(optionalChangeRecords.value)
   })
 
   const getOptionalChangeStatusTagType = (status) => {

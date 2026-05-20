@@ -95,6 +95,14 @@ const roundCurrencyAmount = (value) => {
   return Number(amount.toFixed(2))
 }
 
+const normalizePaymentBillStatus = (status) => String(status || '').trim().toUpperCase()
+
+const isPendingPaymentBill = (bill) =>
+  normalizePaymentBillStatus(bill?.status || 'PENDING') === 'PENDING'
+
+const isPaidPaymentBill = (bill) =>
+  normalizePaymentBillStatus(bill?.status) === 'PAID'
+
 const resolveConstructionBaseAmount = (totalAmount, depositAmount = 0) => {
   const total = roundCurrencyAmount(totalAmount)
   const deposit = roundCurrencyAmount(depositAmount)
@@ -598,10 +606,18 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     const rows = Array.isArray(detailOrder.value?.pendingPaymentBills)
       ? detailOrder.value.pendingPaymentBills
       : []
+    return rows.find((item) => item?.billType === 'BUILD_DEPOSIT' && isPendingPaymentBill(item)) || null
+  })
+
+  const latestBuildDepositBill = computed(() => {
+    const rows = Array.isArray(detailOrder.value?.pendingPaymentBills)
+      ? detailOrder.value.pendingPaymentBills
+      : []
     return rows.find((item) => item?.billType === 'BUILD_DEPOSIT') || null
   })
 
   const hasPaidConstructionDeposit = computed(() => {
+    if (isPaidPaymentBill(latestBuildDepositBill.value)) return true
     if (Number(depositNode.value?.isPaid) === 1) return true
     if (hasPaidDepositSubStep(depositNode.value)) return true
 
@@ -628,9 +644,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   })
 
   const resolveDepositStageStatusText = (fallbackText = '') => {
+    if (hasPaidConstructionDeposit.value) return '已支付'
     const text = String(fallbackText || '').trim()
     if (text) return text
-    return hasPaidConstructionDeposit.value ? '已支付' : '待支付'
+    return '待支付'
   }
 
   const resolveDepositStageStatusType = (fallbackType = '') => {
