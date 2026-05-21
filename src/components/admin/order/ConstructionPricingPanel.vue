@@ -197,7 +197,11 @@
               }}
             </span>
             <span
-              v-if="!row.editable && Number(row.targetAmount) !== Number(row.amount)"
+              v-if="
+                !row.isPaid &&
+                !row.editable &&
+                Number(row.targetAmount) !== Number(row.amount)
+              "
               class="stage-table__hint"
             >
               同步后：¥{{ formatAmount(row.targetAmount) }}
