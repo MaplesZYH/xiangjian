@@ -2,7 +2,9 @@
   <div class="construction-pricing-panel">
     <n-alert :type="workflowStarted ? 'warning' : 'info'" class="panel-alert">
       {{
-        workflowStarted
+        isReadOnly
+          ? '当前订单已完结，施工金额信息仅供查看。'
+          : workflowStarted
           ? '订单已进入施工阶段。已支付节点金额已锁定，剩余未支付节点可继续编辑，但合计必须与剩余待支付总额一致。'
           : '这一环节用于在派单完成后、开工前预设各阶段金额。当前修改会保存为开工金额方案，开启施工时将生成各阶段正式金额。'
       }}
@@ -35,7 +37,7 @@
           <div class="deposit-card__title">建房定金</div>
           <div class="deposit-card__desc">
             {{
-              canEditDeposit
+              canEditDeposit && !isReadOnly
                 ? '当前订单尚未开工，可直接修改定金并让后续账单基于新定金重算。'
                 : depositStatusText === '已支付' || depositStatusText === '已完成'
                   ? '当前定金已完成支付，金额已锁定，不可再修改。'
@@ -48,15 +50,15 @@
         <n-tag
           size="small"
           :bordered="false"
-          :type="canEditDeposit ? 'warning' : depositTagType"
+          :type="canEditDeposit && !isReadOnly ? 'warning' : depositTagType"
         >
-          {{ canEditDeposit ? '可编辑' : depositStatusText }}
+          {{ canEditDeposit && !isReadOnly ? '可编辑' : depositStatusText }}
         </n-tag>
       </div>
 
       <div class="deposit-card__body">
         <n-input-number
-          v-if="canEditDeposit"
+          v-if="canEditDeposit && !isReadOnly"
           v-model:value="localDepositAmount"
           :min="0"
           :precision="2"
@@ -71,7 +73,7 @@
           ¥{{ formatAmount(localDepositAmount) }}
         </div>
         <n-button
-          v-if="canEditDeposit"
+          v-if="canEditDeposit && !isReadOnly"
           type="primary"
           :loading="depositSaving"
           @click="handleSaveDeposit"
@@ -102,6 +104,7 @@
           </div>
           <div class="allocation-panel__actions">
             <n-button
+              v-if="!isReadOnly"
               size="small"
               secondary
               :disabled="planSubmitting || !hasEditableRows"
@@ -175,7 +178,7 @@
                 :precision="2"
                 :show-button="false"
                 size="small"
-                :disabled="planSubmitting || savingNodePriceId === '__all__'"
+                :disabled="isReadOnly || planSubmitting || savingNodePriceId === '__all__'"
                 @update:value="handleNodeDraftChange(row, $event)"
               >
                 <template #prefix>¥</template>
@@ -218,6 +221,7 @@
 
       <div class="plan-card__footer">
         <n-button
+          v-if="!isReadOnly"
           type="primary"
           secondary
           :disabled="planSubmitting || !hasDirtyRows"
@@ -227,7 +231,7 @@
           确认保存金额
         </n-button>
         <n-button
-          v-if="!workflowStarted"
+          v-if="!workflowStarted && !isReadOnly"
           type="success"
           :disabled="!canConfirmPlan"
           :loading="planSubmitting"
@@ -303,6 +307,10 @@ const props = defineProps({
     default: false,
   },
   canEditDeposit: {
+    type: Boolean,
+    default: false,
+  },
+  isReadOnly: {
     type: Boolean,
     default: false,
   },

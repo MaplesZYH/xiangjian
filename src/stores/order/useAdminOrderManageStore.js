@@ -345,6 +345,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     Number(detailOrder.value?.orderStatus ?? currentDispatchOrder.value?.orderStatus ?? 0),
   )
 
+  const isHistoricalDispatchOrder = computed(() =>
+    [4, 5].includes(currentDispatchStageOrderStatus.value),
+  )
+
   const isDispatchStageLocked = computed(
     () => currentDispatchStageOrderStatus.value >= 3,
   )
@@ -412,6 +416,29 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     }),
   )
 
+  const lockedConstructionDepositAmount = computed(() => {
+    const paidDepositBill = latestBuildDepositBill.value
+    if (isPaidPaymentBill(paidDepositBill)) {
+      const billAmount = Number(paidDepositBill?.amount)
+      if (Number.isFinite(billAmount) && billAmount > 0) {
+        return roundCurrencyAmount(billAmount)
+      }
+    }
+
+    if (Number(depositNode.value?.isPaid) === 1 || hasPaidDepositSubStep(depositNode.value)) {
+      const nodeAmount = resolveConstructionNodeAmount(depositNode.value)
+      if (nodeAmount > 0) return nodeAmount
+    }
+
+    const paidAmount = Number(detailOrder.value?.paidAmount)
+    const paymentStatus = Number(detailOrder.value?.paymentStatus)
+    if ([1, 2].includes(paymentStatus) && Number.isFinite(paidAmount) && paidAmount > 0) {
+      return roundCurrencyAmount(paidAmount)
+    }
+
+    return buildDepositSeedAmount.value
+  })
+
   const editableConstructionNodes = computed(() => {
     const rows = constructionPricingStageRows.value
     if (!Array.isArray(rows) || rows.length === 0) return []
@@ -443,6 +470,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
   })
 
   const depositDraftAmount = computed(() => {
+    if (hasPaidConstructionDeposit.value) {
+      return lockedConstructionDepositAmount.value
+    }
+
     const depositDraftKey = resolveConstructionDraftKey(
       depositNode.value ||
         editableConstructionNodes.value.find((row) => Number(row?.sortOrder) === 1) ||
@@ -1100,8 +1131,16 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
         (Array.isArray(res.data) ? res.data : []).map(enrichVendorOrderDetail),
       )
 
+      const activeVendorOrderStatuses = [0, 1, 2, 3]
+      const historicalVendorOrderStatuses = [0, 1, 2, 3, 4]
+      const displayVendorOrderStatuses = isHistoricalDispatchOrder.value
+        ? historicalVendorOrderStatuses
+        : activeVendorOrderStatuses
+
       const consOrder = vendorOrders.find(
-        (item) => item.type === 1 && [0, 1, 2, 3].includes(item.orderStatus),
+        (item) =>
+          item.type === 1 &&
+          displayVendorOrderStatuses.includes(Number(item.orderStatus)),
       )
       if (consOrder) {
         activeConstructionOrder.value = consOrder
@@ -1113,7 +1152,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
           (item) =>
             item.type === 2 &&
             item.materialCategory === product.categoryId &&
-            [0, 1, 2, 3].includes(item.orderStatus),
+            displayVendorOrderStatuses.includes(Number(item.orderStatus)),
         )
 
         materialDispatchList.value.push({

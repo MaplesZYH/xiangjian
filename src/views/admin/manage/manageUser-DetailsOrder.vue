@@ -65,11 +65,12 @@
       :dispatch-tab="dispatchTab"
       :current-contract-url="currentContractUrl"
       :can-dispatch="canDispatch"
-      :can-upload-contract="canUploadContract"
+      :can-upload-contract="canUploadContract && !isDispatchReadOnlyOrder"
+      :is-dispatch-read-only-order="isDispatchReadOnlyOrder"
       :can-view-dispatch-detail="canViewDispatchDetail"
       :can-list-dispatch-vendors="canListDispatchVendors"
-      :can-create-dispatch="canCreateDispatch"
-      :can-update-dispatch="canUpdateDispatch"
+      :can-create-dispatch="canCreateDispatch && !isDispatchReadOnlyOrder"
+      :can-update-dispatch="canUpdateDispatch && !isDispatchReadOnlyOrder"
       :is-dispatch-stage-locked="isDispatchStageLocked"
       :active-construction-order="activeConstructionOrder"
       :all-services-accepted="allServicesAccepted"
@@ -78,7 +79,7 @@
       :loading-vendor-opts="loadingVendorOpts"
       :material-columns="materialColumns"
       :material-dispatch-list="materialDispatchList"
-      :is-read-only="isReadOnly"
+      :is-read-only="isReadOnly || isDispatchReadOnlyOrder"
       :should-show-construction-pricing-button="shouldShowConstructionPricingButton"
       :can-open-construction-pricing-entry="canOpenConstructionPricingEntry"
       :construction-pricing-button-text="constructionPricingButtonText"
@@ -93,12 +94,18 @@
       :construction-workflow-started="constructionWorkflowStarted"
       :can-configure-construction-price="canConfigureConstructionPrice"
       :can-view-construction="canViewConstruction"
-      :can-audit-construction="canAuditConstruction"
-      :can-edit-construction-deposit="canEditConstructionDeposit"
+      :can-audit-construction="canAuditConstruction && !isDispatchReadOnlyOrder"
+      :can-edit-construction-deposit="
+        canEditConstructionDeposit && !isDispatchReadOnlyOrder
+      "
       :saving-node-price-id="savingNodePriceId"
-      :can-start-construction-entry="canStartConstructionEntry"
+      :can-start-construction-entry="
+        canStartConstructionEntry && !isDispatchReadOnlyOrder
+      "
       :start-construction-blocked-reason="startConstructionBlockedReason"
-      :can-sync-construction-price-plan="canSyncConstructionPricePlan"
+      :can-sync-construction-price-plan="
+        canSyncConstructionPricePlan && !isDispatchReadOnlyOrder
+      "
       :deposit-submitting="depositSubmitting"
       :plan-submitting="planSubmitting"
       :construction-info="constructionInfo"
@@ -116,7 +123,7 @@
       :admin-payment-bill-rows="adminPaymentBillRows"
       :optional-change-loading="optionalChangeLoading"
       :visible-optional-change-records="visibleOptionalChangeRecords"
-      :can-audit-optional-change="canAuditOptionalChange"
+      :can-audit-optional-change="canAuditOptionalChange && !isDispatchReadOnlyOrder"
       :should-show-construction-progress-button="shouldShowConstructionProgressButton"
       :is-image="isImage"
       :handle-upload-contract="handleUploadContract"
@@ -147,7 +154,9 @@
       :get-admin-bill-status-tag-type="getAdminBillStatusTagType"
       :get-admin-bill-status-text="getAdminBillStatusText"
       :can-cancel-admin-option-change-bill="
-        canCancelAdminPaymentBill ? canCancelAdminOptionChangeBill : () => false
+        canCancelAdminPaymentBill && !isDispatchReadOnlyOrder
+          ? canCancelAdminOptionChangeBill
+          : () => false
       "
       :handle-cancel-admin-option-change-bill="handleCancelAdminOptionChangeBill"
       :get-bill-related-node-name="getBillRelatedNodeName"
@@ -607,6 +616,11 @@ const handlePageChange = (page) => {
 
 const showDetailModal = ref(false)
 const isReadOnly = ref(false)
+const isDispatchReadOnlyOrder = computed(() =>
+  [4, 5].includes(
+    Number(currentDispatchOrder.value?.orderStatus ?? detailOrder.value?.orderStatus),
+  ),
+)
 const handleOpenUnifiedDetail = (item) => {
   if (!canViewOrder.value) {
     message.warning('当前账号无订单详情查看权限')

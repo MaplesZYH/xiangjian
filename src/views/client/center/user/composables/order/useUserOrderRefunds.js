@@ -91,6 +91,25 @@ export const useUserOrderRefunds = ({
     return [0, 1, 3].includes(Number(status))
   }
 
+  const getRefundRecordsForPaymentRecord = (record) => {
+    const paymentRecordId = resolvePaymentRecordId(record)
+    if (!paymentRecordId) return []
+
+    return refundRecords.value.filter(
+      (item) => Number(item?.paymentRecordId || 0) === paymentRecordId,
+    )
+  }
+
+  const hasActiveRefundForPaymentRecord = (record) =>
+    getRefundRecordsForPaymentRecord(record).some((item) =>
+      isRefundActiveStatus(item?.status ?? item?.refundStatus),
+    )
+
+  const hasPendingRefundForPaymentRecord = (record) =>
+    getRefundRecordsForPaymentRecord(record).some(
+      (item) => Number(item?.status ?? item?.refundStatus) === 0,
+    )
+
   const getPaymentRecordRefundStatus = (record) => {
     if (
       record?.refundStatus === null ||
@@ -105,18 +124,12 @@ export const useUserOrderRefunds = ({
   }
 
   const canApplyRefundForPaymentRecord = (record) => {
-    if (!record) return false
+    if (!canApplyRefund.value || !record) return false
 
     const amount = Number(record.amount || 0)
     if (!(amount > 0)) return false
 
-    const refundStatus = getPaymentRecordRefundStatus(record)
-
-    if (isRefundActiveStatus(refundStatus)) {
-      return false
-    }
-
-    if (refundStatus !== null && ![2, 5].includes(refundStatus)) {
+    if (hasActiveRefundForPaymentRecord(record)) {
       return false
     }
 
@@ -125,7 +138,7 @@ export const useUserOrderRefunds = ({
 
   const canCancelRefundForPaymentRecord = (record) => {
     if (!canApplyRefund.value || !record) return false
-    return getPaymentRecordRefundStatus(record) === 0
+    return hasPendingRefundForPaymentRecord(record)
   }
 
   const canViewRefundDetailForPaymentRecord = (record) =>

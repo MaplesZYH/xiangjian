@@ -13,6 +13,7 @@
       :price-plan-hint="constructionPricePlanHint"
       :workflow-started="constructionWorkflowStarted"
       :can-edit-deposit="canConfigureConstructionPrice && canEditConstructionDeposit"
+      :is-read-only="isReadOnly"
       :saving-node-price-id="savingNodePriceId"
       :can-confirm-plan="canStartConstructionEntry"
       :confirm-plan-disabled-reason="startConstructionBlockedReason"
@@ -79,6 +80,10 @@ defineProps({
     default: false,
   },
   canEditConstructionDeposit: {
+    type: Boolean,
+    default: false,
+  },
+  isReadOnly: {
     type: Boolean,
     default: false,
   },

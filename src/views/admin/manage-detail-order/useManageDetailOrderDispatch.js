@@ -138,7 +138,7 @@ export const useManageDetailOrderDispatch = ({
     () =>
       canConfigureConstructionPrice.value &&
       canDispatch.value &&
-      Number(detailOrder.value?.orderStatus) !== 5,
+      Number(detailOrder.value?.orderStatus) < 4,
   )
 
   const canManageMaterialDispatch = computed(
@@ -322,11 +322,6 @@ export const useManageDetailOrderDispatch = ({
       message.warning('当前账号无订单处理流程查看权限')
       return
     }
-    if (Number(item?.orderStatus) === 5) {
-      message.warning('已取消订单无法继续处理/派单')
-      return
-    }
-
     showDispatchModal.value = true
     currentDispatchOrder.value = item
     constructionInfo.value = null
@@ -344,16 +339,25 @@ export const useManageDetailOrderDispatch = ({
     await orderManageStore.initDispatchState()
     constructionVendorOptions.value = []
 
+    const isHistoricalOrder = [4, 5].includes(Number(detailOrder.value?.orderStatus))
+
     if (
       canViewConstruction.value &&
       Number(detailOrder.value?.orderStatus) >= 3
     ) {
       await loadConstructionStatus()
       dispatchTab.value = pickAccessibleDispatchTab(
-        hasAdminPaymentBillRows.value ? 'bills' : 'flow',
+        isHistoricalOrder || !hasAdminPaymentBillRows.value ? 'flow' : 'bills',
         'flow',
         'pricing',
         currentContractUrl.value ? 'dispatch' : 'contract',
+        'contract',
+      )
+    } else if (isHistoricalOrder) {
+      dispatchTab.value = pickAccessibleDispatchTab(
+        'dispatch',
+        'bills',
+        'optionalChange',
         'contract',
       )
     }

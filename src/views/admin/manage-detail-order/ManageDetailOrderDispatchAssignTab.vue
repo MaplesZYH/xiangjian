@@ -1,6 +1,10 @@
 <template>
   <div class="dispatch-panel">
-    <n-alert v-if="!canDispatch" type="warning" class="inline-alert-lg">
+    <n-alert v-if="isDispatchReadOnlyOrder" type="info" class="inline-alert-lg">
+      当前订单已完结，以下派单与施工信息仅供查看。
+    </n-alert>
+
+    <n-alert v-else-if="!canDispatch" type="warning" class="inline-alert-lg">
       需先上传合同后才能派单。
     </n-alert>
 
@@ -242,6 +246,10 @@ defineProps({
     default: () => [],
   },
   isReadOnly: {
+    type: Boolean,
+    default: false,
+  },
+  isDispatchReadOnlyOrder: {
     type: Boolean,
     default: false,
   },

@@ -13,7 +13,7 @@
           <ManageDetailOrderDispatchContractTab
             :current-contract-url="currentContractUrl"
             :detail-order="detailOrder"
-            :can-upload-contract="canUploadContract"
+            :can-upload-contract="canUploadContract && !isDispatchReadOnlyOrder"
             :get-payment-text="getPaymentText"
             :is-image="isImage"
             :handle-upload-contract="handleUploadContract"
@@ -24,7 +24,7 @@
           v-if="canViewDispatchDetail"
           name="dispatch"
           tab="2. 派单管理"
-          :disabled="!canDispatch"
+          :disabled="!canDispatch && !isDispatchReadOnlyOrder"
         >
           <ManageDetailOrderDispatchAssignTab
             :can-dispatch="canDispatch"
@@ -40,6 +40,7 @@
             :material-columns="materialColumns"
             :material-dispatch-list="materialDispatchList"
             :is-read-only="isReadOnly"
+            :is-dispatch-read-only-order="isDispatchReadOnlyOrder"
             :should-show-construction-pricing-button="shouldShowConstructionPricingButton"
             :can-open-construction-pricing-entry="canOpenConstructionPricingEntry"
             :construction-pricing-button-text="constructionPricingButtonText"
@@ -76,6 +77,7 @@
             :construction-price-plan-hint="constructionPricePlanHint"
             :construction-workflow-started="constructionWorkflowStarted"
             :can-configure-construction-price="canConfigureConstructionPrice"
+            :is-read-only="isDispatchReadOnlyOrder"
             :can-view-construction="canViewConstruction"
             :can-audit-construction="canAuditConstruction"
             :can-edit-construction-deposit="canEditConstructionDeposit"
@@ -207,6 +209,10 @@ const props = defineProps({
     default: false,
   },
   canUploadContract: {
+    type: Boolean,
+    default: false,
+  },
+  isDispatchReadOnlyOrder: {
     type: Boolean,
     default: false,
   },
