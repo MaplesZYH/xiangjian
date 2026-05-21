@@ -30,6 +30,9 @@ export const useManageDetailOrderPaymentBills = ({
     return String(value).replace('T', ' ')
   }
 
+  const isPayableBillStatus = (status) =>
+    ['PENDING', 'PAYING'].includes(String(status || '').trim().toUpperCase())
+
   const paymentBillTypeMap = {
     BUILD_DEPOSIT: '建房定金',
     ADJUSTMENT: '补差账单',
@@ -151,7 +154,7 @@ export const useManageDetailOrderPaymentBills = ({
       ? detailOrder.value.pendingPaymentBills
       : []
 
-    return sortAdminPaymentBills(rows)
+    return sortAdminPaymentBills(rows.filter((bill) => isPayableBillStatus(bill?.status)))
   })
 
   const adminSupplementPaymentBillRows = computed(() =>
@@ -171,7 +174,9 @@ export const useManageDetailOrderPaymentBills = ({
   const adminPaymentBillRows = computed(() => {
     if (constructionNodePaymentBillRows.value.length > 0) {
       return [
-        ...constructionNodePaymentBillRows.value,
+        ...constructionNodePaymentBillRows.value.filter((bill) =>
+          isPayableBillStatus(bill?.status),
+        ),
         ...adminSupplementPaymentBillRows.value,
       ]
     }

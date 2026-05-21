@@ -20,6 +20,8 @@ import {
   getPaymentBillTypeText,
   getPaymentStatusType,
   getStatusType,
+  isPayingPaymentBillStatus,
+  isPendingPaymentBillStatus,
 } from '@/views/client/center/user/composables/order/orderHelpers'
 import { useUserOrderListPanel } from '@/views/client/center/user/composables/order/useUserOrderListPanel'
 import { useUserOrderOptions } from '@/views/client/center/user/composables/order/useUserOrderOptions'
@@ -236,13 +238,25 @@ export const useUserOrderPanel = ({
 
   const pendingPaymentBillRows = computed(() => {
     const rows = pendingPaymentBills.value.filter((item) => {
+      if (
+        !isPendingPaymentBillStatus(item?.status) &&
+        !isPayingPaymentBillStatus(item?.status)
+      ) {
+        return false
+      }
       if (item?.billType !== 'OPTION_CHANGE') return true
       const latestBillId = Number(latestPendingOptionalChangeBill.value?.id || 0)
       return latestBillId > 0 && Number(item?.id || 0) === latestBillId
     })
     if (
       constructionPanel.currentConstructionPayableBill.value &&
-      !constructionPanel.currentConstructionPayableBill.value.id
+      !constructionPanel.currentConstructionPayableBill.value.id &&
+      (isPendingPaymentBillStatus(
+        constructionPanel.currentConstructionPayableBill.value.status,
+      ) ||
+        isPayingPaymentBillStatus(
+          constructionPanel.currentConstructionPayableBill.value.status,
+        ))
     ) {
       rows.unshift(constructionPanel.currentConstructionPayableBill.value)
     }
