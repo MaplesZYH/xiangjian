@@ -918,10 +918,13 @@ onBeforeUnmount(() => {
       .price-text {
         display: inline-flex;
         align-items: baseline;
+        min-width: 0;
         max-width: 100%;
         font-size: 0.9rem;
         color: #666;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         .amount {
           flex-shrink: 0;
@@ -1087,7 +1090,15 @@ onBeforeUnmount(() => {
       }
 
       .house-price {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: flex-start;
         gap: 8px;
+
+        .house-actions {
+          width: 100%;
+          justify-content: flex-start;
+          flex-wrap: wrap;
+        }
       }
     }
   }

@@ -23,7 +23,7 @@
       :y-gap="16"
     >
       <n-grid-item v-for="item in favorites" :key="item.id">
-        <n-card hoverable>
+        <n-card hoverable class="favorite-house-card">
           <template #cover>
             <SmartImage
               :src="item.image"
@@ -34,13 +34,15 @@
               :placeholder="defaultFavoriteImage"
             />
           </template>
-          <n-space vertical>
+          <n-space vertical class="favorite-house-card__body">
             <n-h3 class="house-title">{{ item.name }}</n-h3>
-            <n-space justify="space-between">
+            <n-space class="favorite-house-card__meta">
               <n-tag type="success">{{ formatFavoriteStyle(item.style) }}</n-tag>
-              <span>{{ formatFavoriteArea(item) }}</span>
+              <n-tag size="small" :bordered="false" type="info">
+                {{ formatFavoriteArea(item) }}
+              </n-tag>
             </n-space>
-            <n-space class="favorite-actions" justify="space-between">
+            <n-space class="favorite-actions">
               <n-button type="primary" @click="$emit('view-detail', item)">
                 查看详情
               </n-button>
@@ -115,3 +117,47 @@ defineEmits([
   'page-change',
 ])
 </script>
+
+<style scoped>
+.favorite-house-card {
+  height: 100%;
+}
+
+.favorite-house-card :deep(.n-card__content) {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.favorite-house-card__body {
+  flex: 1;
+  align-items: stretch;
+}
+
+.house-title {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.favorite-house-card__meta {
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.favorite-actions {
+  margin-top: auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.favorite-actions :deep(.n-button) {
+  min-width: 96px;
+}
+
+@media (max-width: 768px) {
+  .favorite-actions {
+    justify-content: flex-start;
+  }
+}
+</style>

@@ -283,6 +283,11 @@ defineEmits([
   font-weight: 700;
 }
 
+.vendor-order-table__head > div {
+  min-width: 0;
+  text-align: center;
+}
+
 .vendor-order-table__row {
   padding: 16px 18px;
   border-top: 1px solid var(--color-border-soft);
