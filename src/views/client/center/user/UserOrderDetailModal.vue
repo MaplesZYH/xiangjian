@@ -54,6 +54,17 @@
                   ¥{{ formatCurrencyNumber(currentOrder.totalAmount) || '待定' }}
                 </span>
               </n-descriptions-item>
+              <n-descriptions-item
+                v-if="orderAdjustmentInfo.visible"
+                label="选配调整"
+              >
+                <span class="order-adjustment-amount">
+                  {{ orderAdjustmentInfo.label }} ¥{{ orderAdjustmentInfo.amountText }}
+                </span>
+                <span class="order-adjustment-desc">
+                  {{ orderAdjustmentInfo.suffix }}
+                </span>
+              </n-descriptions-item>
               <n-descriptions-item label="支付状态">
                 <n-tag :type="getPaymentStatusType(currentOrderPaymentStatus)">
                   {{ formatPaymentStatus(currentOrderPaymentStatus) }}
@@ -454,6 +465,14 @@
                 }}
               </div>
             </div>
+
+            <n-alert
+              v-if="constructionAdjustmentInfo.visible"
+              type="warning"
+              class="construction-adjustment-alert"
+            >
+              因选配变更，节点金额合计与订单总额存在 ¥{{ constructionAdjustmentInfo.amountText }} 差异，{{ constructionAdjustmentFlowText }}
+            </n-alert>
 
             <n-grid :cols="3" :x-gap="20">
               <n-grid-item :span="1" class="construction-progress-nav">
@@ -941,6 +960,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import {
   CardOutline,
   CheckmarkCircle,
@@ -948,8 +968,9 @@ import {
 } from '@/icons/ionicons'
 import { getProcessText } from '@/utils/construction'
 import { resolveAssetUrl } from '@/utils/asset'
+import { resolveOptionAdjustmentInfo } from '@/utils/optionAdjustment'
 
-defineProps({
+const props = defineProps({
   show: { type: Boolean, default: false },
   loadingDetail: { type: Boolean, default: false },
   detailTab: { type: String, default: 'info' },
@@ -1061,6 +1082,20 @@ defineEmits([
   'open-refund-record-detail-modal',
   'cancel-refund-record',
 ])
+
+const orderAdjustmentInfo = computed(() =>
+  resolveOptionAdjustmentInfo(props.currentOrder?.adjustmentAmount),
+)
+
+const constructionAdjustmentInfo = computed(() =>
+  resolveOptionAdjustmentInfo(props.constructionInfo?.adjustmentAmount),
+)
+
+const constructionAdjustmentFlowText = computed(() =>
+  constructionAdjustmentInfo.value.type === 'charge'
+    ? '差额将通过补价账单处理，请以账单支付为准。'
+    : '差额已通过原路退款或未付节点抵扣处理，不影响实际支付。',
+)
 </script>
 
 <style scoped>
@@ -1174,6 +1209,23 @@ defineEmits([
 .option-detail-table--pending {
   border: 1px solid rgba(195, 142, 44, 0.18);
   background: linear-gradient(180deg, #fffdf7 0%, #fff9ee 100%);
+}
+
+.order-adjustment-amount {
+  display: block;
+  font-weight: 700;
+  color: #ad6800;
+}
+
+.order-adjustment-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.construction-adjustment-alert {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 768px) {

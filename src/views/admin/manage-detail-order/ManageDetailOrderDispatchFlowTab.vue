@@ -10,6 +10,14 @@
           当前流程顺序：服务商上传施工照片 -> 平台审核 -> 用户审核 -> 进入待支付 -> 用户在第 5 步“支付账单”中完成支付 -> 自动进入下一节点。
         </n-alert>
 
+        <n-alert
+          v-if="constructionAdjustmentInfo.visible"
+          type="warning"
+          class="inline-alert-md"
+        >
+          因选配变更，节点金额合计与订单总额存在 ¥{{ constructionAdjustmentInfo.amountText }} 差异，{{ constructionAdjustmentFlowText }}
+        </n-alert>
+
         <n-card
           v-if="shouldShowWaitUploadHighlight"
           size="small"
@@ -209,6 +217,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import {
   CloudUploadOutline,
   DocumentAttachOutline,
@@ -217,8 +226,9 @@ import {
 } from '@/icons/ionicons'
 import { CONSTRUCTION_NODE_STATUS } from '@/utils/construction'
 import { resolveAssetUrl } from '@/utils/asset'
+import { resolveOptionAdjustmentInfo } from '@/utils/optionAdjustment'
 
-defineProps({
+const props = defineProps({
   constructionInfo: {
     type: Object,
     default: null,
@@ -276,6 +286,16 @@ defineProps({
     required: true,
   },
 })
+
+const constructionAdjustmentInfo = computed(() =>
+  resolveOptionAdjustmentInfo(props.constructionInfo?.adjustmentAmount),
+)
+
+const constructionAdjustmentFlowText = computed(() =>
+  constructionAdjustmentInfo.value.type === 'charge'
+    ? '差额将通过补价账单处理，请以支付账单为准。'
+    : '差额已通过原路退款或未付节点抵扣处理，不影响实际支付。',
+)
 
 const isConstructionFlowCompleted = (flow) => {
   if (!flow?.nodeDetails?.length) return false

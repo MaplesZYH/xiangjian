@@ -20,6 +20,25 @@
         </div>
       </div>
 
+      <div class="order-amount-summary">
+        <div class="order-amount-summary__item">
+          <span>订单总金额</span>
+          <strong>¥{{ formatAdjustmentCurrency(detailOrder.totalAmount) }}</strong>
+        </div>
+        <div class="order-amount-summary__item">
+          <span>已付金额</span>
+          <strong>¥{{ formatAdjustmentCurrency(detailOrder.paidAmount) }}</strong>
+        </div>
+        <div
+          v-if="orderAdjustmentInfo.visible"
+          class="order-amount-summary__item order-amount-summary__item--adjustment"
+        >
+          <span>{{ orderAdjustmentInfo.label }}</span>
+          <strong>¥{{ orderAdjustmentInfo.amountText }}</strong>
+          <em>{{ orderAdjustmentInfo.suffix }}</em>
+        </div>
+      </div>
+
       <n-alert v-if="isReadOnly" type="warning" class="inline-alert-sm">
         当前订单状态为“{{ getStatusText(detailOrder.orderStatus) }}”，当前订单已完结或已取消，仅支持查看，不可再修改基础信息和选配。
       </n-alert>
@@ -142,6 +161,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { resolveOptionAdjustmentInfo } from '@/utils/optionAdjustment'
 
 const props = defineProps({
   show: {
@@ -233,6 +253,19 @@ const showModel = computed({
   set: (value) => emit('update:show', value),
 })
 
+const orderAdjustmentInfo = computed(() =>
+  resolveOptionAdjustmentInfo(props.detailOrder?.adjustmentAmount),
+)
+
+const formatAdjustmentCurrency = (value) => {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return '0.00'
+  return amount.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 const handleRegionValueUpdate = (...args) => {
   emit('update:selectedOrderRegionCode', args[0] ?? null)
   emit('order-region-update', ...args)
@@ -257,6 +290,50 @@ const handleSelectionItemUpdate = (key, value) => {
 .status-row {
   display: flex;
   gap: 10px;
+}
+
+.order-amount-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.order-amount-summary__item {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
+
+  span,
+  strong,
+  em {
+    display: block;
+  }
+
+  strong {
+    margin-top: 6px;
+    font-size: 18px;
+    color: var(--color-text-primary);
+  }
+
+  em {
+    margin-top: 4px;
+    font-style: normal;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+}
+
+.order-amount-summary__item--adjustment {
+  border-color: rgba(195, 142, 44, 0.28);
+  background: #fff9ee;
+
+  strong {
+    color: #ad6800;
+  }
 }
 
 .inline-alert-sm {
@@ -306,6 +383,12 @@ const handleSelectionItemUpdate = (key, value) => {
   color: var(--color-text-secondary);
   line-height: 1.6;
   word-break: break-all;
+}
+
+@media (max-width: 768px) {
+  .order-amount-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 .select-wrapper {

@@ -30,9 +30,6 @@ export const useManageDetailOrderPaymentBills = ({
     return String(value).replace('T', ' ')
   }
 
-  const isPayableBillStatus = (status) =>
-    ['PENDING', 'PAYING'].includes(String(status || '').trim().toUpperCase())
-
   const paymentBillTypeMap = {
     BUILD_DEPOSIT: '建房定金',
     ADJUSTMENT: '补差账单',
@@ -143,22 +140,23 @@ export const useManageDetailOrderPaymentBills = ({
   const resolveAdminBillStatus = (bill) => {
     const rawStatus = String(bill?.status || '').trim().toUpperCase()
     if (rawStatus === 'PAID') return 'PAID'
+    if (rawStatus === 'PAYING') return 'PAYING'
     if (rawStatus === 'REFUNDED') return 'REFUNDED'
     if (rawStatus === 'CANCELLED') return 'CANCELLED'
     if (rawStatus === 'EXPIRED') return 'EXPIRED'
     return 'PENDING'
   }
 
-  const adminPendingPaymentBillRows = computed(() => {
+  const adminPaymentBillSourceRows = computed(() => {
     const rows = Array.isArray(detailOrder.value?.pendingPaymentBills)
       ? detailOrder.value.pendingPaymentBills
       : []
 
-    return sortAdminPaymentBills(rows.filter((bill) => isPayableBillStatus(bill?.status)))
+    return sortAdminPaymentBills(rows)
   })
 
   const adminSupplementPaymentBillRows = computed(() =>
-    adminPendingPaymentBillRows.value.filter(
+    adminPaymentBillSourceRows.value.filter(
       (bill) => !['BUILD_DEPOSIT', 'STAGE_PAYMENT'].includes(bill?.billType),
     ),
   )
@@ -174,14 +172,12 @@ export const useManageDetailOrderPaymentBills = ({
   const adminPaymentBillRows = computed(() => {
     if (constructionNodePaymentBillRows.value.length > 0) {
       return [
-        ...constructionNodePaymentBillRows.value.filter((bill) =>
-          isPayableBillStatus(bill?.status),
-        ),
+        ...constructionNodePaymentBillRows.value,
         ...adminSupplementPaymentBillRows.value,
       ]
     }
 
-    const rows = [...adminPendingPaymentBillRows.value]
+    const rows = [...adminPaymentBillSourceRows.value]
     const hasBuildDepositBill = rows.some((bill) => bill?.billType === 'BUILD_DEPOSIT')
 
     if (!hasBuildDepositBill && detailOrder.value?.id) {
@@ -218,6 +214,7 @@ export const useManageDetailOrderPaymentBills = ({
     const status = resolveAdminBillStatus(bill)
     const statusMap = {
       PENDING: '未支付',
+      PAYING: '支付中',
       PAID: '已支付',
       REFUNDED: '已退款',
       CANCELLED: '已取消',
@@ -229,6 +226,7 @@ export const useManageDetailOrderPaymentBills = ({
   const getAdminBillStatusTagType = (bill) => {
     const status = resolveAdminBillStatus(bill)
     if (status === 'PAID') return 'success'
+    if (status === 'PAYING') return 'info'
     if (status === 'REFUNDED') return 'error'
     if (status === 'CANCELLED' || status === 'EXPIRED') return 'default'
     return 'warning'
