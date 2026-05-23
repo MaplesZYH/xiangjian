@@ -245,7 +245,7 @@ const handleStatusUpdate = (value) => {
 
   .financial-table {
     min-width: var(--financial-table-min-width);
-    width: max-content;
+    width: 100%;
   }
 
   .financial-spin {
@@ -259,6 +259,7 @@ const handleStatusUpdate = (value) => {
   .list-header,
   .list-body {
     min-width: var(--financial-table-min-width);
+    width: 100%;
     box-sizing: border-box;
   }
 
@@ -270,6 +271,7 @@ const handleStatusUpdate = (value) => {
     padding: 12px 16px;
     align-items: center;
     min-width: var(--financial-table-min-width);
+    width: 100%;
     box-sizing: border-box;
   }
 

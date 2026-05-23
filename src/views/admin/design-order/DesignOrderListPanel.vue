@@ -130,7 +130,7 @@ const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
 
   .design-order-table {
     min-width: var(--design-order-table-min-width);
-    width: max-content;
+    width: 100%;
   }
 
   .design-order-spin {
@@ -144,6 +144,7 @@ const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
   .list-header,
   .list-body {
     min-width: var(--design-order-table-min-width);
+    width: 100%;
     box-sizing: border-box;
   }
 
@@ -155,6 +156,7 @@ const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
     padding: 12px 16px;
     align-items: center;
     min-width: var(--design-order-table-min-width);
+    width: 100%;
     box-sizing: border-box;
   }
 
