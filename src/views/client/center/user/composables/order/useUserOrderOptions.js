@@ -3,6 +3,7 @@ import orderAPI from '@/api/user/userOrder.js'
 import { normalizeConstructionFlow } from '@/utils/construction'
 import {
   normalizeOptionSelectionValue,
+  formatCurrencyNumber,
   resolvePaymentRecordId,
   isConstructionStagePaymentRecord,
 } from '@/views/client/center/user/composables/order/orderHelpers'
@@ -183,15 +184,25 @@ export const useUserOrderOptions = ({
       ]),
     )
 
+  const formatOptionPriceLabel = (value) => {
+    const text = formatCurrencyNumber(value)
+    return text ? `¥${text}` : '--'
+  }
+
   const buildUserOptionConfigList = (configs = []) =>
     configs.map((category) => ({
       label: category.name,
       key: `cat_${category.id}`,
       categoryId: Number(category.id),
-      options: (category.options || []).map((opt) => ({
-        label: opt.name || opt.label || `产品${opt.value ?? ''}`,
-        value: normalizeOptionSelectionValue(opt.value),
-      })),
+      options: (category.options || []).map((opt) => {
+        const name = opt.name || opt.label || `产品${opt.value ?? ''}`
+        return {
+          label: `${name}（${formatOptionPriceLabel(opt.price)}）`,
+          value: normalizeOptionSelectionValue(opt.value),
+          name,
+          price: opt.price,
+        }
+      }),
     }))
 
   const loadUserOptionConfigList = async () => {
@@ -239,9 +250,12 @@ export const useUserOrderOptions = ({
         optionValue &&
         !options.some((item) => Number(item.value) === optionValue)
       ) {
+        const name = found.name || `未知产品(ID:${optionValue})`
         options.push({
-          label: found.name || `未知产品(ID:${optionValue})`,
+          label: `${name}（${formatOptionPriceLabel(found.price)}）`,
           value: optionValue,
+          name,
+          price: found.price,
         })
       }
 

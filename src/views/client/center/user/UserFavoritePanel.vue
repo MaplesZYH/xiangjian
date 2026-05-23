@@ -34,15 +34,22 @@
               :placeholder="defaultFavoriteImage"
             />
           </template>
-          <n-space vertical class="favorite-house-card__body">
-            <n-h3 class="house-title">{{ item.name }}</n-h3>
-            <n-space class="favorite-house-card__meta">
-              <n-tag type="success">{{ formatFavoriteStyle(item.style) }}</n-tag>
-              <n-tag size="small" :bordered="false" type="info">
+          <div class="favorite-house-card__body">
+            <h3 class="house-title">{{ item.name }}</h3>
+            <div class="favorite-house-card__meta">
+              <n-tag class="favorite-house-card__style" type="success">
+                {{ formatFavoriteStyle(item.style) }}
+              </n-tag>
+              <n-tag
+                class="favorite-house-card__area"
+                size="small"
+                :bordered="false"
+                type="info"
+              >
                 {{ formatFavoriteArea(item) }}
               </n-tag>
-            </n-space>
-            <n-space class="favorite-actions">
+            </div>
+            <div class="favorite-actions">
               <n-button type="primary" @click="$emit('view-detail', item)">
                 查看详情
               </n-button>
@@ -54,8 +61,8 @@
               >
                 取消收藏
               </n-button>
-            </n-space>
-          </n-space>
+            </div>
+          </div>
         </n-card>
       </n-grid-item>
     </n-grid>
@@ -131,33 +138,48 @@ defineEmits([
 
 .favorite-house-card__body {
   flex: 1;
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 }
 
 .house-title {
   margin: 0;
-  line-height: 1.4;
+  color: #25362b;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .favorite-house-card__meta {
+  display: flex;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.favorite-house-card__style {
+  max-width: 100%;
+}
+
+.favorite-house-card__area {
+  margin-left: auto;
 }
 
 .favorite-actions {
-  margin-top: auto;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
+  margin-top: 2px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
 }
 
 .favorite-actions :deep(.n-button) {
-  min-width: 96px;
-}
-
-@media (max-width: 768px) {
-  .favorite-actions {
-    justify-content: flex-start;
-  }
+  width: 100%;
+  min-width: 0;
 }
 </style>

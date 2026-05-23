@@ -165,13 +165,14 @@
           </div>
           <div class="stage-table__cell">
             <span class="stage-table__label">金额设置</span>
-            <span class="stage-table__current-amount">
+            <span v-if="!row.editable" class="stage-table__current-amount">
               当前：¥{{ formatAmount(row.currentAmount ?? row.amount) }}
             </span>
             <div
               v-if="row.editable"
               class="stage-table__editor"
             >
+              <span class="stage-table__editor-label">当前：</span>
               <n-input-number
                 :value="row.draftAmount"
                 :min="0"
@@ -184,7 +185,6 @@
                 <template #prefix>¥</template>
               </n-input-number>
             </div>
-            <span v-else>¥{{ formatAmount(row.amount) }}</span>
             <span
               class="stage-table__note"
               :class="row.isPaid ? 'stage-table__note--locked' : 'stage-table__note--editable'"
@@ -680,10 +680,13 @@ const handleSaveDeposit = () => {
 }
 
 .stage-table__editor {
-  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.stage-table__editor-label {
+  flex: 0 0 auto;
 }
 
 .stage-table__editor :deep(.n-input-number) {

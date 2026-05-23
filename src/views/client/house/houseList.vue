@@ -154,35 +154,35 @@
               </div>
 
               <div class="house-price">
-                <span class="price-text">
-                  参考造价:
+                <div class="price-label">参考造价</div>
+                <div class="price-bottom">
                   <span class="amount">{{ formatPriceDisplay(house.price) }}</span>
-                </span>
-                <div class="house-actions">
-                  <n-button
-                    type="primary"
-                    ghost
-                    size="small"
-                    @click.stop="inquire(house.id)"
-                  >
-                    咨询
-                  </n-button>
-                  <n-button
-                    v-if="shouldShowCollectButton"
-                    :type="isCollected(house) ? 'error' : 'default'"
-                    secondary
-                    size="small"
-                    :loading="!!favoriteLoadingMap[getHouseId(house)]"
-                    @click.stop="toggleCollect(house)"
-                  >
-                    <template #icon>
-                      <n-icon>
-                        <heart-icon v-if="isCollected(house)" />
-                        <heart-outline-icon v-else />
-                      </n-icon>
-                    </template>
-                    {{ isCollected(house) ? '已收藏' : '收藏' }}
-                  </n-button>
+                  <div class="house-actions">
+                    <n-button
+                      type="primary"
+                      ghost
+                      size="small"
+                      @click.stop="inquire(house.id)"
+                    >
+                      咨询
+                    </n-button>
+                    <n-button
+                      v-if="shouldShowCollectButton"
+                      :type="isCollected(house) ? 'error' : 'default'"
+                      secondary
+                      size="small"
+                      :loading="!!favoriteLoadingMap[getHouseId(house)]"
+                      @click.stop="toggleCollect(house)"
+                    >
+                      <template #icon>
+                        <n-icon>
+                          <heart-icon v-if="isCollected(house)" />
+                          <heart-outline-icon v-else />
+                        </n-icon>
+                      </template>
+                      {{ isCollected(house) ? '已收藏' : '收藏' }}
+                    </n-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -907,32 +907,31 @@ onBeforeUnmount(() => {
     }
 
     .house-price {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 12px;
       border-top: 1px solid #eee;
       padding-top: 12px;
       min-width: 0;
 
-      .price-text {
-        display: inline-flex;
-        align-items: baseline;
-        min-width: 0;
-        max-width: 100%;
-        font-size: 0.9rem;
+      .price-label {
+        margin-bottom: 6px;
+        font-size: 0.88rem;
         color: #666;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      }
 
-        .amount {
-          flex-shrink: 0;
-          font-size: 1.3rem;
-          color: #d03050;
-          font-weight: bold;
-          margin: 0 2px;
-        }
+      .price-bottom {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: baseline;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .amount {
+        min-width: 0;
+        font-size: 1.3rem;
+        line-height: 1.25;
+        color: #d03050;
+        font-weight: bold;
+        word-break: break-word;
       }
 
       .house-actions {
@@ -1037,8 +1036,6 @@ onBeforeUnmount(() => {
   .house-card {
     .house-info {
       .house-price {
-        gap: 10px;
-
         .house-actions {
           :deep(.n-button) {
             min-height: 36px;
@@ -1090,9 +1087,11 @@ onBeforeUnmount(() => {
       }
 
       .house-price {
-        grid-template-columns: minmax(0, 1fr);
-        align-items: flex-start;
-        gap: 8px;
+        .price-bottom {
+          grid-template-columns: minmax(0, 1fr);
+          align-items: flex-start;
+          gap: 10px;
+        }
 
         .house-actions {
           width: 100%;

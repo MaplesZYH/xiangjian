@@ -32,6 +32,10 @@
             placeholder="请选择省 / 市 / 区"
             @update:value="handleRegionUpdate"
           />
+        </div>
+      </n-form-item>
+      <n-form-item label="详细地址：">
+        <div class="address-field">
           <n-input
             v-model:value="addressForm.detail"
             type="textarea"
@@ -387,6 +391,10 @@ const handleConfirm = () => {
 </script>
 
 <style scoped>
+:deep(.n-form-item-label__text) {
+  white-space: nowrap;
+}
+
 .address-field {
   width: 100%;
   display: flex;

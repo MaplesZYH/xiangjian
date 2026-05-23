@@ -9,10 +9,12 @@
         :key="cert.id || cert.fileUrl || index"
         class="cert-item"
       >
-        <div class="cert-item__head">
-          <div class="cert-item__badge">资质 {{ index + 1 }}</div>
-          <div class="cert-item__type">{{ getCertFileExt(cert.fileUrl) }}</div>
+        <div class="cert-item__icon">
+          <div class="cert-item__paper">
+            <span>{{ getCertFileExt(cert.fileUrl) }}</span>
+          </div>
         </div>
+        <div class="cert-item__badge">资质 {{ index + 1 }}</div>
         <div class="cert-item__name" :title="getCertFileName(cert.fileUrl, index)">
           {{ getCertFileName(cert.fileUrl, index) }}
         </div>
@@ -73,24 +75,19 @@ defineProps({
 
   .cert-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
   }
 
   .cert-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     border: 1px solid var(--color-border-soft);
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: 18px 14px 14px;
     background: linear-gradient(180deg, var(--color-surface) 0%, #f8fbf8 100%);
     box-shadow: var(--shadow-xs);
-
-    .cert-item__head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
 
     .cert-item__badge {
       background: rgba(39, 110, 61, 0.1);
@@ -99,35 +96,64 @@ defineProps({
       border-radius: 999px;
       font-size: 12px;
       padding: 2px 8px;
+      margin-top: 12px;
+      margin-bottom: 8px;
       white-space: nowrap;
     }
 
+    .cert-item__icon {
+      width: 78px;
+      height: 92px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cert-item__paper {
+      position: relative;
+      width: 64px;
+      height: 78px;
+      border: 2px solid rgba(39, 110, 61, 0.28);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 10px 24px rgba(37, 54, 43, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-brand-700);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 20px;
+        height: 20px;
+        border-left: 2px solid rgba(39, 110, 61, 0.22);
+        border-bottom: 2px solid rgba(39, 110, 61, 0.22);
+        border-radius: 0 8px 0 6px;
+        background: linear-gradient(135deg, #eaf4ed 50%, #fff 50%);
+      }
+    }
+
     .cert-item__name {
+      width: 100%;
       font-weight: 600;
       color: #111827;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      margin-bottom: 10px;
-    }
-
-    .cert-item__type {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-width: 48px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(60, 64, 97, 0.08);
-      border: 1px solid rgba(60, 64, 97, 0.16);
-      color: var(--color-accent-700);
-      font-size: 12px;
-      font-weight: 600;
+      text-align: center;
+      margin-bottom: 12px;
     }
 
     .cert-item__actions {
       display: flex;
       gap: 8px;
+      width: 100%;
     }
 
     .cert-action {

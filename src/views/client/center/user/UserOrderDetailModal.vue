@@ -1119,9 +1119,7 @@ const constructionAdjustmentFlowText = computed(() =>
 }
 
 .detail-payment-records-head,
-.detail-payment-records-row,
-.refund-records-head,
-.refund-records-row {
+.detail-payment-records-row {
   display: grid;
   grid-template-columns:
     120px
@@ -1131,6 +1129,21 @@ const constructionAdjustmentFlowText = computed(() =>
     180px
     minmax(220px, 1fr)
     minmax(220px, 1.2fr);
+  align-items: start;
+}
+
+.refund-records-head,
+.refund-records-row {
+  display: grid;
+  grid-template-columns:
+    120px
+    120px
+    130px
+    140px
+    180px
+    minmax(220px, 1fr)
+    minmax(220px, 1.2fr);
+  column-gap: 24px;
   align-items: start;
 }
 
@@ -1228,6 +1241,46 @@ const constructionAdjustmentFlowText = computed(() =>
   margin-bottom: 16px;
 }
 
+.user-option-adjust-panel {
+  padding: 16px;
+}
+
+.user-option-adjust-panel__hint {
+  margin-bottom: 14px;
+}
+
+.select-wrapper {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.select-wrapper .label {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.select-wrapper :deep(.n-select) {
+  min-width: 0;
+}
+
+.select-wrapper :deep(.n-base-selection-overlay__wrapper) {
+  padding-right: 4px;
+}
+
+.select-wrapper :deep(.n-base-selection-label) {
+  min-width: 0;
+}
+
+.select-wrapper :deep(.n-base-selection-label__render-label) {
+  padding-right: 6px;
+}
+
 @media (max-width: 768px) {
   .detail-payment-records-table,
   .pending-payment-bills-table,
@@ -1265,6 +1318,19 @@ const constructionAdjustmentFlowText = computed(() =>
   .pending-payment-bills-actions :deep(.n-button),
   .refund-records-actions :deep(.n-button) {
     width: 100%;
+  }
+
+  .user-option-adjust-panel {
+    padding: 14px;
+  }
+
+  .select-wrapper {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .select-wrapper .label {
+    text-align: left;
   }
 }
 </style>

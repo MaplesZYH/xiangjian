@@ -87,42 +87,43 @@
         <div class="flow-steps">
           <n-grid cols="1 s:3" responsive="screen">
             <n-grid-item span="1 s:1" class="flow-steps__nav">
-              <n-steps vertical :current="getConstructionStepsCurrent(constructionInfo)">
-                <n-step
+              <div class="flow-timeline">
+                <button
                   v-for="(node, index) in constructionInfo.nodeDetails"
                   :key="node.nodeId"
-                  :title="node.name"
-                  :status="getConstructionStepStatus(index, constructionInfo.currentNodeIndex, constructionInfo)"
-                  class="flow-steps__step"
+                  type="button"
+                  :class="[
+                    'flow-timeline__item',
+                    `flow-timeline__item--${getConstructionStepStatus(index, constructionInfo.currentNodeIndex, constructionInfo)}`,
+                  ]"
                   @click="handleNodeClick(node)"
                 >
-                  <template #description>
-                    <div class="flow-step-summary">
-                      <div v-if="isConstructionFlowCompleted(constructionInfo)">
-                        已完成
-                      </div>
-                      <div v-else class="flow-step-summary__current">
-                        {{ getConstructionStepSummary(node, index, constructionInfo) }}
-                      </div>
-                      <div
-                        v-if="node.subSteps?.length"
-                        class="flow-step-sub-steps"
+                  <span class="flow-timeline__rail">
+                    <span class="flow-timeline__dot" />
+                  </span>
+                  <span class="flow-timeline__content">
+                    <span class="flow-timeline__title">{{ node.name }}</span>
+                    <span class="flow-timeline__summary">
+                      {{ getConstructionStepSummary(node, index, constructionInfo) }}
+                    </span>
+                    <div
+                      v-if="node.subSteps?.length"
+                      class="flow-step-sub-steps"
+                    >
+                      <span
+                        v-for="subStep in node.subSteps"
+                        :key="subStep.key"
+                        :class="[
+                          'flow-step-sub-steps__item',
+                          subStep.done && 'flow-step-sub-steps__item--done',
+                        ]"
                       >
-                        <span
-                          v-for="subStep in node.subSteps"
-                          :key="subStep.key"
-                          :class="[
-                            'flow-step-sub-steps__item',
-                            subStep.done && 'flow-step-sub-steps__item--done',
-                          ]"
-                        >
-                          {{ subStep.name }}
-                        </span>
-                      </div>
+                        {{ subStep.name }}
+                      </span>
                     </div>
-                  </template>
-                </n-step>
-              </n-steps>
+                  </span>
+                </button>
+              </div>
             </n-grid-item>
 
             <n-grid-item span="1 s:2" class="flow-steps__detail">
@@ -465,33 +466,102 @@ const getConstructionStepSummary = (node, index, flow) => {
   padding-left: 16px;
 }
 
-.flow-steps__step {
+.flow-timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.flow-timeline__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  padding: 0 8px 18px 0;
+  border: 0;
+  background: transparent;
+  color: #9a9a9a;
+  text-align: left;
   cursor: pointer;
-  border-radius: 12px;
-  transition: transform 0.2s ease;
 
-  &:hover {
-    transform: translateX(4px);
+  &:last-child {
+    min-height: 28px;
+    padding-bottom: 0;
   }
 
-  &:hover :deep(.n-step-content) {
-    background: var(--color-surface-soft);
-    border-radius: 12px;
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 18px;
+    bottom: 2px;
+    width: 2px;
+    background: #d6d6d6;
   }
 
-  &:hover :deep(.n-step-content__title) {
+  &:hover .flow-timeline__title {
     color: var(--color-brand-700);
   }
 }
 
-.flow-step-summary {
+.flow-timeline__rail {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 5px;
+}
+
+.flow-timeline__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #c2c2c2;
+  background: #fff;
+}
+
+.flow-timeline__content {
+  min-width: 0;
+}
+
+.flow-timeline__title,
+.flow-timeline__summary {
+  display: block;
+}
+
+.flow-timeline__title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: inherit;
+}
+
+.flow-timeline__summary {
+  margin-top: 4px;
   font-size: 13px;
+  line-height: 1.45;
   color: #888;
 }
 
-.flow-step-summary__current {
+.flow-timeline__item--finish,
+.flow-timeline__item--process {
+  color: var(--color-text-primary);
+}
+
+.flow-timeline__item--finish::after {
+  background: var(--color-brand-700) !important;
+}
+
+.flow-timeline__item--finish .flow-timeline__dot,
+.flow-timeline__item--process .flow-timeline__dot {
+  border-color: var(--color-brand-700);
+  background: var(--color-brand-700);
+}
+
+.flow-timeline__item--process .flow-timeline__title,
+.flow-timeline__item--process .flow-timeline__summary {
   color: var(--color-brand-700);
-  font-weight: 700;
 }
 
 .flow-step-sub-steps {
