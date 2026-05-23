@@ -192,6 +192,9 @@ export const useUserDesignOrderPanel = ({
   }
 
   const getDesignOrderMainProductNameText = (order) => {
+    const deliveredMpName = String(order?.deliveredMpName || '').trim()
+    if (deliveredMpName) return deliveredMpName
+
     const mainProductId = resolveDesignOrderMainProductId(order)
     if (!mainProductId) return '--'
     return designMainProductNameMap[mainProductId] || '加载中...'

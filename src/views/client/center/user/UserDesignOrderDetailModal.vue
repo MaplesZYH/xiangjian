@@ -48,9 +48,6 @@
           <n-descriptions-item label="已支付金额">
             ¥{{ formatAmount(currentDesignOrder.paidAmount) }}
           </n-descriptions-item>
-          <n-descriptions-item label="关联建房订单">
-            {{ currentDesignOrder.buildOrderId || '--' }}
-          </n-descriptions-item>
           <n-descriptions-item label="创建时间">
             {{ formatDateTime(currentDesignOrder.createTime) }}
           </n-descriptions-item>

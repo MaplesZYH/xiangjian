@@ -177,7 +177,7 @@ export const useManageDetailOrderOptionalChange = ({
       currentOptionalChangeAuditRecord.value?.changeTypeLabel || '当前变更'
     const firstMode = currentOptionalChangeAuditModeOptions.value[0]
     if (!firstMode) return `${changeTypeLabel}仅支持审核驳回。`
-    return `${changeTypeLabel}仅支持“${firstMode.label}”处理，已限制错误操作。`
+    return `${changeTypeLabel}仅支持“${firstMode.label}”处理。`
   })
 
   const resolveOptionalChangeAuditMode = (record) =>

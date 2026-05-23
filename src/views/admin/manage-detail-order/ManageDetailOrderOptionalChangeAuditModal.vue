@@ -32,22 +32,24 @@
 
       <template v-if="auditForm.approved">
         <n-form-item label="结算方式">
-          <n-radio-group
-            :value="auditForm.mode"
-            @update:value="emit('update:audit-form-field', { key: 'mode', value: $event })"
-          >
-            <n-space vertical>
-              <n-radio
-                v-for="item in modeOptions"
-                :key="item.value"
-                :value="item.value"
-              >
-                {{ item.label }}
-              </n-radio>
-            </n-space>
-          </n-radio-group>
-          <div class="vendor-option-hint optional-change-mode-hint">
-            {{ modeHint }}
+          <div class="optional-change-mode-field">
+            <n-radio-group
+              :value="auditForm.mode"
+              @update:value="emit('update:audit-form-field', { key: 'mode', value: $event })"
+            >
+              <n-space vertical>
+                <n-radio
+                  v-for="item in modeOptions"
+                  :key="item.value"
+                  :value="item.value"
+                >
+                  {{ item.label }}
+                </n-radio>
+              </n-space>
+            </n-radio-group>
+            <div class="vendor-option-hint optional-change-mode-hint">
+              {{ modeHint }}
+            </div>
           </div>
         </n-form-item>
 
@@ -206,6 +208,10 @@ const showModel = computed({
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-secondary);
+}
+
+.optional-change-mode-field {
+  width: 100%;
 }
 
 .optional-change-mode-hint {

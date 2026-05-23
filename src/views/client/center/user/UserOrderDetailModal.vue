@@ -1281,6 +1281,96 @@ const constructionAdjustmentFlowText = computed(() =>
   padding-right: 6px;
 }
 
+.user-option-change-history {
+  display: grid;
+  gap: 16px;
+}
+
+.user-option-change-history__item {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dfe9e1;
+  background: #ffffff;
+}
+
+.user-option-change-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #f8fbf8 0%, #eef6f0 100%);
+  border-bottom: 1px solid #dfe9e1;
+}
+
+.user-option-change-history__title {
+  color: #25362b;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.user-option-change-history__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  padding: 14px 16px;
+  color: #3c4061;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.user-option-change-history__meta > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f8faf8;
+  border: 1px solid #edf2ee;
+  word-break: break-word;
+}
+
+.user-option-change-history__snapshots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.user-option-change-history__snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #dfe9e1;
+  background: #fbfdfb;
+}
+
+.user-option-change-history__snapshot-label {
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(39, 110, 61, 0.1);
+  color: #276e3d;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.user-option-change-history__snapshot-text {
+  color: #25362b;
+  font-size: 14px;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+.user-option-change-history__actions {
+  padding: 12px 16px 16px;
+  border-top: 1px dashed #dfe9e1;
+  background: #fcfdfc;
+}
+
 @media (max-width: 768px) {
   .detail-payment-records-table,
   .pending-payment-bills-table,
@@ -1331,6 +1421,24 @@ const constructionAdjustmentFlowText = computed(() =>
 
   .select-wrapper .label {
     text-align: left;
+  }
+
+  .user-option-change-history__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .user-option-change-history__meta,
+  .user-option-change-history__snapshots {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-option-change-history__actions :deep(.n-space) {
+    width: 100%;
+  }
+
+  .user-option-change-history__actions :deep(.n-button) {
+    width: 100%;
   }
 }
 </style>
