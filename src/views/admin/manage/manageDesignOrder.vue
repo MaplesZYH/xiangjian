@@ -16,7 +16,6 @@
       :loading="loadingList"
       :order-list="orderList"
       :page-info="pageInfo"
-      :get-design-order-list-main-product-text="getDesignOrderListMainProductText"
       :get-design-status-type="getDesignStatusType"
       :get-design-status-text="getDesignStatusText"
       :get-payment-type="getPaymentType"
@@ -67,6 +66,7 @@ import DesignOrderSearchBar from '@/views/admin/design-order/DesignOrderSearchBa
 import { getEmployeePermissions, hasPermission } from '@/utils/adminAuth'
 import {
   extractDesignOrderProductBinding,
+  formatDesignOrderMainProductText,
   stripDesignOrderProductBinding,
 } from '@/utils/designOrderBinding'
 import { resolveAssetUrl } from '@/utils/asset'
@@ -81,7 +81,6 @@ const loadingDetail = ref(false)
 const showDetailModal = ref(false)
 const orderList = ref([])
 const currentOrder = ref(null)
-const orderMainProductTextMap = reactive({})
 const adminUserInfoMap = reactive({})
 const filters = reactive({
   keyword: '',
@@ -227,40 +226,16 @@ const resolveDeliveryMainProductId = (order) => {
 
 const getBoundMainProductText = (order) => {
   const deliveredMpName = String(order?.deliveredMpName || '').trim()
-  return deliveredMpName || '--'
-}
+  if (deliveredMpName) return deliveredMpName
 
-const getDesignOrderListMainProductText = (order) =>
-  orderMainProductTextMap[order?.id] || '--'
+  const deliveredMpId = Number(order?.deliveredMpId)
+  if (Number.isFinite(deliveredMpId) && deliveredMpId > 0) {
+    return `主体产品ID:${deliveredMpId}`
+  }
 
-const hydrateAdminListMainProductNames = async (rows = []) => {
-  await Promise.all(
-    rows.map(async (row) => {
-      const orderId = Number(row?.id)
-      if (!Number.isInteger(orderId) || orderId <= 0) return
-
-      try {
-        const res = await designOrderAPI.getDetail(orderId)
-        if (res.code !== 200 || !res.data) {
-          orderMainProductTextMap[orderId] = '--'
-          return
-        }
-
-        const detail = {
-          ...row,
-          ...res.data,
-        }
-        const deliveredMpName = String(detail?.deliveredMpName || '').trim()
-        if (deliveredMpName) {
-          orderMainProductTextMap[orderId] = deliveredMpName
-          return
-        }
-        orderMainProductTextMap[orderId] = '--'
-      } catch (error) {
-        void error
-        orderMainProductTextMap[orderId] = '--'
-      }
-    }),
+  return (
+    formatDesignOrderMainProductText(extractDesignOrderProductBinding(order)) ||
+    '--'
   )
 }
 
@@ -380,7 +355,6 @@ const fetchData = async () => {
         ? res.data.rows
         : []
     pageInfo.itemCount = Number(res.data.total || orderList.value.length)
-    await hydrateAdminListMainProductNames(orderList.value)
   } catch (error) {
     void error
     orderList.value = []
@@ -461,6 +435,9 @@ const applySavedUploadResult = (target, files) => {
   if (target === 'delivery') {
     currentOrder.value.deliveryFiles = files
     currentOrder.value.deliveredMpId = uploadForms.delivery.mainProductId
+    if (!currentOrder.value.deliveredMpName) {
+      currentOrder.value.deliveredMpName = getBoundMainProductText(currentOrder.value)
+    }
     replaceDraftFiles('delivery', files, '设计图')
     return
   }

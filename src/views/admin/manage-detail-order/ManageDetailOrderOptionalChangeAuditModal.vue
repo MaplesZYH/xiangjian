@@ -46,7 +46,7 @@
               </n-radio>
             </n-space>
           </n-radio-group>
-          <div class="vendor-option-hint">
+          <div class="vendor-option-hint optional-change-mode-hint">
             {{ modeHint }}
           </div>
         </n-form-item>
@@ -206,6 +206,17 @@ const showModel = computed({
   font-size: 12px;
   line-height: 1.5;
   color: var(--color-text-secondary);
+}
+
+.optional-change-mode-hint {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(195, 142, 44, 0.28);
+  border-left: 4px solid #c38e2c;
+  border-radius: 8px;
+  background: #fff9ec;
+  color: #7a4b00;
+  font-weight: 600;
 }
 
 .optional-change-audit-modal__footer {

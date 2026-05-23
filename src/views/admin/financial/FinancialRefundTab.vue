@@ -232,14 +232,14 @@ const handleStatusUpdate = (value) => {
 }
 
 .financial-list {
-  --financial-grid-columns: minmax(220px, 1.4fr) minmax(120px, 0.7fr) minmax(
+  --financial-grid-columns: minmax(180px, 1.35fr) minmax(96px, 0.72fr) minmax(
       140px,
-      0.82fr
-    ) minmax(110px, 0.7fr) minmax(110px, 0.7fr) minmax(110px, 0.72fr) minmax(
+      0.9fr
+    ) minmax(104px, 0.72fr) minmax(104px, 0.72fr) minmax(104px, 0.72fr) minmax(
       180px,
       1fr
-    ) 240px;
-  --financial-table-min-width: 1320px;
+    ) minmax(168px, 1.08fr);
+  --financial-table-min-width: 1240px;
 
   width: 100%;
 

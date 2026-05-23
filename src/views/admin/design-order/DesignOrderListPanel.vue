@@ -4,7 +4,6 @@
       <div class="list-header">
         <div class="header-item">设计单号</div>
         <div class="header-item">设计地址</div>
-        <div class="header-item">产品名称</div>
         <div class="header-item">设计状态</div>
         <div class="header-item">支付状态</div>
         <div v-if="showActionColumn" class="header-item actions-header">操作</div>
@@ -18,9 +17,6 @@
             </div>
             <div class="list-item" :title="item.orderAddress || '--'">
               {{ item.orderAddress || '--' }}
-            </div>
-            <div class="list-item" :title="getDesignOrderListMainProductText(item)">
-              {{ getDesignOrderListMainProductText(item) }}
             </div>
             <div class="list-item">
               <n-tag :type="getDesignStatusType(item.designStatus)">
@@ -85,10 +81,6 @@ const props = defineProps({
     type: Object,
     required: true,
   },
-  getDesignOrderListMainProductText: {
-    type: Function,
-    required: true,
-  },
   getDesignStatusType: {
     type: Function,
     required: true,
@@ -128,11 +120,11 @@ const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
 
 <style lang="scss" scoped>
 .design-order-list {
-  --design-order-grid-columns: minmax(140px, 1.2fr) minmax(220px, 1.9fr) minmax(
-      180px,
-      1.2fr
-    ) minmax(120px, 1fr) minmax(110px, 0.9fr) 180px;
-  --design-order-table-min-width: 1000px;
+  --design-order-grid-columns: minmax(160px, 1.3fr) minmax(260px, 2fr) minmax(
+      120px,
+      0.9fr
+    ) minmax(110px, 0.8fr) 180px;
+  --design-order-table-min-width: 820px;
 
   width: 100%;
 
@@ -186,7 +178,7 @@ const emit = defineEmits(['open-detail', 'cancel-order', 'page-change'])
 
 @media (max-width: 768px) {
   .design-order-list {
-    --design-order-table-min-width: 1000px;
+    --design-order-table-min-width: 820px;
 
     .list-header,
     .list-row {

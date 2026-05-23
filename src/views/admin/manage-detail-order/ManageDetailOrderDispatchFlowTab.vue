@@ -15,7 +15,7 @@
           type="warning"
           class="inline-alert-md"
         >
-          因选配变更，节点金额合计与订单总额存在 ¥{{ constructionAdjustmentInfo.amountText }} 差异，{{ constructionAdjustmentFlowText }}
+          因定金、选配变更或节点金额调整，节点金额合计与订单总额存在 ¥{{ constructionAdjustmentInfo.amountText }} 差异，{{ constructionAdjustmentFlowText }}
         </n-alert>
 
         <n-card
