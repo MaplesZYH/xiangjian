@@ -95,6 +95,9 @@ const roundCurrencyAmount = (value) => {
   return Number(amount.toFixed(2))
 }
 
+const amountsEqual = (left, right) =>
+  Math.abs(roundCurrencyAmount(left) - roundCurrencyAmount(right)) < 0.01
+
 const normalizePaymentBillStatus = (status) => String(status || '').trim().toUpperCase()
 
 const isPendingPaymentBill = (bill) =>
@@ -1510,18 +1513,14 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
           .reduce((sum, row) => sum + Number(row?.draftAmount || 0), 0),
       )
       const remainingAmount = roundCurrencyAmount(totalAmount - lockedAmount)
-      if (editableAmount > remainingAmount) {
-        throw new Error(
-          `未支付节点金额合计不能超过剩余可分配金额 ¥${remainingAmount.toFixed(2)}，当前为 ¥${editableAmount.toFixed(2)}。`,
-        )
+      if (!amountsEqual(editableAmount, remainingAmount)) {
+        throw new Error('各阶段金额之和必须等于订单总额')
       }
       return
     }
 
-    if (draftTotal > totalAmount) {
-      throw new Error(
-        `节点金额合计不能超过订单总金额 ¥${totalAmount.toFixed(2)}，当前为 ¥${draftTotal.toFixed(2)}。`,
-      )
+    if (!amountsEqual(draftTotal, totalAmount)) {
+      throw new Error('各阶段金额之和必须等于订单总额')
     }
   }
 

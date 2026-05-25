@@ -154,6 +154,7 @@ export const useVendorProfileStore = defineStore('vendorProfile', () => {
   const uploadedFiles = ref([])
   const certificateChanged = ref(false)
   const submitting = ref(false)
+  const passwordSubmitting = ref(false)
   const selectedCompanyRegionCode = ref(null)
 
   const editForm = reactive({
@@ -167,6 +168,13 @@ export const useVendorProfileStore = defineStore('vendorProfile', () => {
     companyAddress: '',
     companyIntroduction: '',
     materialCategoryIds: [],
+  })
+
+  const passwordForm = reactive({
+    phone: '',
+    code: '',
+    password: '',
+    confirmPassword: '',
   })
 
   const companyAddressForm = reactive({
@@ -419,12 +427,43 @@ export const useVendorProfileStore = defineStore('vendorProfile', () => {
     }
   }
 
+  const resetPasswordForm = () => {
+    passwordForm.phone = ''
+    passwordForm.code = ''
+    passwordForm.password = ''
+    passwordForm.confirmPassword = ''
+    passwordSubmitting.value = false
+  }
+
+  const preparePasswordForm = () => {
+    passwordForm.phone = vendorInfo.value?.phone || ''
+    passwordForm.code = ''
+    passwordForm.password = ''
+    passwordForm.confirmPassword = ''
+  }
+
+  const sendPasswordCode = () => registerAPI.sendSmsCode(passwordForm.phone)
+
+  const submitPasswordChange = async () => {
+    passwordSubmitting.value = true
+    try {
+      return await registerAPI.updatePassword({
+        phone: String(passwordForm.phone || '').trim(),
+        code: String(passwordForm.code || '').trim(),
+        password: passwordForm.password,
+      })
+    } finally {
+      passwordSubmitting.value = false
+    }
+  }
+
   const clearProfileState = () => {
     loading.value = false
     vendorInfo.value = {}
     uploadedFiles.value = []
     certificateChanged.value = false
     submitting.value = false
+    passwordSubmitting.value = false
     selectedCompanyRegionCode.value = null
     editForm.id = null
     editForm.username = ''
@@ -436,6 +475,7 @@ export const useVendorProfileStore = defineStore('vendorProfile', () => {
     editForm.companyAddress = ''
     editForm.companyIntroduction = ''
     editForm.materialCategoryIds = []
+    resetPasswordForm()
     resetCompanyAddressForm()
   }
 
@@ -446,7 +486,9 @@ export const useVendorProfileStore = defineStore('vendorProfile', () => {
     uploadedFiles,
     certificateChanged,
     submitting,
+    passwordSubmitting,
     editForm,
+    passwordForm,
     companyAddressForm,
     selectedCompanyRegionCode,
     companyRegionCascaderOptions,
@@ -460,9 +502,13 @@ export const useVendorProfileStore = defineStore('vendorProfile', () => {
     fetchVendorInfo,
     fetchCategories,
     prepareEditForm,
+    preparePasswordForm,
     uploadCertificate,
     deleteCertificate,
     submitEdit,
+    sendPasswordCode,
+    submitPasswordChange,
+    resetPasswordForm,
     clearProfileState,
   }
 })

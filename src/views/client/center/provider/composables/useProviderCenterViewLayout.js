@@ -14,6 +14,9 @@ export const useProviderCenterViewLayout = () => {
   const editModalStyle = computed(() => ({
     width: isCompactViewport.value ? 'calc(100vw - 20px)' : 'min(92vw, 800px)',
   }))
+  const passwordModalStyle = computed(() => ({
+    width: isCompactViewport.value ? 'calc(100vw - 20px)' : 'min(92vw, 420px)',
+  }))
   const orderModalStyle = computed(() => ({
     width: isCompactViewport.value ? 'calc(100vw - 20px)' : 'min(92vw, 1000px)',
     minHeight: isCompactViewport.value ? 'auto' : '600px',
@@ -25,6 +28,7 @@ export const useProviderCenterViewLayout = () => {
     detailDescriptionsColumns,
     constructionGridCols,
     editModalStyle,
+    passwordModalStyle,
     orderModalStyle,
   }
 }

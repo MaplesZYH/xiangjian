@@ -420,6 +420,7 @@ export const useManageDetailOrderDispatch = ({
       message.success('节点金额已保存')
     } catch (error) {
       console.error(error)
+      message.error(getErrorMessage(error, '保存节点金额失败'))
     } finally {
       planSubmitting.value = false
     }

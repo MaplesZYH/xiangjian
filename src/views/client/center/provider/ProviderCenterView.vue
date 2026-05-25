@@ -39,12 +39,20 @@
 
     <ProviderCenterModalStack
       :edit-modal-ref="editModalRef"
+      :password-modal-ref="passwordModalRef"
       :show-edit-modal="showEditModal"
+      :show-password-modal="showPasswordModal"
       :edit-modal-style="editModalStyle"
+      :password-modal-style="passwordModalStyle"
       :is-compact-viewport="isCompactViewport"
       :edit-form="editForm"
+      :password-form="passwordForm"
       :form-rules="formRules"
+      :password-rules="passwordRulesForModal"
       :submitting="submitting"
+      :password-submitting="passwordSubmitting"
+      :password-sending-code="passwordSendingCode"
+      :password-countdown="passwordCountdown"
       :edit-tip-text="editTipText"
       :service-type-options="serviceTypeOptions"
       :can-change-service-type="canChangeServiceType"
@@ -89,12 +97,18 @@
       :get-node-status-desc="getNodeStatusDesc"
       :get-node-status="getNodeStatus"
       @update:show-edit-modal="showEditModal = $event"
+      @update:show-password-modal="showPasswordModal = $event"
       @update:selected-company-region-code="selectedCompanyRegionCode = $event"
       @update:edit-field="handleEditFormFieldChange"
+      @update:password-field="handlePasswordFieldChange"
       @update:company-address-detail="handleCompanyAddressDetailChange"
       @upload-certificate="handleUploadRequest"
       @remove-certificate="handleRemoveFileRequest"
       @company-region-update="handleCompanyRegionUpdate"
+      @change-password="openPasswordModal"
+      @send-password-code="sendPasswordCode"
+      @submit-password-change="submitPasswordChange"
+      @reset-password-modal="resetPasswordModalState"
       @submit-edit="handleSubmitEdit"
       @update:show-note-modal="showNoteModal = $event"
       @update:action-note="actionNote = $event"
@@ -147,6 +161,7 @@ const {
   detailDescriptionsColumns,
   constructionGridCols,
   editModalStyle,
+  passwordModalStyle,
   orderModalStyle,
 } = useProviderCenterViewLayout()
 
@@ -156,25 +171,37 @@ const {
   categoryOptions,
   uploadedFiles,
   submitting,
+  passwordSubmitting,
   selectedCompanyRegionCode,
   companyAddressPreview,
   canEditVendorInfo,
   editTipText,
   editForm,
+  passwordForm,
   serviceTypeOptions,
   companyAddressForm,
   companyRegionCascaderOptions,
   editModalRef,
+  passwordModalRef,
   showEditModal,
+  showPasswordModal,
   formRules,
+  passwordRulesForModal,
+  passwordSendingCode,
+  passwordCountdown,
   requiresPasswordOnEdit,
   canChangeServiceType,
   serviceTypeLockReason,
   fetchVendorInfo,
   handleCompanyRegionUpdate,
   handleEditFormFieldChange,
+  handlePasswordFieldChange,
   handleCompanyAddressDetailChange,
   handleEdit,
+  openPasswordModal,
+  sendPasswordCode,
+  submitPasswordChange,
+  resetPasswordModalState,
   handleUploadRequest,
   handleRemoveFileRequest,
   submitEdit,

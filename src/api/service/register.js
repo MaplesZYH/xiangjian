@@ -59,4 +59,22 @@ export default {
       method: 'delete',
     })
   },
+  //发送短信验证码
+  sendSmsCode(phoneNumber) {
+    return request({
+      url: '/sms/send-code',
+      method: 'post',
+      data: {
+        phoneNumber,
+      },
+    })
+  },
+  //服务商修改密码
+  updatePassword(data) {
+    return request({
+      url: '/vendor/password/update',
+      method: 'post',
+      data,
+    })
+  },
 }

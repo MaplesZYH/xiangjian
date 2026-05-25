@@ -31,7 +31,24 @@
     @upload-certificate="$emit('upload-certificate', $event)"
     @remove-certificate="$emit('remove-certificate', $event)"
     @company-region-update="handleCompanyRegionUpdate"
+    @change-password="$emit('change-password')"
     @submit="$emit('submit-edit')"
+  />
+
+  <ProviderPasswordModal
+    :ref="passwordModalRef"
+    :show="showPasswordModal"
+    :modal-style="passwordModalStyle"
+    :form="passwordForm"
+    :rules="passwordRules"
+    :sending-code="passwordSendingCode"
+    :submitting="passwordSubmitting"
+    :countdown="passwordCountdown"
+    @update:show="$emit('update:show-password-modal', $event)"
+    @update:field="$emit('update:password-field', $event)"
+    @send-code="$emit('send-password-code')"
+    @submit="$emit('submit-password-change')"
+    @after-leave="$emit('reset-password-modal')"
   />
 
   <ProviderActionNoteModal
@@ -88,15 +105,22 @@
 import ProviderActionNoteModal from '@/views/client/center/provider/ProviderActionNoteModal.vue'
 import ProviderEditModal from '@/views/client/center/provider/ProviderEditModal.vue'
 import ProviderOrderDetailModal from '@/views/client/center/provider/ProviderOrderDetailModal.vue'
+import ProviderPasswordModal from '@/views/client/center/provider/ProviderPasswordModal.vue'
 
 const emit = defineEmits([
   'update:show-edit-modal',
+  'update:show-password-modal',
   'update:selected-company-region-code',
   'update:edit-field',
+  'update:password-field',
   'update:company-address-detail',
   'upload-certificate',
   'remove-certificate',
   'company-region-update',
+  'change-password',
+  'send-password-code',
+  'submit-password-change',
+  'reset-password-modal',
   'submit-edit',
   'update:show-note-modal',
   'update:action-note',
@@ -119,11 +143,23 @@ defineProps({
     type: Object,
     default: null,
   },
+  passwordModalRef: {
+    type: Object,
+    default: null,
+  },
   showEditModal: {
     type: Boolean,
     default: false,
   },
+  showPasswordModal: {
+    type: Boolean,
+    default: false,
+  },
   editModalStyle: {
+    type: Object,
+    required: true,
+  },
+  passwordModalStyle: {
     type: Object,
     required: true,
   },
@@ -135,13 +171,33 @@ defineProps({
     type: Object,
     required: true,
   },
+  passwordForm: {
+    type: Object,
+    required: true,
+  },
   formRules: {
+    type: Object,
+    required: true,
+  },
+  passwordRules: {
     type: Object,
     required: true,
   },
   submitting: {
     type: Boolean,
     default: false,
+  },
+  passwordSubmitting: {
+    type: Boolean,
+    default: false,
+  },
+  passwordSendingCode: {
+    type: Boolean,
+    default: false,
+  },
+  passwordCountdown: {
+    type: Number,
+    default: 0,
   },
   editTipText: {
     type: String,

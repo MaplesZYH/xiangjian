@@ -43,7 +43,12 @@
       </div>
 
       <n-form-item label="账号" path="username">
-        <n-input :value="editForm.username" disabled />
+        <div class="account-field">
+          <n-input :value="editForm.username" disabled />
+          <n-button type="primary" secondary @click="$emit('change-password')">
+            修改密码
+          </n-button>
+        </div>
       </n-form-item>
 
       <n-form-item v-if="requiresPasswordOnEdit" label="密码" path="password">
@@ -277,6 +282,7 @@ const emit = defineEmits([
   'upload-certificate',
   'remove-certificate',
   'company-region-update',
+  'change-password',
   'submit',
 ])
 
@@ -371,6 +377,13 @@ defineExpose({
   align-items: center;
   color: #4b5563;
   font-size: 13px;
+}
+
+.account-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 10px;
+  width: 100%;
 }
 
 .edit-certificate-panel {
@@ -470,6 +483,10 @@ defineExpose({
 
   .service-modal-footer > * {
     flex: 1 1 100%;
+  }
+
+  .account-field {
+    grid-template-columns: 1fr;
   }
 
   .edit-certificate-card {
