@@ -66,9 +66,11 @@
                 </span>
               </n-descriptions-item>
               <n-descriptions-item label="支付状态">
-                <n-tag :type="getPaymentStatusType(currentOrderPaymentStatus)">
-                  {{ formatPaymentStatus(currentOrderPaymentStatus) }}
-                </n-tag>
+                <div class="order-payment-status-cell">
+                  <n-tag :type="getPaymentStatusType(currentOrderPaymentStatus)">
+                    {{ formatPaymentStatus(currentOrderPaymentStatus) }}
+                  </n-tag>
+                </div>
               </n-descriptions-item>
               <n-descriptions-item label="收货人">
                 {{ currentOrderContactName }}
@@ -1235,6 +1237,12 @@ const constructionAdjustmentFlowText = computed(() =>
   margin-top: 4px;
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+.order-payment-status-cell {
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 .construction-adjustment-alert {

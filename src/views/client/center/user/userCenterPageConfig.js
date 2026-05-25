@@ -14,7 +14,7 @@ export const mobileMenuItems = [
     icon: PersonCircleOutline,
   },
   {
-    label: '我的订单',
+    label: '建房订单',
     description: '订单与支付',
     key: 'orders',
     icon: DocumentTextOutline,
