@@ -232,6 +232,7 @@ export const useManageDetailOrderDispatch = ({
   const saveConstructionPricingChanges = async ({
     autoSaveDeposit = false,
     autoSaveNodePrices = false,
+    forceSaveNodePrices = false,
     silent = false,
   } = {}) => {
     const hasDepositDraft = Boolean(orderManageStore.constructionDepositDirty)
@@ -263,9 +264,9 @@ export const useManageDetailOrderDispatch = ({
       }
     }
 
-    if (autoSaveNodePrices && hasNodeDraft) {
+    if (autoSaveNodePrices && (hasNodeDraft || forceSaveNodePrices)) {
       const res = await orderManageStore.submitConstructionPricePlan({
-        onlyDirty: true,
+        onlyDirty: hasNodeDraft && !forceSaveNodePrices,
       })
       if (res.code !== 200) {
         throw new Error(res.msg || '保存节点金额失败')
@@ -414,7 +415,6 @@ export const useManageDetailOrderDispatch = ({
 
     planSubmitting.value = true
     try {
-      orderManageStore.assertConstructionNodePricePlanBalanced()
       await saveConstructionPricingChanges({
         autoSaveNodePrices: true,
       })
@@ -458,14 +458,6 @@ export const useManageDetailOrderDispatch = ({
       return
     }
 
-    try {
-      orderManageStore.assertConstructionNodePricePlanBalanced()
-    } catch (error) {
-      message.error(getErrorMessage(error, '各阶段金额之和必须等于订单总额'))
-      dispatchTab.value = 'pricing'
-      return
-    }
-
     dialog.warning({
       title: '确认节点金额并开启施工',
       content:
@@ -479,6 +471,7 @@ export const useManageDetailOrderDispatch = ({
             await saveConstructionPricingChanges({
               autoSaveDeposit: true,
               autoSaveNodePrices: true,
+              forceSaveNodePrices: true,
               silent: true,
             })
           } catch (error) {

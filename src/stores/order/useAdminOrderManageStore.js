@@ -95,9 +95,6 @@ const roundCurrencyAmount = (value) => {
   return Number(amount.toFixed(2))
 }
 
-const amountsEqual = (left, right) =>
-  Math.abs(roundCurrencyAmount(left) - roundCurrencyAmount(right)) < 0.01
-
 const normalizePaymentBillStatus = (status) => String(status || '').trim().toUpperCase()
 
 const isPendingPaymentBill = (bill) =>
@@ -1455,10 +1452,8 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     }
   }
 
-  const startConstructionProcess = (orderId) => {
-    assertConstructionNodePricePlanBalanced()
-    return ConstructionAPI.startConstruction(orderId)
-  }
+  const startConstructionProcess = (orderId) =>
+    ConstructionAPI.startConstruction(orderId)
 
   const handleNodeClick = async (node) => {
     if (!currentDispatchOrder.value?.id) {
@@ -1508,37 +1503,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     return payload
   }
 
-  const validateConstructionNodePricePlan = () => {
-    const totalAmount = roundCurrencyAmount(priceLimitTotal.value)
-    const draftTotal = constructionPlanDraftTotal.value
-
-    if (constructionInfo.value?.constructionStarted) {
-      const lockedAmount = roundCurrencyAmount(
-        editableConstructionNodes.value
-          .filter((row) => row?.isPaid)
-          .reduce((sum, row) => sum + Number(row?.currentAmount || 0), 0),
-      )
-      const editableAmount = roundCurrencyAmount(
-        editableConstructionNodes.value
-          .filter((row) => !row?.isPaid)
-          .reduce((sum, row) => sum + Number(row?.draftAmount || 0), 0),
-      )
-      const remainingAmount = roundCurrencyAmount(totalAmount - lockedAmount)
-      if (!amountsEqual(editableAmount, remainingAmount)) {
-        throw new Error('各阶段金额之和必须等于订单总额')
-      }
-      return
-    }
-
-    if (!amountsEqual(draftTotal, totalAmount)) {
-      throw new Error('各阶段金额之和必须等于订单总额')
-    }
-  }
-
-  const assertConstructionNodePricePlanBalanced = () => {
-    validateConstructionNodePricePlan()
-  }
-
   const submitConstructionPricePlan = async ({ onlyDirty = false } = {}) => {
     if (!currentDispatchOrder.value?.id) {
       throw new Error('订单信息缺失，无法同步节点金额')
@@ -1552,8 +1516,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new Error('未识别到有效的首笔建房定金金额')
     }
-
-    validateConstructionNodePricePlan()
 
     const nodePrices = buildEditableNodePricePayload({ onlyDirty })
     if (!nodePrices.length) {
@@ -1732,7 +1694,6 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     submitRedispatch,
     resetEditableNodePriceDraft,
     applyBalancedNodePricePlan,
-    assertConstructionNodePricePlanBalanced,
     loadConstructionStatus,
     startConstructionProcess,
     handleNodeClick,
