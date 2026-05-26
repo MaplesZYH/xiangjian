@@ -136,7 +136,7 @@
         <div class="allocation-summary-card">
             <div class="allocation-summary-card__label">剩余待支付阶段款</div>
             <div class="allocation-summary-card__value">
-              ¥{{ formatAmount(workflowStarted ? editableStageAmountTotal : remainingStageAmountTotal) }}
+              ¥{{ formatAmount(remainingUnpaidStageAmountTotal) }}
             </div>
         </div>
       </div>
@@ -294,6 +294,10 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
+  remainingUnpaidStageAmountTotal: {
+    type: Number,
+    default: 0,
+  },
   pricePlanStatusText: {
     type: String,
     default: '',
@@ -406,13 +410,6 @@ const adjustableStageCount = computed(() => adjustableStageRows.value.length)
 
 const lockedStageAmountTotal = computed(() =>
   lockedStageRows.value.reduce(
-    (sum, row) => sum + Number(row?.amount || 0),
-    0,
-  ),
-)
-
-const remainingStageAmountTotal = computed(() =>
-  adjustableStageRows.value.reduce(
     (sum, row) => sum + Number(row?.amount || 0),
     0,
   ),

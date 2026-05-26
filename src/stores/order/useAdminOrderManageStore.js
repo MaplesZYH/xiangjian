@@ -525,6 +525,15 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
       ),
   )
 
+  const remainingUnpaidStageAmountTotal = computed(() =>
+    Math.max(
+      0,
+      roundCurrencyAmount(
+        priceLimitTotal.value - Number(detailOrder.value?.paidAmount || 0),
+      ),
+    ),
+  )
+
   const constructionPlanDraftTotal = computed(() =>
     roundCurrencyAmount(
       editableConstructionNodes.value.reduce(
@@ -1446,8 +1455,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     }
   }
 
-  const startConstructionProcess = (orderId) =>
-    ConstructionAPI.startConstruction(orderId)
+  const startConstructionProcess = (orderId) => {
+    assertConstructionNodePricePlanBalanced()
+    return ConstructionAPI.startConstruction(orderId)
+  }
 
   const handleNodeClick = async (node) => {
     if (!currentDispatchOrder.value?.id) {
@@ -1522,6 +1533,10 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     if (!amountsEqual(draftTotal, totalAmount)) {
       throw new Error('各阶段金额之和必须等于订单总额')
     }
+  }
+
+  const assertConstructionNodePricePlanBalanced = () => {
+    validateConstructionNodePricePlan()
   }
 
   const submitConstructionPricePlan = async ({ onlyDirty = false } = {}) => {
@@ -1672,6 +1687,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     depositNode,
     editableConstructionNodes,
     editableStageAmountTotal,
+    remainingUnpaidStageAmountTotal,
     depositDraftAmount,
     stagePaymentAutoTotal,
     constructionBillPlanTotal,
@@ -1716,6 +1732,7 @@ export const useAdminOrderManageStore = defineStore('adminOrderManage', () => {
     submitRedispatch,
     resetEditableNodePriceDraft,
     applyBalancedNodePricePlan,
+    assertConstructionNodePricePlanBalanced,
     loadConstructionStatus,
     startConstructionProcess,
     handleNodeClick,

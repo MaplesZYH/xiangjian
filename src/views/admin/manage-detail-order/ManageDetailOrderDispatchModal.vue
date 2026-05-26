@@ -73,6 +73,7 @@
             :construction-pricing-stage-rows="constructionPricingStageRows"
             :editable-construction-nodes="editableConstructionNodes"
             :editable-stage-amount-total="editableStageAmountTotal"
+            :remaining-unpaid-stage-amount-total="remainingUnpaidStageAmountTotal"
             :construction-price-plan-status-text="constructionPricePlanStatusText"
             :construction-price-plan-hint="constructionPricePlanHint"
             :construction-workflow-started="constructionWorkflowStarted"
@@ -301,6 +302,10 @@ const props = defineProps({
     default: () => [],
   },
   editableStageAmountTotal: {
+    type: Number,
+    default: 0,
+  },
+  remainingUnpaidStageAmountTotal: {
     type: Number,
     default: 0,
   },

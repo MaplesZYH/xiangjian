@@ -414,6 +414,7 @@ export const useManageDetailOrderDispatch = ({
 
     planSubmitting.value = true
     try {
+      orderManageStore.assertConstructionNodePricePlanBalanced()
       await saveConstructionPricingChanges({
         autoSaveNodePrices: true,
       })
@@ -454,6 +455,14 @@ export const useManageDetailOrderDispatch = ({
         startConstructionBlockedReason.value ||
           '请先完成派单并等待全部服务商接单后，再确认开工节点金额',
       )
+      return
+    }
+
+    try {
+      orderManageStore.assertConstructionNodePricePlanBalanced()
+    } catch (error) {
+      message.error(getErrorMessage(error, '各阶段金额之和必须等于订单总额'))
+      dispatchTab.value = 'pricing'
       return
     }
 

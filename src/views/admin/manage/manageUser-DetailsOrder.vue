@@ -89,6 +89,7 @@
       :construction-pricing-stage-rows="constructionPricingStageRows"
       :editable-construction-nodes="editableConstructionNodes"
       :editable-stage-amount-total="editableStageAmountTotal"
+      :remaining-unpaid-stage-amount-total="remainingUnpaidStageAmountTotal"
       :construction-price-plan-status-text="constructionPricePlanStatusText"
       :construction-price-plan-hint="constructionPricePlanHint"
       :construction-workflow-started="constructionWorkflowStarted"
@@ -343,6 +344,7 @@ const {
   savingNodePriceId,
   editableConstructionNodes,
   editableStageAmountTotal,
+  remainingUnpaidStageAmountTotal,
   constructionPricePlanStatusText,
   constructionPricePlanHint,
   canEditConstructionDeposit,
