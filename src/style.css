@@ -553,11 +553,15 @@ img {
 
   :where(.client-center-form-actions),
   :where(.responsive-actions) {
+    flex-direction: column;
+    flex-wrap: wrap;
     justify-content: stretch;
+    align-items: stretch;
   }
 
   :where(.client-center-form-actions) > *,
   :where(.responsive-actions) > * {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
+    width: 100%;
   }
 }

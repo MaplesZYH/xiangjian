@@ -65,7 +65,6 @@
         :get-design-order-payment-status-type="getDesignOrderPaymentStatusType"
         :format-design-order-payment-status="formatDesignOrderPaymentStatus"
         :can-cancel-design-order="canCancelDesignOrder"
-        @refresh="$emit('refresh-design-orders')"
         @open-detail="$emit('open-design-order-detail', $event)"
         @cancel-order="$emit('cancel-design-order', $event)"
         @page-change="$emit('design-order-page-change', $event)"
@@ -80,7 +79,6 @@
         :default-favorite-image="defaultFavoriteImage"
         :format-favorite-style="formatFavoriteStyle"
         :format-favorite-area="formatFavoriteArea"
-        @refresh="$emit('refresh-favorites')"
         @go-to-house-page="$emit('go-to-house-page', $event)"
         @view-detail="$emit('view-favorite-detail', $event)"
         @cancel-favorite="$emit('cancel-favorite', $event)"
@@ -274,11 +272,9 @@ defineEmits([
   'open-order-detail',
   'cancel-order',
   'order-page-change',
-  'refresh-design-orders',
   'open-design-order-detail',
   'cancel-design-order',
   'design-order-page-change',
-  'refresh-favorites',
   'go-to-house-page',
   'view-favorite-detail',
   'cancel-favorite',

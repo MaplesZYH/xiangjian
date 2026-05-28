@@ -1,9 +1,5 @@
 <template>
   <n-card title="收藏户型">
-    <div class="client-center-toolbar-end">
-      <n-button size="small" @click="$emit('refresh')">刷新列表</n-button>
-    </div>
-
     <n-empty
       v-if="favorites.length === 0 && !loadingFavorites"
       description="您还没有收藏任何户型"
@@ -117,7 +113,6 @@ defineProps({
 })
 
 defineEmits([
-  'refresh',
   'go-to-house-page',
   'view-detail',
   'cancel-favorite',

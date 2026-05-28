@@ -18,7 +18,7 @@ const loginApi = {
 
   sendUserCode(phoneNumber) {
     return request({
-      url: '/user/send-code',
+      url: '/sms/send-code',
       method: 'post',
       data: {
         phoneNumber,

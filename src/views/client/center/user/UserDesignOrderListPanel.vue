@@ -1,9 +1,5 @@
 <template>
   <n-card title="设计订单">
-    <div class="client-center-toolbar-end">
-      <n-button size="small" @click="$emit('refresh')">刷新列表</n-button>
-    </div>
-
     <div class="order-table-wrap">
       <n-spin :show="loadingDesignOrders">
         <div
@@ -136,5 +132,5 @@ defineProps({
   },
 })
 
-defineEmits(['refresh', 'open-detail', 'cancel-order', 'page-change'])
+defineEmits(['open-detail', 'cancel-order', 'page-change'])
 </script>

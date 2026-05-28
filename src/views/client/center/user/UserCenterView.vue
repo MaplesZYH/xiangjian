@@ -62,11 +62,9 @@
       @open-order-detail="viewOrderDetail($event.row, $event.initialTab)"
       @cancel-order="handleCancelOrder"
       @order-page-change="handlePageChange"
-      @refresh-design-orders="fetchDesignOrders"
       @open-design-order-detail="openDesignOrderDetail"
       @cancel-design-order="handleCancelDesignOrder"
       @design-order-page-change="handleDesignPageChange"
-      @refresh-favorites="refreshFavorites"
       @go-to-house-page="goToHousePage"
       @view-favorite-detail="viewFavoriteDetail"
       @cancel-favorite="cancelFavorite"
@@ -494,6 +492,10 @@ const {
   hasUserOptionSelectionChanges,
   userOptionChangeTypeLabel,
   userOptionChangeSummaryText,
+  currentEffectiveOptionSnapshot,
+  pendingTargetOptionSnapshot,
+  hasPendingUserOptionalChange,
+  canCancelLatestOptionalChange,
   getUserOptionalChangeStatusTagType,
   formatOptionalChangeSnapshot,
   latestOptionalChangeRefundPaymentRecordMissing,
@@ -526,6 +528,7 @@ const {
   submitPayment,
   handleUserOptionSelectionUpdate,
   resetUserOptionSelectionChanges,
+  cancelLatestOptionalChange,
   submitUserOptionSelectionChanges,
   handleNodeClick,
   currentNodeDetailStatusText,

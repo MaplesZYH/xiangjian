@@ -67,7 +67,11 @@
               </n-descriptions-item>
               <n-descriptions-item label="支付状态">
                 <div class="order-payment-status-cell">
-                  <n-tag :type="getPaymentStatusType(currentOrderPaymentStatus)">
+                  <n-tag
+                    :type="getPaymentStatusType(currentOrderPaymentStatus)"
+                    size="small"
+                    :bordered="false"
+                  >
                     {{ formatPaymentStatus(currentOrderPaymentStatus) }}
                   </n-tag>
                 </div>
@@ -659,7 +663,7 @@
                   <div>账单类型</div>
                   <div>账单状态</div>
                   <div>应付金额</div>
-                  <div>账单说明</div>
+                  <div v-if="hasPendingPaymentBillRemark">账单说明</div>
                   <div>创建时间</div>
                   <div>操作</div>
                 </div>
@@ -696,7 +700,10 @@
                     <span class="pending-payment-bills-label">应付金额</span>
                     <span>¥{{ formatAmount(row.amount) }}</span>
                   </div>
-                  <div class="pending-payment-bills-cell">
+                  <div
+                    v-if="hasPendingPaymentBillRemark"
+                    class="pending-payment-bills-cell pending-payment-bills-cell--remark"
+                  >
                     <span class="pending-payment-bills-label">账单说明</span>
                     <span class="pending-payment-bills-text">
                       {{ row.remark || '--' }}
@@ -1098,6 +1105,10 @@ const constructionAdjustmentFlowText = computed(() =>
     ? '差额将通过补价账单处理，请以账单支付为准。'
     : '差额已通过原路退款或未付节点抵扣处理，不影响实际支付。',
 )
+
+const hasPendingPaymentBillRemark = computed(() =>
+  props.pendingPaymentBillRows.some((row) => String(row?.remark || '').trim()),
+)
 </script>
 
 <style scoped>
@@ -1152,14 +1163,15 @@ const constructionAdjustmentFlowText = computed(() =>
 .pending-payment-bills-head,
 .pending-payment-bills-row {
   display: grid;
-  grid-template-columns:
-    minmax(180px, 1.1fr)
-    140px
-    140px
-    minmax(240px, 1.4fr)
-    180px
-    minmax(140px, 0.8fr);
+  grid-template-columns: var(
+    --pending-payment-bills-columns,
+    minmax(180px, 1.1fr) 140px 140px minmax(120px, 0.8fr) 180px minmax(140px, 0.8fr)
+  );
   align-items: start;
+}
+
+.pending-payment-bills-table:has(.pending-payment-bills-cell--remark) {
+  --pending-payment-bills-columns: minmax(180px, 1.1fr) 140px 140px minmax(120px, 0.8fr) minmax(180px, 1.2fr) 180px minmax(140px, 0.8fr);
 }
 
 .detail-payment-records-head,
@@ -1191,6 +1203,10 @@ const constructionAdjustmentFlowText = computed(() =>
 .pending-payment-bills-cell--actions,
 .refund-records-cell--actions {
   justify-self: stretch;
+}
+
+.pending-payment-bills-cell--remark {
+  min-width: 0;
 }
 
 .detail-payment-records-label,
@@ -1241,7 +1257,8 @@ const constructionAdjustmentFlowText = computed(() =>
 
 .order-payment-status-cell {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: center;
   width: 100%;
 }
 
@@ -1399,6 +1416,27 @@ const constructionAdjustmentFlowText = computed(() =>
     gap: 12px;
   }
 
+  .pending-payment-bills-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .pending-payment-bills-cell--actions {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    justify-self: end;
+    align-self: start;
+  }
+
+  .pending-payment-bills-row
+    > .pending-payment-bills-cell:not(.pending-payment-bills-cell--actions) {
+    grid-column: 1;
+  }
+
+  .pending-payment-bills-cell--remark {
+    grid-column: 1 / -1;
+  }
+
   .detail-payment-records-label,
   .pending-payment-bills-label,
   .refund-records-label {
@@ -1406,14 +1444,16 @@ const constructionAdjustmentFlowText = computed(() =>
   }
 
   .detail-payment-records-actions,
-  .pending-payment-bills-actions,
   .refund-records-actions {
     flex-direction: column;
     align-items: stretch;
   }
 
+  .pending-payment-bills-actions {
+    justify-content: flex-end;
+  }
+
   .detail-payment-records-actions :deep(.n-button),
-  .pending-payment-bills-actions :deep(.n-button),
   .refund-records-actions :deep(.n-button) {
     width: 100%;
   }

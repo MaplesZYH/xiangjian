@@ -14,7 +14,7 @@
           </h1>
           <h2 class="brand__title">专业乡村建房服务平台</h2>
           <p class="brand__desc">
-            当前用户端采用手机号直接登录，服务商通过账号密码登录。
+            用户端采用手机号验证码登录，服务商通过账号密码登录。
           </p>
         </div>
       </section>
@@ -39,7 +39,7 @@
             <n-form-item path="phone">
               <n-input
                 v-model:value="userForm.phone"
-                placeholder="请输入手机号直接登录"
+                placeholder="请输入手机号"
                 size="large"
                 maxlength="11"
               >
@@ -78,7 +78,7 @@
               </div>
             </n-form-item>
 
-            <p class="login__helper">当前阶段默认按手机号直登处理，验证码输入框仅保留样式。</p>
+            <p class="login__helper">验证码 5 分钟内有效，请使用注册手机号接收短信验证码。</p>
 
             <n-button
               type="primary"
@@ -292,6 +292,14 @@ const userRules = {
       trigger: ['blur', 'input'],
     },
   ],
+  code: [
+    { required: true, message: '请输入验证码', trigger: ['blur', 'input'] },
+    {
+      pattern: /^\d{6}$/,
+      message: '验证码应为 6 位数字',
+      trigger: ['blur', 'input'],
+    },
+  ],
 }
 
 const providerRules = {
@@ -486,12 +494,7 @@ const handleUserLogin = async () => {
     message.success('登录成功')
     router.replace('/adminCenter')
   } catch (error) {
-    const errorMessage = getErrorMessage(error, '用户登录失败')
-    if (!userForm.code.trim() && errorMessage.includes('验证码错误')) {
-      message.error('当前登录方式暂不可用，请稍后重试或联系管理员。')
-      return
-    }
-    message.error(errorMessage)
+    message.error(getErrorMessage(error, '用户登录失败'))
   } finally {
     loading.value = false
   }
