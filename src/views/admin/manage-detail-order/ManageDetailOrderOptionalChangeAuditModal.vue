@@ -5,7 +5,7 @@
     title="审核选配变更"
     style="width: min(560px, calc(100vw - 24px))"
   >
-    <n-form label-placement="left" label-width="90">
+    <n-form class="optional-change-audit-form" label-placement="left" label-width="108">
       <n-form-item label="申请编号">
         <span>#{{ currentRecord?.id || '--' }}</span>
       </n-form-item>
@@ -18,7 +18,7 @@
           }}
         </span>
       </n-form-item>
-      <n-form-item label="处理结果">
+      <n-form-item label="处理结果" class="optional-change-audit-form__radio-item">
         <n-radio-group
           :value="auditForm.approved"
           @update:value="emit('update:audit-form-field', { key: 'approved', value: $event })"
@@ -31,7 +31,7 @@
       </n-form-item>
 
       <template v-if="auditForm.approved">
-        <n-form-item label="结算方式">
+        <n-form-item label="结算方式" class="optional-change-audit-form__radio-item">
           <div class="optional-change-mode-field">
             <n-radio-group
               :value="auditForm.mode"
@@ -201,6 +201,29 @@ const showModel = computed({
 
 .full-width-input {
   width: 100%;
+
+  :deep(.n-input__input-el) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.optional-change-audit-form {
+  :deep(.n-form-item-label) {
+    white-space: nowrap;
+  }
+
+  :deep(.n-form-item-blank) {
+    min-width: 0;
+  }
+}
+
+.optional-change-audit-form__radio-item {
+  :deep(.n-form-item-label) {
+    align-items: flex-start;
+    padding-top: 1px;
+  }
 }
 
 .vendor-option-hint {
@@ -232,10 +255,34 @@ const showModel = computed({
 }
 
 @media (max-width: 768px) {
+  .optional-change-audit-form {
+    :deep(.n-form-item-label) {
+      flex: 0 0 108px;
+      width: 108px;
+      min-width: 108px;
+      max-width: 108px;
+    }
+
+    :deep(.n-form-item-blank) {
+      flex: 1 1 auto;
+    }
+  }
+
   .optional-change-audit-modal__footer {
     width: 100%;
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 480px) {
+  .optional-change-audit-form {
+    :deep(.n-form-item-label) {
+      flex-basis: 96px;
+      width: 96px;
+      min-width: 96px;
+      max-width: 96px;
+    }
   }
 }
 </style>

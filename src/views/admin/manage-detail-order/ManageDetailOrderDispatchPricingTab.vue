@@ -29,6 +29,20 @@
       @confirm-plan="handleConfirmConstructionPricing"
       @sync-plan="handleSyncConstructionPricePlan"
     />
+
+    <div
+      v-if="shouldShowConstructionProgressButton"
+      class="construction-progress-actions"
+    >
+      <n-button
+        class="construction-progress-actions__button"
+        type="info"
+        size="large"
+        @click="openConstructionProgress"
+      >
+        查看施工进度
+      </n-button>
+    </div>
   </div>
 </template>
 
@@ -144,6 +158,14 @@ defineProps({
     type: Function,
     required: true,
   },
+  shouldShowConstructionProgressButton: {
+    type: Boolean,
+    default: false,
+  },
+  openConstructionProgress: {
+    type: Function,
+    default: () => {},
+  },
 })
 </script>
 
@@ -170,10 +192,43 @@ defineProps({
   background: transparent;
 }
 
+.construction-progress-actions {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 16px;
+  padding: 0 4px 2px;
+  box-sizing: border-box;
+}
+
 @media (max-width: 768px) {
   .dispatch-panel {
     padding: 4px 2px 8px;
     max-height: calc(85vh - 180px);
+  }
+
+  .construction-progress-actions {
+    width: 100%;
+    justify-content: stretch;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .construction-progress-actions :deep(.construction-progress-actions__button),
+  .construction-progress-actions :deep(.n-button) {
+    display: flex;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .construction-progress-actions :deep(.n-button__content) {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
   }
 }
 </style>

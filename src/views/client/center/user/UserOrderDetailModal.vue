@@ -35,6 +35,7 @@
             <n-divider title-placement="left">基础信息</n-divider>
             <n-descriptions
               bordered
+              class="order-basic-descriptions"
               :label-placement="descriptionsLabelPlacement"
               :column="detailDescriptionsColumns"
             >
@@ -55,22 +56,17 @@
                 </span>
               </n-descriptions-item>
               <n-descriptions-item
-                v-if="orderAdjustmentInfo.visible"
-                label="选配调整"
+                v-if="orderPendingPaymentInfo.visible"
+                label="剩余应付"
               >
                 <span class="order-adjustment-amount">
-                  {{ orderAdjustmentInfo.label }} ¥{{ orderAdjustmentInfo.amountText }}
-                </span>
-                <span class="order-adjustment-desc">
-                  {{ orderAdjustmentInfo.suffix }}
+                  ¥{{ orderPendingPaymentInfo.amountText }}
                 </span>
               </n-descriptions-item>
               <n-descriptions-item label="支付状态">
                 <div class="order-payment-status-cell">
                   <n-tag
                     :type="getPaymentStatusType(currentOrderPaymentStatus)"
-                    size="small"
-                    :bordered="false"
                   >
                     {{ formatPaymentStatus(currentOrderPaymentStatus) }}
                   </n-tag>
@@ -218,9 +214,6 @@
                 !canAdjustUserOptions && 'user-option-adjust-panel--disabled',
               ]"
             >
-              <div class="user-option-adjust-panel__hint">
-                {{ userOptionAdjustmentHintText }}
-              </div>
               <n-spin :show="userOptionConfigLoading">
                 <n-grid cols="1 s:2" responsive="screen" :x-gap="12" :y-gap="16">
                   <n-grid-item
@@ -1096,6 +1089,25 @@ const orderAdjustmentInfo = computed(() =>
   resolveOptionAdjustmentInfo(props.currentOrder?.adjustmentAmount),
 )
 
+const orderPendingPaymentInfo = computed(() => {
+  const info = orderAdjustmentInfo.value
+  if (!info.visible) return info
+
+  if (info.type === 'charge') {
+    return {
+      ...info,
+      label: '订单剩余应付',
+      suffix: '待支付',
+    }
+  }
+
+  return {
+    ...info,
+    label: '订单已抵扣',
+    suffix: '已从应付金额中抵扣',
+  }
+})
+
 const constructionAdjustmentInfo = computed(() =>
   resolveOptionAdjustmentInfo(props.constructionInfo?.adjustmentAmount),
 )
@@ -1120,10 +1132,14 @@ const hasPendingPaymentBillRemark = computed(() =>
   padding-bottom: 8px;
 }
 
-.detail-payment-records-table,
-.refund-records-table {
-  min-width: 1080px;
+.detail-payment-records-table {
+  min-width: 1240px;
   overflow: hidden;
+}
+
+.refund-records-table {
+  min-width: 1320px;
+  overflow: visible;
 }
 
 .pending-payment-bills-table {
@@ -1135,14 +1151,15 @@ const hasPendingPaymentBillRemark = computed(() =>
 .detail-payment-records-row {
   display: grid;
   grid-template-columns:
-    120px
-    120px
-    110px
+    130px
+    150px
+    150px
     120px
     180px
-    minmax(220px, 1fr)
-    minmax(220px, 1.2fr);
-  align-items: start;
+    minmax(260px, 1fr)
+    minmax(180px, 0.8fr);
+  column-gap: 28px;
+  align-items: center;
 }
 
 .refund-records-head,
@@ -1197,6 +1214,14 @@ const hasPendingPaymentBillRemark = computed(() =>
   min-width: 0;
   font-size: 14px;
   color: var(--color-text-primary);
+}
+
+.detail-payment-records-head > *,
+.detail-payment-records-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .detail-payment-records-cell--actions,
@@ -1260,6 +1285,13 @@ const hasPendingPaymentBillRemark = computed(() =>
   justify-content: flex-start;
   align-items: center;
   width: 100%;
+  min-height: 28px;
+  height: 100%;
+}
+
+.order-basic-descriptions :deep(.n-descriptions-table-header),
+.order-basic-descriptions :deep(.n-descriptions-table-content) {
+  vertical-align: middle;
 }
 
 .construction-adjustment-alert {
@@ -1441,6 +1473,11 @@ const hasPendingPaymentBillRemark = computed(() =>
   .pending-payment-bills-label,
   .refund-records-label {
     display: block;
+  }
+
+  .detail-payment-records-cell {
+    display: block;
+    text-align: left;
   }
 
   .detail-payment-records-actions,

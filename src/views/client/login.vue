@@ -13,9 +13,6 @@
             乡建在线
           </h1>
           <h2 class="brand__title">专业乡村建房服务平台</h2>
-          <p class="brand__desc">
-            用户端采用手机号验证码登录，服务商通过账号密码登录。
-          </p>
         </div>
       </section>
 

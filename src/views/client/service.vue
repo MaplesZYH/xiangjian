@@ -273,12 +273,6 @@
           >
             提交资质申请
           </n-button>
-          <p class="agreement-tip">
-            点击"提交资质申请"即表示已阅读并同意
-            <a href="#">《平台供应商服务协议》</a>
-            及
-            <a href="#">《隐私政策》</a>
-          </p>
         </div>
       </n-form>
     </section>
@@ -1299,18 +1293,6 @@ onBeforeUnmount(() => {
   --n-color-focus: var(--brand-hover);
   --n-border: 1px solid var(--brand-color);
   box-shadow: 0 4px 6px rgba(39, 110, 61, 0.2);
-}
-
-.agreement-tip {
-  margin: 16px 0 0;
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.8;
-}
-
-.agreement-tip a {
-  color: var(--brand-color);
-  text-decoration: none;
 }
 
 @media (max-width: 768px) {

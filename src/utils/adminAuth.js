@@ -3,13 +3,13 @@ export const ADMIN_MENU_CONFIG = [
   { id: 2, name: '用户管理', path: '/manageUser', permission: 'user:list' },
   {
     id: 3,
-    name: '订单管理',
+    name: '建房订单管理',
     path: '/manageUser-DetailsOrder',
     permission: 'order:list',
   },
   {
     id: 8,
-    name: '设计订单',
+    name: '设计订单管理',
     path: '/manageDesignOrder',
     permission: 'order:list',
   },

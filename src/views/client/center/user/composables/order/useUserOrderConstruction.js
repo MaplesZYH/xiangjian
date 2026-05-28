@@ -57,6 +57,31 @@ export const useUserOrderConstruction = ({
     return flow.nodeDetails[0] || null
   }
 
+  const getFlowNodeIndex = (flow, nodeId) => {
+    if (!flow?.nodeDetails?.length || !(Number(nodeId) > 0)) return -1
+    return flow.nodeDetails.findIndex(
+      (item) => resolveNodeId(item) === Number(nodeId),
+    )
+  }
+
+  const resolveNodeStatusText = (node, flow = constructionInfo.value) => {
+    if (!node) return '--'
+
+    const nodeId = resolveNodeId(node)
+    const nodeIndex = getFlowNodeIndex(flow, nodeId)
+    const currentIndex = Number(flow?.currentNodeIndex)
+    const isActiveNode = nodeId === activeConstructionNodeId.value
+
+    if (isConstructionFlowCompleted(flow)) return '已完成'
+    if (isActiveNode) {
+      return flow?.currentNodeStatusText || node?.statusText || '进行中'
+    }
+    if (nodeIndex >= 0 && nodeIndex < currentIndex) return '已完成'
+    if (nodeIndex > currentIndex) return node?.statusText || '待开始'
+
+    return node?.statusText || '--'
+  }
+
   const buildNodeDetailFromFlowNode = (node = {}, flow = constructionInfo.value) => ({
     ...node,
     nodeId: node?.nodeId || node?.id || null,
@@ -71,16 +96,7 @@ export const useUserOrderConstruction = ({
       )
         ? flow?.currentNodeStatus
         : node?.status),
-    statusText:
-      node?.statusText ||
-      (Number(node?.nodeId || node?.id || 0) ===
-      Number(
-        flow?.nodeDetails?.[Number(flow?.currentNodeIndex || 0)]?.nodeId ||
-          flow?.nodeDetails?.[Number(flow?.currentNodeIndex || 0)]?.id ||
-          0,
-      )
-        ? flow?.currentNodeStatusText
-        : ''),
+    statusText: resolveNodeStatusText(node, flow),
     progressRecords: Array.isArray(node?.progressRecords) ? node.progressRecords : [],
   })
 
@@ -428,18 +444,7 @@ export const useUserOrderConstruction = ({
 
   const currentNodeDetailStatusText = computed(() => {
     if (!currentNodeDetail.value) return '--'
-    if (
-      Number(currentNodeDetail.value.nodeId || 0) ===
-      Number(activeConstructionNodeId.value || 0)
-    ) {
-      return (
-        constructionInfo.value?.currentNodeStatusText ||
-        currentNodeDetail.value.statusText ||
-        '--'
-      )
-    }
-
-    return currentNodeDetail.value.statusText || '--'
+    return resolveNodeStatusText(currentNodeDetail.value, constructionInfo.value)
   })
 
   const openCurrentConstructionPayment = async () => {

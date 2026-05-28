@@ -8,7 +8,13 @@
     :bordered="false"
   >
     <n-spin :show="loading">
-      <n-tabs type="segment" animated :value="dispatchTab" @update:value="updateDispatchTab">
+      <n-tabs
+        class="dispatch-process-tabs"
+        type="segment"
+        animated
+        :value="dispatchTab"
+        @update:value="updateDispatchTab"
+      >
         <n-tab-pane name="contract" tab="1. 合同管理">
           <ManageDetailOrderDispatchContractTab
             :current-contract-url="currentContractUrl"
@@ -95,6 +101,10 @@
             :handle-save-construction-deposit="handleSaveConstructionDeposit"
             :handle-confirm-construction-pricing="handleConfirmConstructionPricing"
             :handle-sync-construction-price-plan="handleSyncConstructionPricePlan"
+            :should-show-construction-progress-button="
+              shouldShowConstructionProgressButton
+            "
+            :open-construction-progress="() => updateDispatchTab('flow')"
           />
         </n-tab-pane>
 
@@ -165,12 +175,6 @@
           />
         </n-tab-pane>
       </n-tabs>
-
-      <div v-if="shouldShowConstructionProgressButton" class="construction-progress-actions">
-        <n-button type="info" size="large" @click="updateDispatchTab('flow')">
-          查看施工进度
-        </n-button>
-      </div>
     </n-spin>
   </n-modal>
 </template>
@@ -628,25 +632,78 @@ const updateDispatchTab = (value) => {
 </script>
 
 <style lang="scss" scoped>
-.construction-progress-actions {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border-soft);
-  display: flex;
-  justify-content: flex-end;
-}
-@media (max-width: 768px) {
-  .construction-progress-actions {
-    margin-top: 16px;
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: stretch;
-    padding-left: 0;
-    padding-right: 0;
+.dispatch-process-tabs {
+  :deep(.n-tabs-nav) {
+    min-width: 0;
   }
+}
 
-  .construction-progress-actions > * {
-    flex: 1 1 100%;
+@media (max-width: 768px) {
+  .dispatch-process-tabs {
+    :deep(.n-tabs-nav-scroll-wrapper) {
+      width: 100%;
+      overflow: visible;
+    }
+
+    :deep(.n-tabs-nav-scroll-content) {
+      width: 100%;
+      min-width: 0;
+    }
+
+    :deep(.n-tabs-rail) {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      width: 100%;
+      min-width: 0;
+      height: auto !important;
+      padding: 4px;
+      box-sizing: border-box;
+    }
+
+    :deep(.n-tabs-tab-wrapper) {
+      min-width: 0;
+    }
+
+    :deep(.n-tabs-tab) {
+      width: 100%;
+      min-width: 0;
+      height: 32px;
+      justify-content: center;
+      padding: 0 8px;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+
+    :deep(.n-tabs-tab--active) {
+      background: #ffffff;
+      color: #276e3d;
+      box-shadow: 0 1px 4px rgba(37, 54, 43, 0.12);
+    }
+
+    :deep(.n-tabs-capsule) {
+      display: none;
+    }
+
+    :deep(.n-tabs-tab__label) {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .dispatch-process-tabs {
+    :deep(.n-tabs-rail) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    :deep(.n-tabs-tab) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
   }
 }
 </style>
