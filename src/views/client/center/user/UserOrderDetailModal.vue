@@ -1133,7 +1133,7 @@ const hasPendingPaymentBillRemark = computed(() =>
 }
 
 .detail-payment-records-table {
-  min-width: 1240px;
+  min-width: 1400px;
   overflow: hidden;
 }
 
@@ -1256,6 +1256,11 @@ const hasPendingPaymentBillRemark = computed(() =>
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.detail-payment-records-actions {
+  justify-content: center;
+  min-width: 0;
 }
 
 .detail-payment-records-empty-action {
