@@ -1,4 +1,76 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+
+const ORDER_CHANGE_NOTICE_STORAGE_KEY = 'adminBuildOrderChangeNoticeState'
+
+const readOrderChangeNoticeState = () => {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(ORDER_CHANGE_NOTICE_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+const writeOrderChangeNoticeState = (state) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(
+      ORDER_CHANGE_NOTICE_STORAGE_KEY,
+      JSON.stringify(state),
+    )
+  } catch {
+    // localStorage may be unavailable in private mode.
+  }
+}
+
+const normalizeSignatureValue = (value) => {
+  if (value === null || value === undefined) return ''
+  if (Array.isArray(value)) return String(value.length)
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
+
+const resolveOrderChangeSignature = (order = {}) => {
+  const pendingPaymentBills = Array.isArray(order.pendingPaymentBills)
+    ? order.pendingPaymentBills
+    : []
+  const pendingOptionalChanges = Array.isArray(order.optionalChangeRecords)
+    ? order.optionalChangeRecords.filter((item) => item?.status === 'PENDING').length
+    : ''
+  const pendingRefunds = Array.isArray(order.refundRecords)
+    ? order.refundRecords.filter((item) => Number(item?.status) === 0).length
+    : ''
+
+  const parts = [
+    order.id,
+    order.orderStatus,
+    order.paymentStatus,
+    order.totalAmount,
+    order.paidAmount,
+    order.unpaidAmount,
+    order.paymentRecordId,
+    order.latestPaymentRecordId,
+    order.lastPaymentRecordId,
+    order.latestPaymentTime,
+    order.payTime,
+    order.updateTime,
+    order.updatedAt,
+    order.modifyTime,
+    order.optionalChangeStatus,
+    order.latestOptionalChangeId,
+    order.latestOptionalChangeTime,
+    order.refundStatus,
+    order.latestRefundId,
+    order.latestRefundTime,
+    pendingPaymentBills.length,
+    pendingOptionalChanges,
+    pendingRefunds,
+  ]
+
+  return parts.map(normalizeSignatureValue).join('|')
+}
 
 export const useManageDetailOrderListState = ({
   orderList,
@@ -7,6 +79,37 @@ export const useManageDetailOrderListState = ({
   canOpenDispatchFlow,
 }) => {
   const activeTodoFilter = ref('all')
+  const orderChangeNoticeState = ref(readOrderChangeNoticeState())
+
+  watch(
+    orderList,
+    (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return
+
+      const nextState = { ...orderChangeNoticeState.value }
+      let changed = false
+
+      rows.forEach((order) => {
+        const orderId = order?.id
+        if (!orderId) return
+
+        const key = String(orderId)
+        if (nextState[key]) return
+
+        const signature = resolveOrderChangeSignature(order)
+        nextState[key] = {
+          baselineSignature: signature,
+          readSignature: signature,
+        }
+        changed = true
+      })
+
+      if (!changed) return
+      orderChangeNoticeState.value = nextState
+      writeOrderChangeNoticeState(nextState)
+    },
+    { immediate: true },
+  )
 
   const orderStatusOptions = [
     { label: '未派单', value: 0 },
@@ -195,6 +298,33 @@ export const useManageDetailOrderListState = ({
     )
   })
 
+  const hasUnreadOrderChange = (order) => {
+    const orderId = order?.id
+    if (!orderId) return false
+
+    const signature = resolveOrderChangeSignature(order)
+    if (!signature) return false
+
+    const state = orderChangeNoticeState.value[String(orderId)]
+    return Boolean(state && state.readSignature !== signature)
+  }
+
+  const markOrderChangeRead = (order) => {
+    const orderId = order?.id
+    if (!orderId) return
+
+    const signature = resolveOrderChangeSignature(order)
+    const nextState = {
+      ...orderChangeNoticeState.value,
+      [String(orderId)]: {
+        baselineSignature: signature,
+        readSignature: signature,
+      },
+    }
+    orderChangeNoticeState.value = nextState
+    writeOrderChangeNoticeState(nextState)
+  }
+
   const emptyOrderListDescription = computed(() =>
     activeTodoFilter.value === 'all'
       ? '暂无符合条件的订单数据'
@@ -283,6 +413,8 @@ export const useManageDetailOrderListState = ({
     activeTodoFilterLabel,
     visibleOrderList,
     emptyOrderListDescription,
+    hasUnreadOrderChange,
+    markOrderChangeRead,
     formatTodoBadgeCount,
     getStatusText,
     getStyleLabel,

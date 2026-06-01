@@ -21,6 +21,7 @@
       :can-delete-order="canDeleteOrder"
       :detail-button-text="detailButtonText"
       :can-open-dispatch-entry="canOpenDispatchEntry"
+      :has-unread-order-change="hasUnreadOrderChange"
       @search="handleSearch"
       @update:filter-field="handleFilterFieldUpdate"
       @update:active-todo-filter="handleActiveTodoFilterChange"
@@ -502,6 +503,8 @@ const {
   activeTodoFilterLabel,
   visibleOrderList,
   emptyOrderListDescription,
+  hasUnreadOrderChange,
+  markOrderChangeRead,
   formatTodoBadgeCount,
   getStatusText,
   getStyleLabel,
@@ -918,7 +921,7 @@ const {
   canSyncConstructionPricePlan,
   shouldShowConstructionProgressButton,
   pickAccessibleDispatchTab,
-  handleOpenDispatch,
+  handleOpenDispatch: openDispatchFlow,
   handleGoToConstructionPricing,
   handleUpdateConstructionDepositDraft,
   handleUpdateConstructionNodeDraft,
@@ -981,6 +984,15 @@ const {
   loadConstructionStatus: async (...args) => loadConstructionStatus(...args),
   startConstructionProcess: async (...args) => startConstructionProcess(...args),
 })
+
+const handleOpenDispatch = async (item) => {
+  markOrderChangeRead(item)
+  await openDispatchFlow(item)
+  const latestItem = orderList.value.find(
+    (order) => Number(order?.id) === Number(item?.id),
+  )
+  markOrderChangeRead(latestItem || item)
+}
 
 watch(dispatchTab, (newVal) => {
   if (

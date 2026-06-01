@@ -110,15 +110,20 @@
               {{ detailButtonText }}
             </n-button>
 
-            <n-button
+            <span
               v-if="canManageDispatch"
-              type="primary"
-              size="small"
-              :disabled="!canOpenDispatchEntry(item)"
-              @click="emit('open-dispatch', item)"
+              class="order-dispatch-action"
+              :class="{ 'has-unread-change': hasUnreadOrderChange(item) }"
             >
-              处理/派单
-            </n-button>
+              <n-button
+                type="primary"
+                size="small"
+                :disabled="!canOpenDispatchEntry(item)"
+                @click="emit('open-dispatch', item)"
+              >
+                处理/派单
+              </n-button>
+            </span>
 
             <Delete
               v-if="canDeleteOrder"
@@ -232,6 +237,10 @@ const props = defineProps({
   canOpenDispatchEntry: {
     type: Function,
     required: true,
+  },
+  hasUnreadOrderChange: {
+    type: Function,
+    default: () => false,
   },
 })
 
@@ -422,6 +431,25 @@ const handleFilterFieldUpdate = (key, value, shouldSearch = false) => {
     justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .order-dispatch-action {
+    position: relative;
+    display: inline-flex;
+    line-height: 1;
+  }
+
+  .order-dispatch-action.has-unread-change::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d03050;
+    box-shadow: 0 0 0 2px #fff;
+    pointer-events: none;
   }
 }
 
