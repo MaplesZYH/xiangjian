@@ -431,6 +431,7 @@ const handleFilterFieldUpdate = (key, value, shouldSearch = false) => {
     justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
+    overflow: visible;
   }
 
   .order-dispatch-action {
@@ -442,8 +443,8 @@ const handleFilterFieldUpdate = (key, value, shouldSearch = false) => {
   .order-dispatch-action.has-unread-change::after {
     content: '';
     position: absolute;
-    top: -4px;
-    right: -4px;
+    top: -3px;
+    right: -3px;
     width: 8px;
     height: 8px;
     border-radius: 50%;
@@ -451,6 +452,14 @@ const handleFilterFieldUpdate = (key, value, shouldSearch = false) => {
     box-shadow: 0 0 0 2px #fff;
     pointer-events: none;
   }
+}
+
+:deep(.order-list.admin-shell-list .actions) {
+  overflow: visible;
+}
+
+:deep(.order-list.admin-shell-list .actions .order-dispatch-action) {
+  overflow: visible;
 }
 
 .empty-state {
