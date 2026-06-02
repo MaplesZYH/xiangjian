@@ -259,9 +259,11 @@
       @continue-build-design-order="handleContinueBuildFromDesign"
       @close-design-repay-modal="showDesignRepayModal = false"
       @submit-design-order-repayment="submitDesignOrderRepayment"
+      @skip-design-order-payment-for-test="skipDesignOrderPaymentForTest"
       @update:design-repay-channel="designRepayForm.channel = $event"
       @close-payment-modal="closePaymentModal"
       @submit-payment="submitPayment"
+      @skip-payment-for-test="skipPaymentForTest"
       @update:payment-channel="paymentForm.channel = $event"
       @close-audit-reject-modal="showAuditRejectModal = false"
       @submit-audit-reject="submitUserAudit(false, auditRejectReason)"
@@ -526,6 +528,7 @@ const {
   handleCancelOrder,
   closePaymentModal,
   submitPayment,
+  skipPaymentForTest,
   handleUserOptionSelectionUpdate,
   resetUserOptionSelectionChanges,
   cancelLatestOptionalChange,
@@ -609,6 +612,7 @@ const {
   openDesignOrderDetail,
   openDesignOrderPaymentModal,
   submitDesignOrderRepayment,
+  skipDesignOrderPaymentForTest,
   handleContinueBuildFromDesign,
   handleMarkDesignOrderNoBuild,
   handleCancelDesignOrder,

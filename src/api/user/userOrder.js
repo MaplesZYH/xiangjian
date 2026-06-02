@@ -207,6 +207,20 @@ export default {
     })
   },
 
+  // TODO: 测试专用跳过支付接口，正式支付稳定后移除
+  skipBillPayment(billId, userId) {
+    return request({
+      url: `/payment/bill/${billId}/skip`,
+      method: 'post',
+      params: {
+        userId,
+      },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    })
+  },
+
   // 用户取消选配补价账单
   cancelBill(billId, userId) {
     return request({

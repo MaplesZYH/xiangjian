@@ -507,6 +507,56 @@ export const useUserOrderPayments = ({
     }
   }
 
+  // TODO: 测试专用跳过支付入口，正式支付稳定后移除
+  const skipPaymentForTest = async () => {
+    const userId = getStoredUserId()
+    const orderId = paymentTarget.orderId
+    let billId = paymentTarget.billId
+
+    if (!userId || !orderId) {
+      message.error('登录状态失效，请重新登录')
+      return
+    }
+
+    if (!billId && paymentTarget.nodeId) {
+      billId = await resolveConstructionPaymentBillId(orderId, paymentTarget.nodeId)
+    }
+
+    if (!billId) {
+      message.error('未找到待支付账单')
+      return
+    }
+
+    paymentSubmitting.value = true
+    try {
+      const res = await orderAPI.skipBillPayment(billId, userId)
+      if (res?.code !== 200) {
+        message.error(res?.msg || '跳过支付失败')
+        return
+      }
+
+      message.success(res?.msg || '支付已跳过，流程已推进')
+      showPaymentModal.value = false
+      if (paymentTarget.nodeId) {
+        await refreshConstructionAfterNodePayment(orderId, {
+          focusPaymentResult: true,
+        })
+      } else {
+        await refreshOrderAfterPayment()
+      }
+    } catch (error) {
+      const msg =
+        error?.response?.data?.msg ||
+        error?.msg ||
+        error?.message ||
+        '跳过支付失败'
+      message.error(String(msg))
+    } finally {
+      paymentSubmitting.value = false
+      resetPaymentTarget()
+    }
+  }
+
   const closeWechatPayModal = async (onRefreshDesignOrderAfterPayment) => {
     const resultOrderId = paymentBridge.paymentResultTarget.orderId
     const resultNodeId = paymentBridge.paymentResultTarget.nodeId
@@ -558,6 +608,7 @@ export const useUserOrderPayments = ({
     openPendingBillPaymentModal,
     closePaymentModal,
     submitPayment,
+    skipPaymentForTest,
     closeWechatPayModal,
   }
 }

@@ -171,6 +171,7 @@
     :payment-channel-options="paymentChannelOptions"
     @close="$emit('close-design-repay-modal')"
     @submit="$emit('submit-design-order-repayment')"
+    @skip-payment-for-test="$emit('skip-design-order-payment-for-test')"
     @update:design-repay-channel="$emit('update:design-repay-channel', $event)"
   />
 
@@ -184,6 +185,7 @@
     :payment-channel="paymentChannel"
     @close="$emit('close-payment-modal')"
     @submit="$emit('submit-payment')"
+    @skip-payment-for-test="$emit('skip-payment-for-test')"
     @update:payment-channel="$emit('update:payment-channel', $event)"
   />
 
@@ -792,9 +794,11 @@ defineEmits([
   'continue-build-design-order',
   'close-design-repay-modal',
   'submit-design-order-repayment',
+  'skip-design-order-payment-for-test',
   'update:design-repay-channel',
   'close-payment-modal',
   'submit-payment',
+  'skip-payment-for-test',
   'update:payment-channel',
   'close-audit-reject-modal',
   'submit-audit-reject',

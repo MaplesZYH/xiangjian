@@ -509,6 +509,7 @@
 
     <n-modal
       v-model:show="showOrderPaymentModal"
+      class="payment-action-modal"
       preset="card"
       title="订单支付"
       :mask-closable="!orderPaymentSubmitting"
@@ -553,6 +554,14 @@
             稍后支付
           </n-button>
           <n-button
+            type="warning"
+            secondary
+            :loading="orderPaymentSubmitting"
+            @click="skipCreatedOrderPaymentForTest"
+          >
+            跳过支付(测试)
+          </n-button>
+          <n-button
             type="primary"
             :loading="orderPaymentSubmitting"
             @click="submitCreatedOrderPayment"
@@ -590,6 +599,7 @@
 
     <n-modal
       v-model:show="showDesignPaymentModal"
+      class="payment-action-modal"
       preset="card"
       title="设计订单支付"
       :mask-closable="!designSubmitting"
@@ -629,6 +639,14 @@
             @click="closeDesignPaymentModal"
           >
             稍后支付
+          </n-button>
+          <n-button
+            type="warning"
+            secondary
+            :loading="designSubmitting"
+            @click="skipDesignOrderPaymentForTest"
+          >
+            跳过支付(测试)
           </n-button>
           <n-button
             type="primary"
@@ -1957,6 +1975,51 @@ const submitCreatedOrderPayment = async () => {
   }
 }
 
+// TODO: 测试专用跳过支付入口，正式支付稳定后移除
+const skipCreatedOrderPaymentForTest = async () => {
+  const userId = getCurrentUserId()
+  const orderId = createdOrderPaymentTarget.orderId
+  const billId = createdOrderPaymentTarget.billId
+  const billType = createdOrderPaymentTarget.billType
+  if (!userId || !orderId || !billId) {
+    message.error('订单支付信息缺失，请前往用户中心重试')
+    return
+  }
+
+  orderPaymentSubmitting.value = true
+  try {
+    const res = await orderAPI.skipBillPayment(billId, userId)
+    if (res?.code !== 200) {
+      message.error(res?.msg || '跳过支付失败')
+      return
+    }
+
+    const pendingBills = await loadPendingBuildBills(orderId, userId)
+    clearBuildPaymentTracker()
+    if (billType === 'BUILD_DEPOSIT') {
+      const pendingInitialOptionBill = pickPendingInitialOptionBill(pendingBills)
+      if (pendingInitialOptionBill) {
+        openCreatedOrderPaymentModal(orderId, pendingInitialOptionBill)
+        message.success('定金支付已跳过，请继续处理初始选配补价')
+        return
+      }
+    }
+
+    message.success(res?.msg || '支付已跳过，流程已推进')
+    showOrderPaymentModal.value = false
+    resetCreatedOrderPaymentTarget()
+  } catch (error) {
+    const msg =
+      error?.response?.data?.msg ||
+      error?.msg ||
+      error?.message ||
+      '跳过支付失败'
+    message.error(String(msg))
+  } finally {
+    orderPaymentSubmitting.value = false
+  }
+}
+
 const submitDesignOrder = async () => {
   const userId = getCurrentUserId()
   if (!userId) {
@@ -2050,6 +2113,46 @@ const submitDesignOrder = async () => {
     }
     console.error('设计订单支付拉起失败', error)
     message.error(error?.msg || error?.message || '设计订单支付拉起失败')
+  } finally {
+    designSubmitting.value = false
+  }
+}
+
+// TODO: 测试专用跳过支付入口，正式支付稳定后移除
+const skipDesignOrderPaymentForTest = async () => {
+  const userId = getCurrentUserId()
+  const orderId = createdDesignPaymentTarget.orderId
+  const billId = createdDesignPaymentTarget.billId
+  if (!userId) {
+    message.warning('请先登录后再进行操作')
+    router.push('/login')
+    return
+  }
+  if (!orderId || !billId) {
+    message.warning('设计订单尚未创建，请重新点击下一步')
+    return
+  }
+
+  designSubmitting.value = true
+  try {
+    const res = await designOrderAPI.skipBillPayment(billId, userId)
+    if (res?.code !== 200) {
+      message.error(res?.msg || '跳过支付失败')
+      return
+    }
+
+    clearDesignPaymentTracker()
+    showDesignPaymentModal.value = false
+    showDesignModal.value = false
+    resetCreatedDesignPaymentTarget()
+    message.success(res?.msg || '支付已跳过，流程已推进')
+  } catch (error) {
+    const msg =
+      error?.response?.data?.msg ||
+      error?.msg ||
+      error?.message ||
+      '跳过支付失败'
+    message.error(String(msg))
   } finally {
     designSubmitting.value = false
   }
@@ -2978,6 +3081,10 @@ onBeforeUnmount(() => {
   font-size: 28px;
   font-weight: 700;
   color: var(--detail-accent);
+}
+
+:deep(.payment-action-modal .n-card__footer .n-space) {
+  flex-wrap: wrap;
 }
 
 .wechat-pay-tip {

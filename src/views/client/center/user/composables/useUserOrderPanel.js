@@ -580,6 +580,7 @@ export const useUserOrderPanel = ({
     handleCancelOrder,
     closePaymentModal: paymentsPanel.closePaymentModal,
     submitPayment: paymentsPanel.submitPayment,
+    skipPaymentForTest: paymentsPanel.skipPaymentForTest,
     handleUserOptionSelectionUpdate:
       optionsPanel.handleUserOptionSelectionUpdate,
     resetUserOptionSelectionChanges:

@@ -645,6 +645,40 @@ export const useUserDesignOrderPanel = ({
     }
   }
 
+  // TODO: 测试专用跳过支付入口，正式支付稳定后移除
+  const skipDesignOrderPaymentForTest = async () => {
+    const userId = getStoredUserId()
+    const designOrderId = currentDesignOrder.value?.id
+    const billId = currentDesignOrder.value?.pendingBillId
+    if (!userId || !designOrderId || !billId) {
+      message.error('未找到有效的设计订单支付信息')
+      return
+    }
+
+    designRepaySubmitting.value = true
+    try {
+      const res = await designOrderAPI.skipBillPayment(billId, userId)
+      if (res?.code !== 200) {
+        message.error(res?.msg || '跳过支付失败')
+        return
+      }
+
+      message.success(res?.msg || '支付已跳过，流程已推进')
+      showDesignRepayModal.value = false
+      stopDesignPaymentStatusPolling()
+      await refreshDesignOrderAfterPayment(designOrderId)
+    } catch (error) {
+      const msg =
+        error?.response?.data?.msg ||
+        error?.msg ||
+        error?.message ||
+        '跳过支付失败'
+      message.error(String(msg))
+    } finally {
+      designRepaySubmitting.value = false
+    }
+  }
+
   const handleContinueBuildFromDesign = async () => {
     const userId = getStoredUserId()
     const designOrderId = currentDesignOrder.value?.id
@@ -830,6 +864,7 @@ export const useUserDesignOrderPanel = ({
     openDesignOrderDetail,
     openDesignOrderPaymentModal,
     submitDesignOrderRepayment,
+    skipDesignOrderPaymentForTest,
     handleContinueBuildFromDesign,
     handleMarkDesignOrderNoBuild,
     handleCancelDesignOrder,

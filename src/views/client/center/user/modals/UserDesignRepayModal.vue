@@ -41,6 +41,14 @@
           取消
         </n-button>
         <n-button
+          type="warning"
+          secondary
+          :loading="designRepaySubmitting"
+          @click="$emit('skip-payment-for-test')"
+        >
+          跳过支付(测试)
+        </n-button>
+        <n-button
           type="primary"
           :loading="designRepaySubmitting"
           @click="$emit('submit')"
@@ -80,7 +88,12 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['close', 'submit', 'update:design-repay-channel'])
+const emit = defineEmits([
+  'close',
+  'submit',
+  'skip-payment-for-test',
+  'update:design-repay-channel',
+])
 
 const handleShowUpdate = (value) => {
   if (!value) {
@@ -114,5 +127,16 @@ const handleShowUpdate = (value) => {
   font-size: 28px;
   font-weight: 700;
   color: #d03050;
+}
+
+@media (max-width: 768px) {
+  :deep(.n-card__footer .n-space) {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  :deep(.n-card__footer .n-button) {
+    flex: 1 1 140px;
+  }
 }
 </style>
