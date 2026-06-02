@@ -511,6 +511,7 @@ export const useUserOrderPayments = ({
   const skipPaymentForTest = async () => {
     const userId = getStoredUserId()
     const orderId = paymentTarget.orderId
+    const nodeId = paymentTarget.nodeId
     let billId = paymentTarget.billId
 
     if (!userId || !orderId) {
@@ -518,18 +519,22 @@ export const useUserOrderPayments = ({
       return
     }
 
-    if (!billId && paymentTarget.nodeId) {
-      billId = await resolveConstructionPaymentBillId(orderId, paymentTarget.nodeId)
-    }
-
-    if (!billId) {
-      message.error('未找到待支付账单')
-      return
+    if (!billId && nodeId) {
+      billId = await resolveConstructionPaymentBillId(orderId, nodeId)
     }
 
     paymentSubmitting.value = true
     try {
-      const res = await orderAPI.skipBillPayment(billId, userId)
+      let res
+      if (billId) {
+        res = await orderAPI.skipBillPayment(billId, userId, orderId, nodeId)
+      } else if (nodeId) {
+        res = await orderAPI.skipNodePayment(orderId, nodeId, userId)
+      } else {
+        message.error('未找到待支付账单')
+        return
+      }
+
       if (res?.code !== 200) {
         message.error(res?.msg || '跳过支付失败')
         return
@@ -537,7 +542,7 @@ export const useUserOrderPayments = ({
 
       message.success(res?.msg || '支付已跳过，流程已推进')
       showPaymentModal.value = false
-      if (paymentTarget.nodeId) {
+      if (nodeId) {
         await refreshConstructionAfterNodePayment(orderId, {
           focusPaymentResult: true,
         })

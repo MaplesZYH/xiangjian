@@ -208,13 +208,26 @@ export default {
   },
 
   // TODO: 测试专用跳过支付接口，正式支付稳定后移除
-  skipBillPayment(billId, userId) {
+  skipBillPayment(billId, userId, orderId, nodeId) {
+    const params = { userId }
+    if (orderId) params.orderId = orderId
+    if (nodeId) params.nodeId = nodeId
     return request({
       url: `/payment/bill/${billId}/skip`,
       method: 'post',
-      params: {
-        userId,
+      params,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
+    })
+  },
+
+  // TODO: 测试专用跳过支付接口（施工节点专用，无需billId），正式支付稳定后移除
+  skipNodePayment(orderId, nodeId, userId) {
+    return request({
+      url: `/payment/node/skip`,
+      method: 'post',
+      params: { orderId, nodeId, userId },
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
